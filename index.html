@@ -15,9 +15,6 @@
   --dim:#8c83a8;
   --edge:#3a3354;
   --btn:#1d1930;
-  --shell:#2a2542;
-  --shell-hi:#3a3460;
-  --shell-lo:#1a1730;
   --gold:#ffcf4a;
   --red:#ff4d5e;
   --green:#58e07a;
@@ -31,17 +28,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padd
   -webkit-user-select:none;user-select:none;overscroll-behavior:none}
 
 /* ===== ゲーム機本体 ===== */
-.gb{width:100%;max-width:520px;background:var(--shell);border-radius:14px 14px 64px 14px;padding:12px 14px 18px;
-  box-shadow:inset 4px 4px 0 var(--shell-hi), inset -4px -4px 0 var(--shell-lo);display:flex;flex-direction:column;gap:12px}
+.gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;gap:6px}
 .top h1{margin:0;font:400 14px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
 .top h1 b{color:var(--gold);font-weight:400}
+.top h1 span{color:var(--ink)}
 .mini{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{border-color:var(--green);color:var(--green)}
-.bezel{background:#15121f;border-radius:10px 10px 40px 10px;padding:12px 12px 6px;box-shadow:inset 3px 3px 0 #0a0910}
-.screen{position:relative;background:#000;border:3px solid #0a0910;overflow:hidden}
-.brand{display:flex;justify-content:space-between;align-items:baseline;margin-top:5px;font-size:12px;color:var(--dim);letter-spacing:.08em}
-.brand b{font-weight:400;color:var(--gold);font-style:italic;letter-spacing:.12em}
+.screen{position:relative;background:#000;overflow:hidden}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
 
 /* 画面内の表示 */
@@ -61,7 +55,6 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dmg{position:absolute;transform:translate(-50%,0);font-size:clamp(13px,4vw,18px);color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
 .dmg.crit{color:var(--gold);font-size:clamp(16px,5vw,23px)}
-.dmg.miss{color:var(--red)}
 @keyframes dmg{0%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-28px}}
 
 /* ===== 操作部 ===== */
@@ -102,22 +95,19 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <body>
 <div class="gb" id="game">
   <div class="top">
-    <h1><b>混沌の終末</b> エクサ練習</h1>
+    <h1><b>混沌の終末</b> <span id="jobName">ナイト</span></h1>
     <button class="mini" id="bSafe" type="button" aria-pressed="false">安置</button>
     <button class="mini" id="bRetry" type="button" aria-label="同じ問題をやり直す">↻</button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
 
-  <div class="bezel">
-    <div class="screen">
+  <div class="screen">
       <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
       <div class="fx" id="fx"></div>
       <div class="buff outline" id="buff" hidden>迅速魔</div>
       <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name">混沌の終末</div></div>
       <div class="hud outline"><span id="hSet">SET -/6</span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
       <div class="msg outline" id="msg"></div>
-    </div>
-    <div class="brand"><b>EXAFLARE</b><span id="jobName">ナイト</span></div>
   </div>
 
   <div class="controls">
@@ -506,7 +496,7 @@ function dealDamage(pot){
   popup(dmg.toLocaleString('en-US') + (crit ? '!' : ''), crit ? 'crit' : '');
   crit ? sfx.crit() : sfx.hit();
 }
-function fail(text){ A.failT = performance.now(); popup(text, 'miss'); sfx.no(); }
+function fail(){ A.failT = performance.now(); sfx.no(); }
 
 function pressA(){
   sfx.unlock();
@@ -515,24 +505,24 @@ function pressA(){
 function pressB(){
   sfx.unlock();
   if (S.phase !== 'run' || S.t < A.abilityAt) return;
-  if (A.cast){ fail('詠唱中'); return; }
+  if (A.cast){ fail(); return; }
   const b = job().b;
   if (b.swift){ A.swift = true; A.abilityAt = S.t + ABILITY_CD; sfx.buff(); popup('迅速魔', 'crit'); return; }
-  if (!inRange()){ fail('射程外'); return; }
+  if (!inRange()){ fail(); return; }
   A.abilityAt = S.t + ABILITY_CD; dealDamage(b.pot);
 }
 function actTick(dt){
   const a = job().a;
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
-    if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail('詠唱中断'); }
+    if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
     else if (S.t >= A.cast.end){ A.cast = null; dealDamage(a.pot); }
     return;
   }
   if (S.t < A.readyAt) return;
   if (A.queued){
     A.queued = false;
-    if (!inRange()){ fail('射程外'); }
+    if (!inRange()){ fail(); }
     else {
       A.readyAt = S.t + GCD; A.gcds++;
       if (a.cast && !A.swift) A.cast = { start:S.t, end:S.t + a.cast };

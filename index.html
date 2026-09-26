@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>混沌の終末トレーナー</title>
+<title>絶ケフカP5トレーナー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
@@ -27,7 +27,6 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;align-items:flex-start;
   -webkit-user-select:none;user-select:none;overscroll-behavior:none}
 
-/* ===== ゲーム機本体 ===== */
 .gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;gap:6px}
 .top h1{margin:0;font:400 14px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
@@ -46,12 +45,20 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .cast .name{text-align:right;font-size:clamp(16px,5vw,24px);line-height:1.2;margin-top:2px}
 .hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(11px,3.2vw,15px);font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
-.buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none}
+.buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
 .msg .big{font-size:clamp(26px,9vw,42px);line-height:1.1}
 .msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
 .msg .blink{animation:blink 1s steps(2,start) infinite}
 @keyframes blink{to{visibility:hidden}}
+/* ギミック選択メニュー */
+.menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
+.menu .head{font-size:clamp(18px,6vw,28px);color:var(--gold)}
+.menu .note{font-size:clamp(11px,3.2vw,13px);color:var(--dim)}
+.menu button{width:min(78%,360px);font:clamp(14px,4.4vw,19px)/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:8px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
+.menu button small{font-size:.7em;color:var(--dim);align-self:center}
+.menu button.cur{border-color:var(--gold);color:var(--gold)}
+.menu button.cur::before{content:"▶";margin-right:4px}
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dmg{position:absolute;transform:translate(-50%,0);font-size:clamp(13px,4vw,18px);color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
 .dmg.crit{color:var(--gold);font-size:clamp(16px,5vw,23px)}
@@ -81,10 +88,11 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 
 /* ===== 設定 ===== */
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
-.panel{width:100%;max-width:380px;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel{width:100%;max-width:380px;max-height:100%;overflow:auto;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
 .panel h2{margin:0;font:400 16px var(--px);color:var(--gold)}
+.panel h3{margin:4px 0 0;font:400 13px var(--px);color:var(--dim)}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.opt select,.opt input[type=range]{font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:3px 4px;accent-color:var(--gold)}
+.opt select,.opt input[type=range]{font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:3px 4px;accent-color:var(--gold);max-width:60%}
 .opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold)}
 .panel .note{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
 .close{font:14px var(--px);color:var(--gold);background:var(--btn);border:3px solid var(--gold);height:44px;cursor:pointer}
@@ -95,26 +103,32 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <body>
 <div class="gb" id="game">
   <div class="top">
-    <h1><b>混沌の終末</b> <span id="jobName">ナイト</span></h1>
+    <h1><b id="mechName">絶ケフカP5</b> <span id="jobName">ナイト</span></h1>
     <button class="mini" id="bSafe" type="button" aria-pressed="false">安置</button>
     <button class="mini" id="bRetry" type="button" aria-label="同じ問題をやり直す">↻</button>
+    <button class="mini" id="bMenu" type="button" aria-label="ギミック選択に戻る">≡</button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
 
   <div class="screen">
-      <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
-      <div class="fx" id="fx"></div>
-      <div class="buff outline" id="buff" hidden>迅速魔</div>
-      <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name">混沌の終末</div></div>
-      <div class="hud outline"><span id="hSet">SET -/6</span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
-      <div class="msg outline" id="msg"></div>
+    <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
+    <div class="fx" id="fx"></div>
+    <div class="buff outline" id="buff"></div>
+    <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
+    <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
+    <div class="msg outline" id="msg"></div>
+    <div class="menu" id="menu" hidden>
+      <div class="head outline">ギミック選択</div>
+      <div id="menuList" style="display:contents"></div>
+      <div class="note outline">十字で選んでA／STARTで開始</div>
+    </div>
   </div>
 
   <div class="controls">
     <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
     <div class="ab">
-      <div class="abw b"><button class="round" id="btnB" type="button" aria-label="Bボタン">B</button><span id="nameB">ドゥーム</span></div>
-      <div class="abw a"><button class="round" id="btnA" type="button" aria-label="Aボタン">A</button><span id="nameA">ロイエ</span></div>
+      <div class="abw b"><button class="round" id="btnB" type="button" aria-label="Bボタン">B</button><span id="nameB"></span></div>
+      <div class="abw a"><button class="round" id="btnA" type="button" aria-label="Aボタン">A</button><span id="nameA"></span></div>
     </div>
   </div>
 
@@ -123,22 +137,28 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="ssw"><button class="pill" id="btnStart" type="button" aria-label="START：開始"></button><span>START</span></div>
   </div>
 
-  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安置表示　<kbd>R</kbd> リトライ</p>
+  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安置表示　<kbd>R</kbd> リトライ　<kbd>Esc</kbd> ギミック選択</p>
 </div>
 
 <div class="sheet" id="sheet" hidden>
   <div class="panel" role="dialog" aria-label="設定">
     <h2>設定</h2>
-    <label class="opt"><span>最初の方向</span>
-      <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
     <label class="opt"><span>ゲーム速度 <span id="oSpeedV">100%</span></span>
       <input type="range" id="oSpeed" min="0.4" max="1" step="0.1" value="1"></label>
-    <label class="opt"><span>エクサの進路を表示</span><input type="checkbox" id="oPath"></label>
-    <label class="opt"><span>4点避けの位置を表示</span><input type="checkbox" id="oSpots"></label>
+    <label class="opt"><span>補助表示（進路・予兆を残す）</span><input type="checkbox" id="oPath"></label>
+    <label class="opt"><span>立ち位置ガイド</span><input type="checkbox" id="oSpots"></label>
     <label class="opt"><span>マーカー</span>
       <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
     <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
-    <p class="note">6レーン中2本が光り、北西・北東から2.5秒ごとに交互に計6セット。予兆の4.6秒後から0.51秒間隔で6発、着弾円は半径6y。座標とタイミングは cactbot / Splatoon のデータから算出。</p>
+    <h3>混沌の終末</h3>
+    <label class="opt"><span>最初の方向</span>
+      <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
+    <h3>スリースターズ</h3>
+    <label class="opt"><span>デバフ</span>
+      <select id="oDebuff"><option value="rand">ランダム</option><option value="0">ファイア</option><option value="1">サンダー</option><option value="2">ブリザド</option><option value="-1">なし</option></select></label>
+    <label class="opt"><span>2本ある属性（デバフ持ち）</span>
+      <select id="oDouble"><option value="first">時計回りで手前</option><option value="second">時計回りで奥</option></select></label>
+    <p class="note">座標とタイミングは cactbot・Splatoon・AnoMech のゲームデータから算出。ミッシングの床の消え方は実戦ログ1件の配置を再現しています。</p>
     <button class="close" id="bClose" type="button">とじる</button>
   </div>
 </div>
@@ -147,30 +167,22 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 (() => {
 'use strict';
 
-// ===== ギミック定数（docs/research-stray-apocalypse.md） =====
-const ARENA_R = 20, EXA_R = 6, HIT_COUNT = 6;
-const SET_INTERVAL = 2.5, FIRST_HIT = 4.6, HIT_GAP = 0.51;
-const PLAYER_SPEED = 6, COUNTDOWN = 3;
-const PATTERNS = { A: [-25, 5], B: [-15, 15], C: [-5, 25] }; // レーン i と i+3
+// ===== 共通定数 =====
+const ARENA_R = 20, BOSS_R = 6, PLAYER_SPEED = 6, COUNTDOWN = 3;
+const SQ2 = Math.SQRT2;
 
-// ===== ジョブ =====
-// pot は見た目のダメージ用（実数値ではない）
+// ===== ジョブ（pot は見た目のダメージ用） =====
 const JOBS = {
-  pld: { name:'ナイト',   role:'tank',   melee:true,
-         a:{ name:'ロイエ', pot:460 },
-         b:{ name:'ドゥーム', pot:140 } },
-  mch: { name:'機工士',   role:'dps',    melee:false,
-         a:{ name:'ドリル', pot:600 },
-         b:{ name:'チェックメイト', pot:170 } },
-  blm: { name:'黒魔道士', role:'dps',    melee:false,
-         a:{ name:'ファイジャ', pot:320, cast:2.0 },
-         b:{ name:'迅速魔', swift:true } },
+  pld: { name:'ナイト',   role:'tank', melee:true,  a:{ name:'ロイエ', pot:460 },              b:{ name:'ドゥーム', pot:140 } },
+  mch: { name:'機工士',   role:'dps',  melee:false, a:{ name:'ドリル', pot:600 },              b:{ name:'チェックメイト', pot:170 } },
+  blm: { name:'黒魔道士', role:'dps',  melee:false, a:{ name:'ファイジャ', pot:320, cast:2.0 }, b:{ name:'迅速魔', swift:true } },
 };
 const JOB_ORDER = ['pld', 'mch', 'blm'];
 const GCD = 2.5, QUEUE = 0.5, MELEE = 3, ABILITY_CD = 10, SLIDECAST = 0.5;
 
-// ===== 画面（内部 288px、1y = 4px） =====
-const W = 288, PPY = 4, C0 = W / 2; // 描画範囲 ±36y（場外の予兆まで見える）
+// ===== 画面（内部 288px。1y あたりのピクセル数はギミックごとに変える） =====
+const W = 288, C0 = W / 2;
+let PPY = 4;
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
@@ -181,6 +193,7 @@ const P = {
   void:'#000000', floor:'#4b4c8a', grid:'#3e3f7a', diag:'#3a3a70', rim:'#4c6ed8', rim2:'#2d3f8f',
   exa:'#ff7a1f', exaDk:'#3a1606', exaHi:'#ffe08a', chev:'#fff4d6', white:'#ffffff',
   safe:'#58e07a', boss:'#b04a8a', bossEdge:'#d8609c', bossTip:'#ff5aa8', hurt:'#ff2a3a',
+  water:'#3ab8ff', waterHi:'#c8f0ff', purple:'#b05aff', purpleDk:'#3a1060',
   mk:['#ff5a5a','#ffd84a','#5ad0ff','#d08cff']
 };
 
@@ -193,54 +206,19 @@ const store = {
 const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true),
-  safe: store.get('safe', false), job: store.get('job', 'pld')
+  safe: store.get('safe', false), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
+  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first')
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
 const job = () => JOBS[opt.job];
 
 // ===== 状態 =====
-const S = { phase:'title', t:-COUNTDOWN, sets:[], player:{x:0,z:5}, hits:0, hurtT:-9 };
+const S = { phase:'menu', t:-COUNTDOWN, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };
 const keys = new Set();
 const stickVec = { x:0, z:0 };
 
-// ===== 問題 =====
 function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function makeProblem(){
-  const first = opt.first === 'rand' ? (Math.random() < .5 ? 'NW' : 'NE') : opt.first;
-  const second = first === 'NW' ? 'NE' : 'NW';
-  const p1 = shuffle(['A','B','C']), p2 = shuffle(['A','B','C']), list = [];
-  for (let i = 0; i < 3; i++){ list.push({ dir:first, pat:p1[i] }); list.push({ dir:second, pat:p2[i] }); }
-  return list;
-}
-// ローカル座標（x=東, z=南）
-function laneHit(dir, off, k){
-  if (dir === 'NW'){ const s = -35 + 10 * k; return { x:(s + off) / 2, z:(s - off) / 2 }; }
-  const d = 35 - 10 * k; return { x:(off + d) / 2, z:(off - d) / 2 };
-}
-function buildSets(list){
-  return list.map((w, k) => {
-    const start = SET_INTERVAL * k;
-    const lanes = PATTERNS[w.pat].map(off => ({
-      spawn: laneHit(w.dir, off, 0),
-      hits: Array.from({ length:HIT_COUNT }, (_, i) => {
-        const p = laneHit(w.dir, off, i + 1);
-        return { t:start + FIRST_HIT + HIT_GAP * i, x:p.x, z:p.z, done:false };
-      })
-    }));
-    return { ...w, start, lanes };
-  });
-}
-let problem = makeProblem();
-const END_T = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1);
-
-function begin(same){
-  if (!same) problem = makeProblem();
-  S.sets = buildSets(problem);
-  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; actReset();
-  S.player = { x:0, z:5 };
-  sfx.unlock(); sfx.blip(660, .08);
-  cv.focus({ preventScroll:true });
-}
+const pick = a => a[Math.random() * a.length | 0];
 
 // ===== 効果音（8bit矩形波） =====
 const sfx = {
@@ -256,6 +234,7 @@ const sfx = {
   },
   blip(f, d){ this.tone(f, d); },
   boom(){ this.tone(140, .09, 'square', .025, -80); },
+  splash(){ this.tone(420, .18, 'triangle', .05, -300); },
   hurt(){ this.tone(220, .25, 'sawtooth', .08, -160); },
   hit(){ this.tone(988, .05, 'square', .04); },
   crit(){ this.tone(1318, .08, 'square', .045); },
@@ -271,7 +250,16 @@ function disc(cx, cy, r, c){
   ctx.fillStyle = c;
   for (let dy = -r; dy <= r; dy++){ const hw = Math.floor(Math.sqrt(r * r - dy * dy)); ctx.fillRect(cx - hw, cy + dy, hw * 2 + 1, 1); }
 }
-// 円の縁（ブレゼンハム）
+// ドーナツ（内側 r0 〜 外側 r1）
+function donut(cx, cy, r0, r1, c){
+  ctx.fillStyle = c;
+  for (let dy = -r1; dy <= r1; dy++){
+    const o = Math.floor(Math.sqrt(r1 * r1 - dy * dy));
+    const i = Math.abs(dy) < r0 ? Math.ceil(Math.sqrt(r0 * r0 - dy * dy)) : 0;
+    if (!i){ ctx.fillRect(cx - o, cy + dy, o * 2 + 1, 1); continue; }
+    ctx.fillRect(cx - o, cy + dy, o - i + 1, 1); ctx.fillRect(cx + i, cy + dy, o - i + 1, 1);
+  }
+}
 function ring(cx, cy, r, c){
   ctx.fillStyle = c;
   let x = r, y = 0, e = 1 - r;
@@ -287,54 +275,40 @@ function line(x0, y0, x1, y1, c){
   let e = dx + dy;
   for (;;){ ctx.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy){ e += dy; x0 += sx; } if (e2 <= dx){ e += dx; y0 += sy; } }
 }
-function sprite(rows, cx, cy, pal){
-  const h = rows.length, w = rows[0].length, ox = cx - (w >> 1), oy = cy - (h >> 1);
-  rows.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') rect(ox + i, oy + j, 1, 1, pal[ch]); }));
+function alpha(a, fn){ ctx.globalAlpha = a; fn(); ctx.globalAlpha = 1; }
+function thickRing(cx, cy, r, c, w){ for (let i = 0; i < w; i++) ring(cx, cy, r - i, c); }
+// フィールド内だけを行ごとに塗る。span(z) は x の範囲 [x0, x1] を返す
+function fillArena(span, c){
+  const R = ARENA_R * PPY;
+  ctx.fillStyle = c;
+  for (let y = -R; y <= R; y++){
+    const hw = Math.sqrt(R * R - y * y), z = (y + .5) / PPY;
+    const s = span(z); if (!s) continue;
+    const x0 = Math.max(-hw, Math.ceil(s[0] * PPY)), x1 = Math.min(hw, Math.floor(s[1] * PPY));
+    if (x1 >= x0) ctx.fillRect(C0 + x0, C0 + y, x1 - x0 + 1, 1);
+  }
 }
-// 3x5 ドット数字・英字（マーカー用）
+// 3x5 ドット数字・英字
 const GLYPH = {
   A:'010101111101101', B:'110101110101110', C:'011100100100011', D:'110101101101110',
-  1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001'
+  1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', 5:'111100110001110'
 };
 function glyph(ch, cx, cy, c){
   const g = GLYPH[ch]; if (!g) return;
   for (let i = 0; i < 15; i++) if (g[i] === '1') rect(cx - 1 + (i % 3), cy - 2 + (i / 3 | 0), 1, 1, c);
 }
-function alpha(a, fn){ ctx.globalAlpha = a; fn(); ctx.globalAlpha = 1; }
-function thickRing(cx, cy, r, c, w){ for (let i = 0; i < w; i++) ring(cx, cy, r - i, c); }
+function icon5(rows, cx, cy, c){ rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === 'x') rect(cx - 2 + i, cy - 2 + j, 1, 1, c); })); }
+// 2px太さのL字（斜め方向の山形矢印）
+function corner(cx, cz, sx, sz, L, c){
+  rect(Math.min(cx, cx - sx * (L - 1)), sz > 0 ? cz - 1 : cz, L, 2, c);
+  rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
+}
 
 // 自キャラ：ジョブアイコン（タンク=青、DPS=赤の枠付きタイル）
 const ICON = {
-  pld: [ // 剣
-    '.........',
-    '......xx.',
-    '.....xxx.',
-    '..x.xxx..',
-    '...xxx...',
-    '...xx....',
-    '..x..x...',
-    '.x.......',
-    '.........'],
-  mch: [ // 銃
-    '.........',
-    '.........',
-    '.xxxxxxx.',
-    '.xxxxxxx.',
-    '.xx.x....',
-    '.xx......',
-    '.xx......',
-    '.........',
-    '.........'],
-  blm: [ // とんがり帽子
-    '.....x...',
-    '....xx...',
-    '...xxx...',
-    '...xxxx..',
-    '..xxxxx..',
-    '..xxxxxx.',
-    'xxxxxxxxx',
-    '.........',
-    '.........'],
+  pld: ['.........','......xx.','.....xxx.','..x.xxx..','...xxx...','...xx....','..x..x...','.x.......','.........'],
+  mch: ['.........','.........','.xxxxxxx.','.xxxxxxx.','.xx.x....','.xx......','.xx......','.........','.........'],
+  blm: ['.....x...','....xx...','...xxx...','...xxxx..','..xxxxx..','..xxxxxx.','xxxxxxxxx','.........','.........'],
 };
 const ROLE_COLOR = { tank:'#3a6ad8', dps:'#d8404e' };
 function drawIcon(X, Z, hurt){
@@ -348,20 +322,28 @@ function drawField(){
   rect(0, 0, W, W, P.void);
   const R = ARENA_R * PPY;
   disc(C0, C0, R, P.floor);
-  // 床の模様：2yグリッド + 大きな斜め線
+  // 床の模様：2yグリッド + 10yごとの斜め線
   ctx.fillStyle = P.grid;
+  for (let k = -10; k <= 10; k++){
+    const o = Math.round(k * 2 * PPY); if (Math.abs(o) >= R) continue;
+    const hw = Math.floor(Math.sqrt(R * R - o * o));
+    ctx.fillRect(C0 + o, C0 - hw, 1, hw * 2 + 1); ctx.fillRect(C0 - hw, C0 + o, hw * 2 + 1, 1);
+  }
+  ctx.fillStyle = P.diag;
+  const D = Math.round(10 * PPY);
   for (let y = -R; y <= R; y++){
     const hw = Math.floor(Math.sqrt(R * R - y * y));
-    if ((y & 7) === 0) ctx.fillRect(C0 - hw, C0 + y, hw * 2 + 1, 1);
-    for (let x = -hw; x <= hw; x++){
-      if ((x & 7) === 0) ctx.fillRect(C0 + x, C0 + y, 1, 1);
-      else if (((x + y) % 40 + 40) % 40 === 0 || ((x - y) % 40 + 40) % 40 === 0){ ctx.fillStyle = P.diag; ctx.fillRect(C0 + x, C0 + y, 1, 1); ctx.fillStyle = P.grid; }
+    for (let k = -4; k <= 4; k++){
+      const xa = k * D - y, xb = y + k * D;
+      if (Math.abs(xa) <= hw) ctx.fillRect(C0 + xa, C0 + y, 1, 1);
+      if (Math.abs(xb) <= hw) ctx.fillRect(C0 + xb, C0 + y, 1, 1);
     }
   }
+  S.inst?.drawFloor?.(S.t);
   thickRing(C0, C0, R + 3, P.rim, 3);
   ring(C0, C0, R + 4, P.rim2);
   // フィールドマーカー
-  const m = 16, d = Math.round(m / Math.SQRT2);
+  const m = 16, d = Math.round(m / SQ2);
   [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => {
     alpha(.35, () => disc(px(x), px(z), 5, P.mk[i])); ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.white);
   });
@@ -375,7 +357,6 @@ function drawField(){
 }
 
 // ボス：塗りつぶしのターゲットサークル + 正面の三角（北向き）
-const BOSS_R = 6;
 function drawBoss(){
   const R = BOSS_R * PPY;
   alpha(.6, () => disc(C0, C0, R, P.boss));
@@ -385,92 +366,383 @@ function drawBoss(){
   if (performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
 }
 
-function drawSpots(){
-  if (!opt.spots) return;
-  [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => { ring(px(x), px(z), 3, P.white); rect(px(x), px(z), 1, 1, P.white); });
-}
-
 function drawSafe(){
-  if (!opt.safe || S.phase !== 'run') return;
-  const pending = [];
-  S.sets.forEach(s => { if (S.t >= s.start) s.lanes.forEach(l => l.hits.forEach(h => { if (!h.done) pending.push(h); })); });
-  if (!pending.length) return;
-  const r2 = EXA_R * EXA_R, R2 = ARENA_R * ARENA_R;
+  const inst = S.inst;
+  if (!opt.safe || S.phase !== 'run' || !inst.safeActive?.(S.t)) return;
+  const R2 = ARENA_R * ARENA_R;
   ctx.globalAlpha = .45; ctx.fillStyle = P.safe;
   for (let y = 0; y < W; y += 2) for (let x = 0; x < W; x += 2){
     const wx = (x - C0 + 1) / PPY, wz = (y - C0 + 1) / PPY;
     if (wx * wx + wz * wz > R2) continue;
-    let ok = true;
-    for (const h of pending){ const dx = wx - h.x, dz = wz - h.z; if (dx * dx + dz * dz <= r2){ ok = false; break; } }
-    if (ok) ctx.fillRect(x, y, 2, 2);
+    if (inst.safe(wx, wz, S.t)) ctx.fillRect(x, y, 2, 2);
   }
   ctx.globalAlpha = 1;
 }
 
-// 2px太さのL字（斜め方向の山形矢印）
-function corner(cx, cz, sx, sz, L, c){
-  rect(Math.min(cx, cx - sx * (L - 1)), sz > 0 ? cz - 1 : cz, L, 2, c);
-  rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
-}
-// エクサの予兆マーク（実機に合わせて：オレンジの円 + 進行方向の白い「>>>」）
-function exaMark(X, Z, sx, sz, on){
-  const R = EXA_R * PPY;
-  alpha(.35, () => disc(X, Z, R, P.exa));
-  thickRing(X, Z, R, on ? P.exa : '#c9561a', 2);
-  [[-7, '#c98a5a'], [1, '#ffd9a8'], [9, P.chev]].forEach(([o, c]) => corner(X + sx * o, Z + sz * o, sx, sz, 10, c));
-}
+// 被弾（1回の判定につき1カウント）
+function hurt(){ S.hits++; S.hurtT = performance.now(); sfx.hurt(); }
+const inArena = (x, z) => x * x + z * z <= ARENA_R * ARENA_R;
 
-function drawExas(){
-  const t = S.t, blink = (Math.floor(performance.now() / 150) & 1) === 0;
-  S.sets.forEach(s => {
-    if (t < s.start) return;
-    const tt = t - s.start;
-    s.lanes.forEach(l => {
-      const h1 = l.hits[0], h2 = l.hits[1];
-      const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
-      if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
-      // 予兆は場外の発生地点に出る（実機スクショで確認）
-      if (tt < FIRST_HIT) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink);
-      l.hits.forEach(h => {
-        const dt = t - h.t;
-        if (dt < 0 || dt > .4) return;
-        const X = px(h.x), Z = px(h.z), R = EXA_R * PPY, k = dt / .4;
-        if (k < .3){ alpha(.85, () => disc(X, Z, R, P.exa)); disc(X, Z, Math.round(R * .55), P.exaHi); disc(X, Z, Math.round(R * .2), P.white); }
-        else { alpha(.5 * (1 - k), () => disc(X, Z, R, P.exa)); ring(X, Z, Math.round(R * (.55 + k * .45)), P.exaHi); }
+// =====================================================================
+// ギミック1：混沌の終末（エクサ）
+// =====================================================================
+const EXA = (() => {
+  const EXA_R = 6, HIT_COUNT = 6, SET_INTERVAL = 2.5, FIRST_HIT = 4.6, HIT_GAP = 0.51;
+  const PATTERNS = { A:[-25, 5], B:[-15, 15], C:[-5, 25] }; // レーン i と i+3
+  const END = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1);
+  function laneHit(dir, off, k){
+    if (dir === 'NW'){ const s = -35 + 10 * k; return { x:(s + off) / 2, z:(s - off) / 2 }; }
+    const d = 35 - 10 * k; return { x:(off + d) / 2, z:(off - d) / 2 };
+  }
+  const DIR8 = ['北','北東','東','南東','南','南西','西','北西'];
+  function patName(s){
+    if (s.pat === 'B') return '中';
+    return DIR8[s.dir === 'NW' ? (s.pat === 'A' ? 5 : 1) : (s.pat === 'A' ? 7 : 3)] + '端';
+  }
+  function exaMark(X, Z, sx, sz, on){
+    const R = EXA_R * PPY;
+    alpha(.35, () => disc(X, Z, R, P.exa));
+    thickRing(X, Z, R, on ? P.exa : '#c9561a', 2);
+    [[-7, '#c98a5a'], [1, '#ffd9a8'], [9, P.chev]].forEach(([o, c]) => corner(X + sx * o, Z + sz * o, sx, sz, 10, c));
+  }
+  return {
+    id:'exa', name:'混沌の終末', sub:'エクサフレア', view:36, start:{ x:0, z:5 },
+    gen(){
+      const first = opt.first === 'rand' ? pick(['NW','NE']) : opt.first, second = first === 'NW' ? 'NE' : 'NW';
+      const p1 = shuffle(['A','B','C']), p2 = shuffle(['A','B','C']), list = [];
+      for (let i = 0; i < 3; i++){ list.push({ dir:first, pat:p1[i] }); list.push({ dir:second, pat:p2[i] }); }
+      return list;
+    },
+    create(list){
+      const sets = list.map((w, k) => {
+        const start = SET_INTERVAL * k;
+        const lanes = PATTERNS[w.pat].map(off => ({
+          spawn: laneHit(w.dir, off, 0),
+          hits: Array.from({ length:HIT_COUNT }, (_, i) => { const p = laneHit(w.dir, off, i + 1); return { t:start + FIRST_HIT + HIT_GAP * i, x:p.x, z:p.z, done:false }; })
+        }));
+        return { ...w, start, lanes };
       });
-    });
-  });
-}
+      const all = sets.flatMap(s => s.lanes.flatMap(l => l.hits));
+      const pending = t => sets.filter(s => t >= s.start).flatMap(s => s.lanes.flatMap(l => l.hits.filter(h => !h.done)));
+      return {
+        end: END,
+        casts: [{ name:'混沌の終末', start:0, len:3.9 }],
+        progress: t => `SET ${sets.filter(s => t >= s.start).length}/6`,
+        tick(t){
+          let boom = false;
+          all.forEach(h => {
+            if (h.done || t < h.t) return;
+            h.done = true; boom = true;
+            if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt();
+          });
+          if (boom) sfx.boom();
+        },
+        safeActive: t => pending(t).length > 0,
+        safe(x, z, t){ return pending(t).every(h => (x - h.x) ** 2 + (z - h.z) ** 2 > EXA_R * EXA_R); },
+        guide(){ [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => { ring(px(x), px(z), 3, P.white); rect(px(x), px(z), 1, 1, P.white); }); },
+        draw(t){
+          const blink = (Math.floor(performance.now() / 150) & 1) === 0;
+          sets.forEach(s => {
+            if (t < s.start) return;
+            s.lanes.forEach(l => {
+              const h1 = l.hits[0], h2 = l.hits[1];
+              const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
+              if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
+              if (t - s.start < FIRST_HIT) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink); // 予兆は場外の発生地点
+              l.hits.forEach(h => {
+                const dt = t - h.t;
+                if (dt < 0 || dt > .4) return;
+                const X = px(h.x), Z = px(h.z), R = EXA_R * PPY, k = dt / .4;
+                if (k < .3){ alpha(.85, () => disc(X, Z, R, P.exa)); disc(X, Z, Math.round(R * .55), P.exaHi); disc(X, Z, Math.round(R * .2), P.white); }
+                else { alpha(.5 * (1 - k), () => disc(X, Z, R, P.exa)); ring(X, Z, Math.round(R * (.55 + k * .45)), P.exaHi); }
+              });
+            });
+          });
+        },
+        result: () => sets.map(s => `${s.dir === 'NW' ? '北西' : '北東'}${patName(s)}`).join(' → '),
+      };
+    }
+  };
+})();
 
-function drawActFx(){
-  const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
-  if (job().melee) alpha(.45, () => ring(C0, C0, (BOSS_R + MELEE) * PPY, '#c9a2ff'));
-  if (now - A.failT < 500){ // 射程外・詠唱中断
-    line(X - 3, Z - 14, X + 3, Z - 8, P.hurt); line(X + 3, Z - 14, X - 3, Z - 8, P.hurt);
-    line(X - 2, Z - 14, X + 4, Z - 8, P.hurt); line(X + 4, Z - 14, X - 2, Z - 8, P.hurt);
+// =====================================================================
+// ギミック2：フラッド（斜めの帯 × 4回。予兆は1.2秒だけ、着弾は約6秒後）
+// =====================================================================
+const FLOOD = (() => {
+  const HALF = 5, TELE_AT = 0.4, STAGGER = 1.02, TELE_LEN = 1.2, RESOLVE = 6.05;
+  // 帯の横位置：'A' は北西→南東向きの帯（u = (x−z)/√2）、'B' は北東→南西向きの帯（v = (−x−z)/√2）
+  const perp = (fam, x, z) => fam === 'A' ? (x - z) / SQ2 : (-x - z) / SQ2;
+  function span(fam, c, z){
+    const lo = SQ2 * (c - HALF), hi = SQ2 * (c + HALF);
+    return fam === 'A' ? [z + lo, z + hi] : [-z - hi, -z - lo];
   }
-  if (A.cast){ // 詠唱バー（キャラの下）
-    const k = Math.min(1, (S.t - A.cast.start) / (A.cast.end - A.cast.start));
-    rect(X - 11, Z + 8, 22, 5, '#000000'); rect(X - 10, Z + 9, 20, 3, '#3a2a55'); rect(X - 10, Z + 9, Math.round(20 * k), 3, '#ffffff');
-  }
+  function pairs(rev){ return rev ? [[-5, 15], [-15, 5]] : [[5, -15], [15, -5]]; }
+  return {
+    id:'flood', name:'フラッド', sub:'カオティックフラッド', view:24, start:{ x:0, z:2 },
+    gen(){ return { first:pick(['A','B']), revA:Math.random() < .5, revB:Math.random() < .5 }; },
+    create(p){
+      const second = p.first === 'A' ? 'B' : 'A';
+      const pf = pairs(p.first === 'A' ? p.revA : p.revB), ps = pairs(second === 'A' ? p.revA : p.revB);
+      const order = [[p.first, pf[0]], [second, ps[0]], [p.first, pf[1]], [second, ps[1]]];
+      const ticks = order.map(([fam, offs], k) => ({ fam, offs, tele:TELE_AT + k * STAGGER, hit:TELE_AT + k * STAGGER + RESOLVE, done:false }));
+      const inTick = (tk, x, z) => tk.offs.some(c => Math.abs(perp(tk.fam, x, z) - c) <= HALF);
+      const next = t => ticks.find(tk => !tk.done && t >= tk.tele);
+      return {
+        end: ticks[3].hit + .8,
+        casts: [{ name:'フラッド', start:.3, len:4.7 }],
+        progress: t => `WAVE ${ticks.filter(tk => tk.done).length}/4`,
+        tick(t){
+          ticks.forEach(tk => {
+            if (tk.done || t < tk.hit) return;
+            tk.done = true; sfx.splash();
+            if (inTick(tk, S.player.x, S.player.z)) hurt();
+          });
+        },
+        safeActive: t => !!next(t),
+        safe(x, z, t){ const tk = next(t); return !tk || !inTick(tk, x, z); },
+        guide(){ [[0,-2],[2,0],[0,2],[-2,0]].forEach(([x, z]) => rect(px(x) - 1, px(z) - 1, 3, 3, P.white)); },
+        draw(t){
+          const blink = (Math.floor(performance.now() / 120) & 1) === 0;
+          ticks.forEach((tk, k) => {
+            // 予兆（実機は1.2秒だけ。補助表示ONなら着弾まで薄く残す）
+            const showTele = t >= tk.tele && t < tk.tele + TELE_LEN;
+            const keep = opt.path && t >= tk.tele && !tk.done;
+            if (showTele || keep){
+              tk.offs.forEach(c => {
+                alpha(showTele ? .4 : .15, () => fillArena(z => span(tk.fam, c, z), P.exa));
+                if (showTele && blink) alpha(.35, () => fillArena(z => span(tk.fam, c, z), P.exaHi));
+              });
+              if (keep && !showTele) tk.offs.forEach(c => { const s = span(tk.fam, c, 0); glyph(String(k + 1), px((s[0] + s[1]) / 2), C0, P.white); });
+            }
+            // 着弾：水の帯
+            const dt = t - tk.hit;
+            if (dt >= 0 && dt < .6){
+              const a = 1 - dt / .6;
+              tk.offs.forEach(c => {
+                alpha(.75 * a, () => fillArena(z => span(tk.fam, c, z), P.water));
+                alpha(.6 * a, () => fillArena(z => { const s = span(tk.fam, c, z), m = (s[0] + s[1]) / 2; return [m - 1, m + 1]; }, P.waterHi));
+              });
+            }
+          });
+        },
+        result: () => ticks.map(tk => tk.fam === 'A' ? '＼' : '／').join(' → '),
+      };
+    }
+  };
+})();
+
+// =====================================================================
+// ギミック3：スリースターズ（属性の塔 × 3セット + 二択のカタストロフ）
+// =====================================================================
+const CELES = (() => {
+  // 時計回りに ファイア→サンダー→ブリザド の3本ずつ（北から20°、40°刻み、半径10）
+  const EL = [
+    { name:'ファイア', short:'炎', color:'#ff6a3a', icon:['..x..','.xx..','.xxx.','xxxxx','.xxx.'] },
+    { name:'サンダー', short:'雷', color:'#c08cff', icon:['..xx.','.xx..','xxxx.','..xx.','.xx..'] },
+    { name:'ブリザド', short:'氷', color:'#6ad8ff', icon:['x.x.x','.xxx.','xxxxx','.xxx.','x.x.x'] },
+  ];
+  const RING = 10, SOAK = 3, OFFSET = [1, 2, 0];
+  const TOWER_ON = [6.1, 14.4, 20.6], RESOLVE = [14.18, 20.5, 26.34], OFF = [14.3, 20.6, 26.44];
+  const CC_AT = [10.18, null, 22.34], CC_LEN = 4.0, DEBUFF_AT = 6.1, DEBUFF_LEN = 20;
+  const towerPos = i => { const a = (20 + i * 40) * Math.PI / 180; return { x:Math.sin(a) * RING, z:-Math.cos(a) * RING }; };
+  const TOWERS = Array.from({ length:9 }, (_, i) => ({ i, el:(i / 3) | 0, ...towerPos(i) }));
+  // CC：quake=円（ボスから10y以内が危険）/ tornado=ドーナツ（10yより外が危険）
+  const CC = { quake:{ name:'クエイク', color:'#e0a040', inner:true }, tornado:{ name:'トルネド', color:'#58e07a', inner:false } };
+  return {
+    id:'celes', name:'スリースターズ', sub:'属性の塔', view:24, start:{ x:0, z:4 },
+    gen(){
+      const debuff = opt.debuff === 'rand' ? pick([0, 0, 1, 1, 2, 2, -1, -1]) : Number(opt.debuff);
+      const dbl = shuffle([0, 1, 2]);
+      const active = [0, 1, 2].map(s => [0, 1, 2].flatMap(e => shuffle([0, 1, 2]).slice(0, e === dbl[s] ? 2 : 1).sort().map(sub => e * 3 + sub)));
+      const cc = [pick(['quake','tornado']), null, pick(['quake','tornado'])];
+      return { debuff, dbl, active, cc };
+    },
+    create(p){
+      // その人が入る塔：デバフ持ちは属性をずらして（時計回り隣→さらに隣→自分の属性）、なしは2本ある属性のもう1本
+      const target = [0, 1, 2].map(s => {
+        const act = p.active[s];
+        if (p.debuff < 0) return act.filter(i => TOWERS[i].el === p.dbl[s])[1];
+        const el = (p.debuff + OFFSET[s]) % 3, mine = act.filter(i => TOWERS[i].el === el);
+        return mine.length === 2 ? mine[opt.dbl === 'second' ? 1 : 0] : mine[0];
+      });
+      const done = [false, false, false], flash = [-9, -9, -9];
+      const setAt = t => { for (let s = 2; s >= 0; s--) if (t >= TOWER_ON[s]) return s; return -1; };
+      const casts = [{ name:'スリースターズ', start:1.0, len:4.7 }];
+      CC_AT.forEach((at, s) => { if (at != null) casts.push({ name:'二択のカタストロフ', start:at, len:CC_LEN, color:CC[p.cc[s]].color }); });
+      const inTarget = (s, x, z) => { const tw = TOWERS[target[s]]; return (x - tw.x) ** 2 + (z - tw.z) ** 2 <= SOAK * SOAK; };
+      const ccSafe = (s, x, z) => { const c = p.cc[s]; if (!c) return true; const d = Math.hypot(x, z); return CC[c].inner ? d > RING : d < RING; };
+      return {
+        end: OFF[2] + 1.2,
+        casts,
+        progress: t => `SET ${Math.max(0, setAt(t) + 1)}/3`,
+        status(t){
+          if (t < DEBUFF_AT) return null;
+          if (p.debuff < 0) return t < DEBUFF_AT + 3 ? 'デバフなし' : null;
+          const left = DEBUFF_AT + DEBUFF_LEN - t;
+          return left > 0 ? `${EL[p.debuff].name}耐性低下 ${Math.ceil(left)}` : null;
+        },
+        tick(t){
+          for (let s = 0; s < 3; s++){
+            if (done[s] || t < RESOLVE[s]) continue;
+            done[s] = true; flash[s] = t; sfx.boom();
+            const { x, z } = S.player;
+            if (!inTarget(s, x, z)) hurt();          // 自分の塔を踏めていない（別の塔・塔の外）
+            else if (!ccSafe(s, x, z)) hurt();       // 塔の中でも二択のカタストロフに当たった
+          }
+        },
+        safeActive: t => { const s = setAt(t); return s >= 0 && !done[s]; },
+        safe(x, z, t){ const s = setAt(t); return inTarget(s, x, z) && (t < (CC_AT[s] ?? 99) || ccSafe(s, x, z)); },
+        guide(t){
+          const s = setAt(t); if (s < 0 || done[s]) return;
+          const tw = TOWERS[target[s]];
+          ring(px(tw.x), px(tw.z), Math.round((SOAK + .8) * PPY), P.white);
+        },
+        draw(t){
+          if (t < DEBUFF_AT) return;
+          const s = setAt(t), blink = (Math.floor(performance.now() / 160) & 1) === 0;
+          const lit = s >= 0 && t < OFF[s] ? p.active[s] : [];
+          TOWERS.forEach(tw => {
+            const X = px(tw.x), Z = px(tw.z), R = Math.round(SOAK * PPY), c = EL[tw.el].color;
+            if (lit.includes(tw.i)){
+              alpha(.45, () => disc(X, Z, R, c));
+              thickRing(X, Z, R, blink ? P.white : c, 2);
+            } else {
+              alpha(.5, () => ring(X, Z, R, c));
+            }
+            icon5(EL[tw.el].icon, X, Z, lit.includes(tw.i) ? P.white : c);
+          });
+          // 二択のカタストロフ：詠唱中はボスが色で光り、着弾時に範囲が出る
+          for (let k = 0; k < 3; k++){
+            const cc = p.cc[k]; if (!cc) continue;
+            if (t >= CC_AT[k] && t < RESOLVE[k]) thickRing(C0, C0, BOSS_R * PPY + 3, blink ? CC[cc].color : P.white, 2);
+            const dt = t - RESOLVE[k];
+            if (dt >= 0 && dt < .5){
+              const R = RING * PPY;
+              alpha(.55 * (1 - dt / .5), () => CC[cc].inner ? disc(C0, C0, R, CC[cc].color) : donut(C0, C0, R, ARENA_R * PPY, CC[cc].color));
+            }
+          }
+          flash.forEach((f, k) => { const dt = t - f; if (dt >= 0 && dt < .35) p.active[k].forEach(i => alpha(.7 * (1 - dt / .35), () => disc(px(TOWERS[i].x), px(TOWERS[i].z), Math.round(SOAK * PPY), P.white))); });
+        },
+        result: () => {
+          const d = p.debuff < 0 ? 'デバフなし' : `デバフ：${EL[p.debuff].name}`;
+          const cc = p.cc.filter(Boolean).map(c => CC[c].name).join('・');
+          return `${d}　／　2本：${p.dbl.map(e => EL[e].short).join('→')}　／　${cc}`;
+        },
+      };
+    }
+  };
+})();
+
+// =====================================================================
+// ギミック4：ミッシング（床が2枚ずつ消える × 4ラウンド + 足元に落ちる紫の床）
+// =====================================================================
+const MISS = (() => {
+  const TILE = 13.5, H = TILE / 2, PUDDLE_R = 5;
+  const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, PUDDLE_DELAY = 1.87;
+  // 実戦ログの消える順（タイル中心）：南西+中央 → 南東+北東 → 北+北西 → 南+東。最後に西だけ残る
+  const VANISH_TILES = [[[-1, 1], [0, 0]], [[1, 1], [1, -1]], [[0, -1], [-1, -1]], [[0, 1], [1, 0]]];
+  // ログでのパーティの立ち位置（紫の床が落ちた場所）と、最後に残る床
+  const LOG_SPOTS = [[0, 13.5], [-7, 6.75], [-6.75, -6.75], [7, -6.75], [-13.5, 0]];
+  const tileOf = (x, z) => [Math.max(-1, Math.min(1, Math.round(x / TILE))), Math.max(-1, Math.min(1, Math.round(z / TILE)))];
+  const key = (a, b) => `${a},${b}`;
+  return {
+    id:'miss', name:'ミッシング', sub:'P5 時間切れ前', view:24, start:{ x:0, z:12 },
+    gen(){ return {}; },
+    create(){
+      const gone = new Set(), warn = new Set(), puddles = [];
+      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:VANISH_TILES[r], baited:false, vanished:false }));
+      let inVoid = false, inPuddle = new Set();
+      const onVoid = (x, z) => gone.has(key(...tileOf(x, z)));
+      const puddleAt = (x, z, t) => puddles.findIndex(p => t >= p.on && (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R);
+      const tileSpan = (tx, tz) => z => (z >= tz * TILE - H && z <= tz * TILE + H) ? [tx * TILE - H, tx * TILE + H] : null;
+      return {
+        end: ROUND_AT[3] + VANISH + 2.5,
+        casts: [{ name:'ミッシング', start:0, len:4.1 }, ...ROUND_AT.slice(1).map(at => ({ name:'ミッシング', start:at - 2.5, len:2.5 })), { name:'ミッシング・ゼロ', start:ROUND_AT[3] + VANISH + .5, len:26 }],
+        progress: t => `ROUND ${rounds.filter(r => t >= r.at).length}/4`,
+        tick(t){
+          const { x, z } = S.player;
+          rounds.forEach(r => {
+            if (!r.baited && t >= r.at + .08){ // 足元に紫の床（少し遅れて危険になる）
+              r.baited = true; puddles.push({ x, z, at:t, on:t + PUDDLE_DELAY });
+              r.tiles.forEach(tl => warn.add(key(...tl))); sfx.blip(300, .08);
+            }
+            if (!r.vanished && t >= r.at + VANISH){
+              r.vanished = true; sfx.boom();
+              r.tiles.forEach(tl => { gone.add(key(...tl)); warn.delete(key(...tl)); });
+            }
+          });
+          // 消えた床・紫の床に入った瞬間に1回カウント
+          const v = onVoid(x, z);
+          if (v && !inVoid) hurt();
+          inVoid = v;
+          const now = new Set(puddles.map((p, i) => (t >= p.on && (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R) ? i : -1).filter(i => i >= 0));
+          now.forEach(i => { if (!inPuddle.has(i)) hurt(); });
+          inPuddle = now;
+        },
+        safeActive: () => true,
+        safe(x, z, t){
+          const k = key(...tileOf(x, z));
+          if (gone.has(k) || warn.has(k)) return false;
+          return !puddles.some(p => (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R);
+        },
+        guide(t){
+          LOG_SPOTS.forEach(([x, z], i) => { ring(px(x), px(z), 4, P.white); glyph(String(i + 1), px(x), px(z), P.white); });
+        },
+        drawFloor(t){
+          // 床の区切り線
+          ctx.fillStyle = '#2e2f66';
+          [-H, H].forEach(v => { fillArena(z => [v - .1, v + .1], '#2e2f66'); fillArena(z => (Math.abs(z - v) < .12 ? [-99, 99] : null), '#2e2f66'); });
+          const blink = (Math.floor(performance.now() / 180) & 1) === 0;
+          for (let tx = -1; tx <= 1; tx++) for (let tz = -1; tz <= 1; tz++){
+            const k = key(tx, tz);
+            if (gone.has(k)){
+              fillArena(tileSpan(tx, tz), P.void);
+              for (let i = 0; i < 6; i++){ const sx = tx * TILE + ((i * 37) % 11) - 5, sz = tz * TILE + ((i * 23) % 11) - 5; if (inArena(sx, sz)) rect(px(sx), px(sz), 1, 1, '#50487a'); }
+            } else if (warn.has(k)){
+              alpha(blink ? .45 : .25, () => fillArena(tileSpan(tx, tz), P.exa));
+            }
+          }
+          // 紫の床（落ちた直後は予兆の輪、少し後に危険な床になる）
+          puddles.forEach(p => {
+            const X = px(p.x), Z = px(p.z), R = Math.round(PUDDLE_R * PPY);
+            if (t < p.on){ thickRing(X, Z, R, blink ? P.purple : P.white, 2); }
+            else { alpha(.6, () => disc(X, Z, R, P.purple)); ring(X, Z, R, '#e0b0ff'); }
+          });
+        },
+        draw(){},
+        result: () => '南西・中央 → 南東・北東 → 北・北西 → 南・東（西が残る）',
+      };
+    }
+  };
+})();
+
+const MECHS = [EXA, FLOOD, CELES, MISS];
+const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
+
+// ===== 詠唱バー（ボス） =====
+const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
+function drawCast(){
+  const c = (S.phase === 'run' || S.phase === 'done') && S.inst ? S.inst.casts.find(c => S.t >= c.start && S.t < c.start + c.len && S.t <= S.inst.end) : null;
+  castEl.hidden = !c;
+  if (!c) return;
+  if (castName.textContent !== c.name) castName.textContent = c.name;
+  castFill.style.width = ((S.t - c.start) / c.len * 100).toFixed(1) + '%';
+  castFill.style.background = c.color || '#fff';
 }
 
 function drawPlayer(){
-  const now = performance.now(), hurt = now - S.hurtT < 500;
-  drawIcon(px(S.player.x), px(S.player.z), hurt && (Math.floor(now / 70) & 1));
-}
-
-// 詠唱バー（Stray Apocalypse は1セット目の予兆と同時に詠唱、約3.9秒）
-const CAST_LEN = 3.9;
-const castEl = $('cast'), castFill = $('castFill');
-function drawCast(){
-  const on = (S.phase === 'run') && S.t >= 0 && S.t < CAST_LEN;
-  castEl.hidden = !on;
-  if (on) castFill.style.width = (S.t / CAST_LEN * 100).toFixed(1) + '%';
+  const now = performance.now(), hurtNow = now - S.hurtT < 500;
+  drawIcon(px(S.player.x), px(S.player.z), hurtNow && (Math.floor(now / 70) & 1));
 }
 
 function draw(){
-  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawActFx(); drawPlayer(); drawCast();
+  PPY = (W / 2) / mech().view;
+  drawField();
+  if (opt.spots && S.inst) S.inst.guide?.(S.t);
+  drawBoss();
+  if (S.inst) S.inst.draw(S.t);
+  drawSafe();
+  drawActFx(); drawPlayer(); drawCast();
 }
 
 // ===== アクション（A=GCD / B=アビリティ） =====
@@ -522,7 +794,7 @@ function actTick(dt){
   if (S.t < A.readyAt) return;
   if (A.queued){
     A.queued = false;
-    if (!inRange()){ fail(); }
+    if (!inRange()) fail();
     else {
       A.readyAt = S.t + GCD; A.gcds++;
       if (a.cast && !A.swift) A.cast = { start:S.t, end:S.t + a.cast };
@@ -530,7 +802,19 @@ function actTick(dt){
       return;
     }
   }
-  if (S.t <= END_T) A.loss += dt; // 撃てるのに撃っていない時間
+  if (S.t <= S.inst.end) A.loss += dt; // 撃てるのに撃っていない時間
+}
+function drawActFx(){
+  const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
+  if (job().melee && S.phase !== 'menu') alpha(.45, () => ring(C0, C0, Math.round((BOSS_R + MELEE) * PPY), '#c9a2ff'));
+  if (now - A.failT < 500){ // 射程外・詠唱中断
+    line(X - 3, Z - 14, X + 3, Z - 8, P.hurt); line(X + 3, Z - 14, X - 3, Z - 8, P.hurt);
+    line(X - 2, Z - 14, X + 4, Z - 8, P.hurt); line(X + 4, Z - 14, X - 2, Z - 8, P.hurt);
+  }
+  if (A.cast){ // 詠唱バー（キャラの下）
+    const k = Math.min(1, (S.t - A.cast.start) / (A.cast.end - A.cast.start));
+    rect(X - 11, Z + 8, 22, 5, '#000000'); rect(X - 10, Z + 9, 20, 3, '#3a2a55'); rect(X - 10, Z + 9, Math.round(20 * k), 3, '#ffffff');
+  }
 }
 
 const btnA = $('btnA'), btnB = $('btnB'), buffEl = $('buff');
@@ -544,38 +828,57 @@ function drawButtons(){
   btnB.classList.toggle('ready', run && rb === 0);
   const bl = rb > 0 ? String(Math.ceil(rb)) : 'B';
   if (btnB.textContent !== bl) btnB.textContent = bl;
-  buffEl.hidden = !A.swift;
+  const st = [S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) : null, A.swift ? '迅速魔' : null].filter(Boolean);
+  const html = st.map(s => `<span>${s}</span>`).join('');
+  if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }
+
+// ===== 進行 =====
+function begin(same){
+  const m = mech();
+  if (!same || !S.problem || S.problem.mech !== m.id) S.problem = { mech:m.id, data:m.gen() };
+  S.inst = m.create(S.problem.data);
+  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; actReset();
+  S.player = { ...m.start };
+  $('menu').hidden = true;
+  sfx.unlock(); sfx.blip(660, .08);
+  cv.focus({ preventScroll:true });
+}
+function openMenu(){
+  S.phase = 'menu'; S.inst = null; A.cast = null;
+  S.cursor = Math.max(0, MECHS.indexOf(mech()));
+  renderMenu(); $('menu').hidden = false; lastMsg = ''; setMsg('');
+}
+function renderMenu(){
+  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
+}
+function chooseMech(i){
+  opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle(); begin(false);
+}
+function moveCursor(d){ S.cursor = (S.cursor + d + MECHS.length) % MECHS.length; renderMenu(); sfx.unlock(); sfx.blip(520, .04); }
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
 let lastMsg = '';
 function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
-const DIR8 = ['北','北東','東','南東','南','南西','西','北西'];
-function patName(s){
-  if (s.pat === 'B') return '中';
-  const base = s.dir === 'NW' ? (s.pat === 'A' ? 5 : 1) : (s.pat === 'A' ? 7 : 3);
-  return DIR8[base] + '端';
-}
-function dirName(s){ return s.dir === 'NW' ? '北西' : '北東'; }
 function updateHud(){
-  const n = S.phase === 'run' || S.phase === 'done' ? S.sets.filter(s => S.t >= s.start).length : 0;
-  hSet.textContent = `SET ${n || '-'}/6`;
+  const on = S.inst && (S.phase === 'run' || S.phase === 'done');
+  hSet.textContent = on ? S.inst.progress(S.t) : '';
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   hDmg.textContent = `DMG ${A.dmg.toLocaleString('en-US')}`;
-  if (S.phase === 'title') setMsg(`<div class="big">EXAFLARE</div><div class="sub">${job().name}</div><div class="sub blink">STARTで開始 ／ SELECTでジョブ変更</div>`);
-  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div>`);
+  if (S.phase === 'menu') setMsg('');
+  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>`);
   else if (S.phase === 'done'){
     const ok = S.hits === 0;
-    const order = S.sets.map(s => `${dirName(s)}${patName(s)}`).join(' → ');
     setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
       `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
       `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +
-      `<div class="sub">${order}</div><div class="sub blink">START：次の問題　↻：リトライ</div>`);
+      `<div class="sub">${S.inst.result()}</div><div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
   } else setMsg('');
 }
-function applyJob(){
+function applyTitle(){
   const j = job();
+  $('mechName').textContent = mech().name;
   $('jobName').textContent = j.name;
   $('nameA').textContent = j.a.name;
   $('nameB').textContent = j.b.name;
@@ -583,12 +886,13 @@ function applyJob(){
 function selectJob(){
   if (S.phase === 'count' || S.phase === 'run') return;
   opt.job = JOB_ORDER[(JOB_ORDER.indexOf(opt.job) + 1) % JOB_ORDER.length];
-  store.set('job', opt.job); applyJob(); lastMsg = '';
+  store.set('job', opt.job); applyTitle(); lastMsg = '';
   sfx.unlock(); sfx.blip(520, .05);
 }
 
 // ===== 更新 =====
 function movePlayer(dt){
+  if (S.phase === 'menu') return;
   let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;
@@ -598,9 +902,11 @@ function movePlayer(dt){
   S.player.x = x; S.player.z = z;
 }
 
-let last = performance.now();
+let last = performance.now(), stickRepeat = 0;
 function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
+  // メニューはスティックの上下でも選べる
+  if (S.phase === 'menu' && Math.abs(stickVec.z) > .7 && now > stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;
@@ -610,16 +916,9 @@ function frame(now){
       if (S.t >= 0){ S.phase = 'run'; sfx.blip(990, .15); }
     }
     if (S.phase === 'run'){
-      let boom = false;
-      S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => {
-        if (h.done || S.t < h.t) return;
-        h.done = true; boom = true;
-        const dx = S.player.x - h.x, dz = S.player.z - h.z;
-        if (dx * dx + dz * dz <= EXA_R * EXA_R){ S.hits++; S.hurtT = now; sfx.hurt(); }
-      })));
-      if (boom) sfx.boom();
+      S.inst.tick(S.t);
       actTick(dt);
-      if (S.t > END_T + .6){ S.phase = 'done'; A.cast = null; S.hits ? sfx.fail() : sfx.clear(); }
+      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
   draw(); updateHud(); drawButtons();
@@ -630,17 +929,26 @@ function frame(now){
 const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSafe(); }
 function syncSafe(){ const b = $('bSafe'); b.classList.toggle('on', opt.safe); b.setAttribute('aria-pressed', String(opt.safe)); }
+function pressStart(){ if (S.phase === 'menu') chooseMech(S.cursor); else begin(false); }
 window.addEventListener('keydown', e => {
   if (!$('sheet').hidden) { if (e.key === 'Escape') closeSheet(); return; }
   const k = e.key.toLowerCase();
+  if (S.phase === 'menu'){
+    if (k === 'w' || k === 'arrowup'){ moveCursor(-1); e.preventDefault(); return; }
+    if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
+    if (k === 'j' || k === '1' || k === 'enter'){ chooseMech(S.cursor); e.preventDefault(); return; }
+    if (k === 'shift') selectJob();
+    return;
+  }
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
   if (e.repeat) return;
   if (k === 'j' || k === '1'){ pressA(); e.preventDefault(); }
   else if (k === 'k' || k === '2'){ pressB(); e.preventDefault(); }
-  else if (k === 'enter'){ begin(false); e.preventDefault(); }
+  else if (k === 'enter'){ pressStart(); e.preventDefault(); }
   else if (k === 'shift') selectJob();
   else if (k === ' '){ toggleSafe(); e.preventDefault(); }
   else if (k === 'r') begin(true);
+  else if (k === 'escape') openMenu();
 });
 window.addEventListener('keyup', e => { const k = KEYMAP[e.key.toLowerCase()]; if (k) keys.delete(k); });
 window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; });
@@ -660,7 +968,7 @@ function stickMove(e){
   const n = Math.hypot(dx, dz) / max;
   if (n < .2){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / Math.hypot(dx, dz); stickVec.z = dz / Math.hypot(dx, dz); }
 }
-function stickEnd(){ stickId = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; }
+function stickEnd(){ stickId = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; stickRepeat = 0; }
 stick.addEventListener('pointerdown', e => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); e.preventDefault(); });
 stick.addEventListener('pointermove', e => { if (e.pointerId === stickId) stickMove(e); });
 stick.addEventListener('pointerup', stickEnd);
@@ -684,17 +992,20 @@ function holdButton(el, fn){
   ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, () => el.classList.remove('press')));
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-holdButton(btnA, pressA);
-holdButton(btnB, pressB);
-$('btnStart').addEventListener('click', () => begin(false));
+holdButton(btnA, () => { if (S.phase === 'menu') chooseMech(S.cursor); else pressA(); });
+holdButton(btnB, () => { if (S.phase !== 'menu') pressB(); });
+$('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', selectJob);
-$('bRetry').addEventListener('click', () => begin(true));
+$('bRetry').addEventListener('click', () => { if (S.phase !== 'menu') begin(true); });
+$('bMenu').addEventListener('click', openMenu);
 $('bSafe').addEventListener('click', toggleSafe);
+$('menuList').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) chooseMech(Number(b.dataset.i)); });
 syncSafe();
 
 // ===== 設定シート =====
-const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound');
+const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound'), oDebuff = $('oDebuff'), oDouble = $('oDouble');
 oFirst.value = opt.first; oSpeed.value = opt.speed; oPath.checked = opt.path; oSpots.checked = opt.spots; oMarker.value = opt.marker; oSound.checked = opt.sound;
+oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;
 function speedLabel(){ $('oSpeedV').textContent = Math.round(opt.speed * 100) + '%'; }
 speedLabel();
 oFirst.addEventListener('change', () => { opt.first = oFirst.value; store.set('first', opt.first); });
@@ -703,14 +1014,16 @@ oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('pa
 oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });
 oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set('marker', opt.marker); });
 oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
+oDebuff.addEventListener('change', () => { opt.debuff = oDebuff.value; store.set('debuff', opt.debuff); });
+oDouble.addEventListener('change', () => { opt.dbl = oDouble.value; store.set('dbl', opt.dbl); });
 function closeSheet(){ $('sheet').hidden = true; cv.focus({ preventScroll:true }); }
 $('bOpt').addEventListener('click', () => { $('sheet').hidden = false; });
 $('bClose').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
-// 初期表示
-applyJob();
-S.sets = buildSets(problem); S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
+// 起動時はギミック選択から
+applyTitle();
+openMenu();
 requestAnimationFrame(frame);
 })();
 </script>

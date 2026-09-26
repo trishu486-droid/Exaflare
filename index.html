@@ -32,7 +32,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padd
 .iconbtn{font:16px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);width:38px;height:38px;border-radius:0;cursor:pointer;touch-action:manipulation}
 .screen{position:relative;border:4px solid var(--edge);box-shadow:0 0 0 2px #000, 0 0 0 6px var(--edge);background:#000}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
-.hud{position:absolute;inset:6px 8px auto 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(12px,3.4vw,16px);text-shadow:2px 2px 0 #000;font-variant-numeric:tabular-nums}
+.cast{position:absolute;left:12%;right:12%;top:9%;pointer-events:none}
+.cast .bar{height:clamp(8px,2.2vw,12px);border:3px solid #ff9f2a;background:#3a2a55;box-shadow:0 0 0 2px #000}
+.cast .fill{height:100%;width:0;background:#fff}
+.cast .name{text-align:right;font-size:clamp(16px,5vw,26px);line-height:1.2;margin-top:2px;
+  text-shadow:2px 0 0 #000,-2px 0 0 #000,0 2px 0 #000,0 -2px 0 #000,2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000}
+.hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(12px,3.4vw,16px);text-shadow:2px 2px 0 #000;font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;text-shadow:3px 3px 0 #000;white-space:nowrap}
 .msg .big{font-size:clamp(26px,9vw,44px);line-height:1.1}
@@ -72,6 +77,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 
   <div class="screen">
     <canvas id="cv" width="216" height="216" tabindex="0" aria-label="フィールド"></canvas>
+    <div class="cast" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name">混沌の終末</div></div>
     <div class="hud"><span id="hSet">SET -/6</span><span id="hHit">HIT 0</span></div>
     <div class="msg" id="msg"></div>
   </div>
@@ -125,10 +131,10 @@ const px = x => Math.round(C0 + x * PPY);
 
 // 8bitパレット
 const P = {
-  void:'#000000', floor:'#241c3c', floor2:'#2e2450', rim:'#6a5f94', grid:'#2a2148',
-  exa:'#ff6a1a', exaHi:'#ffd24a', exaDk:'#8a2a08', tele:'#ffcf4a',
-  safe:'#58e07a', boss:'#ff4d8d', ring:'#a33a6a', player:'#4ad4ff', hurt:'#ff4d5e', white:'#ffffff',
-  mk:['#ff4d5e','#ffcf4a','#4ad4ff','#c08cff']
+  void:'#000000', floor:'#4b4c8a', grid:'#3e3f7a', diag:'#3a3a70', rim:'#4c6ed8', rim2:'#2d3f8f',
+  exa:'#ff4f7b', exaDk:'#2a1030', exaHi:'#ffd0dc', white:'#ffffff',
+  safe:'#58e07a', boss:'#e0763a', bossEdge:'#c9562a', bossTip:'#ff4f7b', hurt:'#ff2a3a',
+  mk:['#ff5a5a','#ffd84a','#5ad0ff','#d08cff']
 };
 
 // ===== 設定（保存に失敗しても動く） =====
@@ -250,72 +256,73 @@ function glyph(ch, cx, cy, c){
   for (let i = 0; i < 15; i++) if (g[i] === '1') rect(cx - 1 + (i % 3), cy - 2 + (i / 3 | 0), 1, 1, c);
 }
 
+// 自キャラ：剣アイコン（DSR版に合わせたジョブアイコン風）
 const HERO = [
-  '..kkk..',
-  '.kccck.',
-  '.kcwck.',
-  'kbbbbbk',
-  '.kbbbk.',
-  '.kb.bk.',
-  '.kk.kk.'
+  'wwwwwwwwwww',
+  'wpppppppppw',
+  'wppppppxxpw',
+  'wpppppxxxpw',
+  'wppxpxxxppw',
+  'wpppxxxpppw',
+  'wpppxxppppw',
+  'wppxppxpppw',
+  'wpxppppppow',
+  'wpppppppppw',
+  'wwwwwwwwwww'
 ];
-const HERO_PAL = { k:'#000000', c:'#ffe0b0', w:'#000000', b:P.player };
-const HERO_HURT = { ...HERO_PAL, b:P.hurt };
-const KEFKA = [
-  '....r.y....',
-  '...rryy....',
-  '..rryyyy...',
-  '..kffffk...',
-  '..kfkfkf...',
-  '..kffffk...',
-  '..krrrrk...',
-  '.kpprrppk..',
-  'kpppyypppk.',
-  '.kppyyppk..',
-  '..kk..kk...'
-];
-const KEFKA_PAL = { r:'#ff4d5e', y:'#ffcf4a', k:'#000000', f:'#f4f0ff', p:'#9a4dff' };
+const HERO_PAL = { w:'#ffffff', p:'#e8466e', x:'#ffffff', o:'#e8466e' };
+const HERO_HURT = { w:'#ffffff', p:'#ff2a3a', x:'#ffe066', o:'#ff2a3a' };
+
+function alpha(a, fn){ ctx.globalAlpha = a; fn(); ctx.globalAlpha = 1; }
+function thickRing(cx, cy, r, c, w){ for (let i = 0; i < w; i++) ring(cx, cy, r - i, c); }
 
 function drawField(){
   rect(0, 0, W, W, P.void);
-  // 星
-  for (let i = 0; i < 40; i++){ const x = (i * 97) % W, y = (i * 53 + 17) % W; rect(x, y, 1, 1, i % 3 ? '#2a2448' : '#50487a'); }
-  disc(C0, C0, ARENA_R * PPY, P.floor);
-  // 5yタイル
-  ctx.fillStyle = P.floor2;
-  for (let gx = -20; gx < 20; gx += 5) for (let gz = -20; gz < 20; gz += 5){
-    if (((gx + gz) / 5 & 1) !== 0) continue;
-    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++){
-      const wx = gx + x / 4 + .125, wz = gz + y / 4 + .125;
-      if (wx * wx + wz * wz < ARENA_R * ARENA_R) ctx.fillRect(px(gx) + x, px(gz) + y, 1, 1);
+  const R = ARENA_R * PPY;
+  disc(C0, C0, R, P.floor);
+  // 床の模様：2yグリッド + 大きな斜め線
+  ctx.fillStyle = P.grid;
+  for (let y = -R; y <= R; y++){
+    const hw = Math.floor(Math.sqrt(R * R - y * y));
+    if ((y & 7) === 0) ctx.fillRect(C0 - hw, C0 + y, hw * 2 + 1, 1);
+    for (let x = -hw; x <= hw; x++){
+      if ((x & 7) === 0) ctx.fillRect(C0 + x, C0 + y, 1, 1);
+      else if (((x + y) % 40 + 40) % 40 === 0 || ((x - y) % 40 + 40) % 40 === 0){ ctx.fillStyle = P.diag; ctx.fillRect(C0 + x, C0 + y, 1, 1); ctx.fillStyle = P.grid; }
     }
   }
-  ring(C0, C0, ARENA_R * PPY, P.rim);
-  ring(C0, C0, ARENA_R * PPY + 1, '#3a3354');
-  // マーカー
+  thickRing(C0, C0, R + 3, P.rim, 3);
+  ring(C0, C0, R + 4, P.rim2);
+  // フィールドマーカー
   const m = 16, d = Math.round(m / Math.SQRT2);
-  [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => { ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.mk[i]); });
+  [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => {
+    alpha(.35, () => disc(px(x), px(z), 5, P.mk[i])); ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.white);
+  });
   const corners = opt.marker === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
   corners.forEach(([x, z], i) => {
     const X = px(x), Z = px(z), c = P.mk[i];
+    alpha(.35, () => rect(X - 5, Z - 5, 11, 11, c));
     line(X - 5, Z - 5, X + 5, Z - 5, c); line(X + 5, Z - 5, X + 5, Z + 5, c); line(X + 5, Z + 5, X - 5, Z + 5, c); line(X - 5, Z + 5, X - 5, Z - 5, c);
-    glyph(String(i + 1), X, Z, c);
+    glyph(String(i + 1), X, Z, P.white);
   });
-  glyph('N', C0, px(-ARENA_R) - 5, '#8c83a8');
 }
 
+// ボス：塗りつぶしのターゲットサークル + 正面の三角
+const BOSS_R = 6;
 function drawBoss(){
-  ring(C0, C0, 22, P.ring, true);
-  const f = rotPt({ x:0, z:-1 }, S.rot);
-  // 正面マーカー（三角）
-  const tx = C0 + f.x * 25, tz = C0 + f.z * 25, sx = -f.z, sz = f.x;
-  for (let i = 0; i < 4; i++) line(Math.round(tx - f.x * i + sx * i), Math.round(tz - f.z * i + sz * i), Math.round(tx - f.x * i - sx * i), Math.round(tz - f.z * i - sz * i), P.boss);
-  sprite(KEFKA, C0, C0, KEFKA_PAL);
+  const R = BOSS_R * PPY;
+  alpha(.6, () => disc(C0, C0, R, P.boss));
+  ring(C0, C0, R, P.bossEdge);
+  alpha(.5, () => ring(C0, C0, R - 6, P.bossEdge));
+  const f = rotPt({ x:0, z:-1 }, S.rot), sx = -f.z, sz = f.x;
+  for (let i = 0; i < 5; i++){
+    const bx = C0 + f.x * (R + 4 - i), bz = C0 + f.z * (R + 4 - i);
+    line(Math.round(bx + sx * i), Math.round(bz + sz * i), Math.round(bx - sx * i), Math.round(bz - sz * i), P.bossTip);
+  }
 }
 
 function drawSpots(){
   if (!opt.spots) return;
-  [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => ring(px(x), px(z), 3, '#c08cff'));
+  [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => { ring(px(x), px(z), 3, P.white); rect(px(x), px(z), 1, 1, P.white); });
 }
 
 function drawSafe(){
@@ -323,59 +330,72 @@ function drawSafe(){
   const pending = [];
   S.sets.forEach(s => { if (S.t >= s.start) s.lanes.forEach(l => l.hits.forEach(h => { if (!h.done) pending.push(h); })); });
   if (!pending.length) return;
-  ctx.fillStyle = P.safe;
   const r2 = EXA_R * EXA_R, R2 = ARENA_R * ARENA_R;
-  for (let y = 0; y < W; y += 2) for (let x = (y >> 1) & 1 ? 2 : 0; x < W; x += 4){
-    const wx = (x - C0 + .5) / PPY, wz = (y - C0 + .5) / PPY;
+  ctx.globalAlpha = .45; ctx.fillStyle = P.safe;
+  for (let y = 0; y < W; y += 2) for (let x = 0; x < W; x += 2){
+    const wx = (x - C0 + 1) / PPY, wz = (y - C0 + 1) / PPY;
     if (wx * wx + wz * wz > R2) continue;
     let ok = true;
     for (const h of pending){ const dx = wx - h.x, dz = wz - h.z; if (dx * dx + dz * dz <= r2){ ok = false; break; } }
     if (ok) ctx.fillRect(x, y, 2, 2);
   }
+  ctx.globalAlpha = 1;
+}
+
+// 2px太さのL字（斜め方向の山形矢印）
+function corner(cx, cz, sx, sz, L, c){
+  rect(Math.min(cx, cx - sx * (L - 1)), sz > 0 ? cz - 1 : cz, L, 2, c);
+  rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
+}
+// エクサの予兆マーク（DSR版風：ピンクの円 + 白い山形 + 中心の四角）
+function exaMark(X, Z, sx, sz, on){
+  const R = EXA_R * PPY;
+  alpha(.4, () => disc(X, Z, R, P.exaDk));
+  thickRing(X, Z, R, on ? P.exa : '#b8385a', 2);
+  corner(X + sx * 12, Z + sz * 12, sx, sz, 11, P.white);
+  corner(X + sx * 5, Z + sz * 5, sx, sz, 8, P.exa);
+  rect(X - 2, Z - 2, 5, 5, P.exa); rect(X - 1, Z - 1, 3, 3, P.exaDk); rect(X, Z, 1, 1, P.white);
 }
 
 function drawExas(){
-  const t = S.t, blink = Math.floor(performance.now() / 120) & 1;
+  const t = S.t, blink = (Math.floor(performance.now() / 150) & 1) === 0;
   S.sets.forEach(s => {
     if (t < s.start) return;
     const tt = t - s.start;
     s.lanes.forEach(l => {
       const h1 = l.hits[0], h2 = l.hits[1];
-      if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#5a4a2a'); });
-      // 予兆：1発目の円（点滅破線）＋ 進行方向の矢印 ＋ 場外の発生源
-      if (tt < FIRST_HIT){
-        ring(px(h1.x), px(h1.z), EXA_R * PPY, blink ? P.tele : '#a0781e', true);
-        const ux = (h2.x - h1.x) / 7.07, uz = (h2.z - h1.z) / 7.07;
-        const ax = px(h1.x - ux * 3), az = px(h1.z - uz * 3), bx = px(h1.x + ux * 3.5), bz = px(h1.z + uz * 3.5);
-        line(ax, az, bx, bz, P.tele); line(ax + 1, az, bx + 1, bz, P.tele);
-        const back = 7, side = 5;
-        line(bx, bz, Math.round(bx - ux * back * 1 - uz * side), Math.round(bz - uz * back + ux * side), P.tele);
-        line(bx, bz, Math.round(bx - ux * back + uz * side), Math.round(bz - uz * back - ux * side), P.tele);
-        disc(px(l.spawn.x), px(l.spawn.z), 4, blink ? P.exaHi : P.exa);
-      }
+      const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
+      if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
+      if (tt < FIRST_HIT) exaMark(px(h1.x), px(h1.z), sx, sz, blink);
       // 着弾
       l.hits.forEach(h => {
         const dt = t - h.t;
-        if (dt < -.15 || dt > .4) return;
-        const X = px(h.x), Z = px(h.z), R = EXA_R * PPY;
-        if (dt < 0){ disc(X, Z, R, P.exaDk, true); return; }
-        const k = dt / .4;
-        if (k < .35){ disc(X, Z, R, P.exa); disc(X, Z, Math.round(R * .6), P.exaHi); disc(X, Z, Math.round(R * .25), P.white); }
-        else { disc(X, Z, R, P.exaDk, true, 1); ring(X, Z, Math.round(R * (0.6 + k * .4)), P.exa); }
+        if (dt < 0 || dt > .4) return;
+        const X = px(h.x), Z = px(h.z), R = EXA_R * PPY, k = dt / .4;
+        if (k < .3){ alpha(.85, () => disc(X, Z, R, P.exa)); disc(X, Z, Math.round(R * .55), P.exaHi); disc(X, Z, Math.round(R * .2), P.white); }
+        else { alpha(.5 * (1 - k), () => disc(X, Z, R, P.exa)); ring(X, Z, Math.round(R * (.55 + k * .45)), P.exaHi); }
       });
     });
   });
 }
 
 function drawPlayer(){
-  const hurt = performance.now() - S.hurtT < 500;
-  if (hurt && (Math.floor(performance.now() / 60) & 1)) return; // 点滅
-  sprite(HERO, px(S.player.x), px(S.player.z) - 2, hurt ? HERO_HURT : HERO_PAL);
-  rect(px(S.player.x), px(S.player.z) + 2, 1, 1, '#ffffff'); // 判定点
+  const now = performance.now(), hurt = now - S.hurtT < 500;
+  const X = px(S.player.x), Z = px(S.player.z);
+  sprite(HERO, X, Z, hurt && (Math.floor(now / 70) & 1) ? HERO_HURT : HERO_PAL);
+}
+
+// 詠唱バー（Stray Apocalypse は1セット目の予兆と同時に詠唱、約3.9秒）
+const CAST_LEN = 3.9;
+const castEl = document.getElementById('cast'), castFill = document.getElementById('castFill');
+function drawCast(){
+  const on = (S.phase === 'run') && S.t >= 0 && S.t < CAST_LEN;
+  castEl.hidden = !on;
+  if (on) castFill.style.width = (S.t / CAST_LEN * 100).toFixed(1) + '%';
 }
 
 function draw(){
-  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawPlayer();
+  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawPlayer(); drawCast();
 }
 
 // ===== HUD / メッセージ =====

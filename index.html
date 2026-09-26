@@ -877,14 +877,13 @@ function updateHud(){
       `<div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
   } else setMsg('');
 }
-// ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾1回ごとに1段階下げる
+// ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
 function rankHtml(){
   const j = job(), end = S.inst.end, avg = 58 * 1.125; // クリ率25%・1.5倍の期待値
   const max = (Math.floor(end / GCD) + 1) * j.a.pot * avg + (j.b.pot ? (Math.floor(end / ABILITY_CD) + 1) * j.b.pot * avg : 0);
   const ratio = A.dmg / max;
-  let i = RANKS.findIndex(r => ratio >= r[1]);
-  i = Math.min(RANKS.length - 1, i + S.hits);
+  const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => ratio >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];
   return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">理論値の ${Math.round(ratio * 100)}%</div>`;
 }

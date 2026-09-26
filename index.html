@@ -400,11 +400,6 @@ const EXA = (() => {
     if (dir === 'NW'){ const s = -35 + 10 * k; return { x:(s + off) / 2, z:(s - off) / 2 }; }
     const d = 35 - 10 * k; return { x:(off + d) / 2, z:(off - d) / 2 };
   }
-  const DIR8 = ['北','北東','東','南東','南','南西','西','北西'];
-  function patName(s){
-    if (s.pat === 'B') return '中';
-    return DIR8[s.dir === 'NW' ? (s.pat === 'A' ? 5 : 1) : (s.pat === 'A' ? 7 : 3)] + '端';
-  }
   function exaMark(X, Z, sx, sz, on){
     const R = EXA_R * PPY;
     alpha(.35, () => disc(X, Z, R, P.exa));
@@ -465,7 +460,6 @@ const EXA = (() => {
             });
           });
         },
-        result: () => sets.map(s => `${s.dir === 'NW' ? '北西' : '北東'}${patName(s)}`).join(' → '),
       };
     }
   };
@@ -531,7 +525,6 @@ const FLOOD = (() => {
             }
           });
         },
-        result: () => ticks.map(tk => tk.fam === 'A' ? '＼' : '／').join(' → '),
       };
     }
   };
@@ -543,9 +536,9 @@ const FLOOD = (() => {
 const CELES = (() => {
   // 時計回りに ファイア→サンダー→ブリザド の3本ずつ（北から20°、40°刻み、半径10）
   const EL = [
-    { name:'ファイア', short:'炎', color:'#ff6a3a', icon:['..x..','.xx..','.xxx.','xxxxx','.xxx.'] },
-    { name:'サンダー', short:'雷', color:'#c08cff', icon:['..xx.','.xx..','xxxx.','..xx.','.xx..'] },
-    { name:'ブリザド', short:'氷', color:'#6ad8ff', icon:['x.x.x','.xxx.','xxxxx','.xxx.','x.x.x'] },
+    { name:'ファイア', color:'#ff6a3a', icon:['..x..','.xx..','.xxx.','xxxxx','.xxx.'] },
+    { name:'サンダー', color:'#c08cff', icon:['..xx.','.xx..','xxxx.','..xx.','.xx..'] },
+    { name:'ブリザド', color:'#6ad8ff', icon:['x.x.x','.xxx.','xxxxx','.xxx.','x.x.x'] },
   ];
   const RING = 10, SOAK = 3, OFFSET = [1, 2, 0];
   const TOWER_ON = [6.1, 14.4, 20.6], RESOLVE = [14.18, 20.5, 26.34], OFF = [14.3, 20.6, 26.44];
@@ -629,11 +622,6 @@ const CELES = (() => {
           }
           flash.forEach((f, k) => { const dt = t - f; if (dt >= 0 && dt < .35) p.active[k].forEach(i => alpha(.7 * (1 - dt / .35), () => disc(px(TOWERS[i].x), px(TOWERS[i].z), Math.round(SOAK * PPY), P.white))); });
         },
-        result: () => {
-          const d = p.debuff < 0 ? 'デバフなし' : `デバフ：${EL[p.debuff].name}`;
-          const cc = p.cc.filter(Boolean).map(c => CC[c].name).join('・');
-          return `${d}　／　2本：${p.dbl.map(e => EL[e].short).join('→')}　／　${cc}`;
-        },
       };
     }
   };
@@ -716,7 +704,6 @@ const MISS = (() => {
           });
         },
         draw(){},
-        result: () => '南西・中央 → 南東・北東 → 北・北西 → 南・東（西が残る）',
       };
     }
   };
@@ -752,8 +739,10 @@ function draw(){
 }
 
 // ===== アクション（A=GCD / B=アビリティ） =====
-const A = { readyAt:0, queued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
-function actReset(){ Object.assign(A, { readyAt:0, queued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9 }); fxEl.innerHTML = ''; }
+const A = { readyAt:0, queued:false, bQueued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
+// 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
+const held = { a:false, b:false };
+function actReset(){ Object.assign(A, { readyAt:0, queued:false, bQueued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9 }); fxEl.innerHTML = ''; }
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 
@@ -776,13 +765,15 @@ function dealDamage(pot){
 }
 function fail(){ A.failT = performance.now(); sfx.no(); }
 
+// 先行入力：リキャスト残り0.5秒から受け付ける（カウントダウン終了直前も可）
 function pressA(){
   sfx.unlock();
-  if (S.phase === 'run' && !A.cast && S.t >= A.readyAt - QUEUE) A.queued = true;
+  if ((S.phase === 'run' || S.phase === 'count') && !A.cast && S.t >= A.readyAt - QUEUE) A.queued = true;
 }
 function pressB(){
   sfx.unlock();
-  if (S.phase !== 'run' || S.t < A.abilityAt) return;
+  if (S.phase !== 'run' && S.phase !== 'count') return;
+  if (S.phase === 'count' || S.t < A.abilityAt){ if (S.t >= A.abilityAt - QUEUE) A.bQueued = true; return; }
   if (A.cast){ fail(); return; }
   const b = job().b;
   if (b.swift){ A.swift = true; A.abilityAt = S.t + ABILITY_CD; sfx.buff(); popup('迅速魔', 'crit'); return; }
@@ -791,6 +782,9 @@ function pressB(){
 }
 function actTick(dt){
   const a = job().a;
+  if (held.a) pressA();
+  if (held.b && !A.cast && S.t >= A.abilityAt && (job().b.swift ? !A.swift : inRange())) pressB();
+  if (A.bQueued && S.t >= A.abilityAt && !A.cast){ A.bQueued = false; pressB(); }
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
     if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
@@ -877,10 +871,22 @@ function updateHud(){
   else if (S.phase === 'done'){
     const ok = S.hits === 0;
     setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
+      rankHtml() +
       `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
-      `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +
-      `<div class="sub">${S.inst.result()}</div><div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
+      `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
+      `<div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
   } else setMsg('');
+}
+// ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾1回ごとに1段階下げる
+const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
+function rankHtml(){
+  const j = job(), end = S.inst.end, avg = 58 * 1.125; // クリ率25%・1.5倍の期待値
+  const max = (Math.floor(end / GCD) + 1) * j.a.pot * avg + (j.b.pot ? (Math.floor(end / ABILITY_CD) + 1) * j.b.pot * avg : 0);
+  const ratio = A.dmg / max;
+  let i = RANKS.findIndex(r => ratio >= r[1]);
+  i = Math.min(RANKS.length - 1, i + S.hits);
+  const [name, , color] = RANKS[i];
+  return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">理論値の ${Math.round(ratio * 100)}%</div>`;
 }
 function applyTitle(){
   const j = job();
@@ -948,16 +954,21 @@ window.addEventListener('keydown', e => {
   }
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
   if (e.repeat) return;
-  if (k === 'j' || k === '1'){ pressA(); e.preventDefault(); }
-  else if (k === 'k' || k === '2'){ pressB(); e.preventDefault(); }
+  if (k === 'j' || k === '1'){ held.a = true; pressA(); e.preventDefault(); }
+  else if (k === 'k' || k === '2'){ held.b = true; pressB(); e.preventDefault(); }
   else if (k === 'enter'){ pressStart(); e.preventDefault(); }
   else if (k === 'shift') selectJob();
   else if (k === ' '){ toggleSafe(); e.preventDefault(); }
   else if (k === 'r') begin(true);
   else if (k === 'escape') openMenu();
 });
-window.addEventListener('keyup', e => { const k = KEYMAP[e.key.toLowerCase()]; if (k) keys.delete(k); });
-window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; });
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (KEYMAP[k]) keys.delete(KEYMAP[k]);
+  if (k === 'j' || k === '1') held.a = false;
+  if (k === 'k' || k === '2') held.b = false;
+});
+window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; held.a = held.b = false; });
 
 // ===== 入力：タッチ・マウス（スティックとボタンは同時に操作できる） =====
 if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
@@ -993,13 +1004,13 @@ cv.addEventListener('pointermove', e => {
 ['pointerup','pointercancel'].forEach(t => cv.addEventListener(t, e => { if (e.pointerId === dragId){ dragId = null; stickVec.x = stickVec.z = 0; } }));
 
 // A/B は押した瞬間に反応させる
-function holdButton(el, fn){
+function holdButton(el, fn, onUp){
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('press'); fn(); });
-  ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, () => el.classList.remove('press')));
+  ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, () => { el.classList.remove('press'); onUp?.(); }));
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-holdButton(btnA, () => { if (S.phase === 'menu') chooseMech(S.cursor); else pressA(); });
-holdButton(btnB, () => { if (S.phase !== 'menu') pressB(); });
+holdButton(btnA, () => { if (S.phase === 'menu') chooseMech(S.cursor); else { held.a = true; pressA(); } }, () => { held.a = false; });
+holdButton(btnB, () => { if (S.phase !== 'menu'){ held.b = true; pressB(); } }, () => { held.b = false; });
 $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', selectJob);
 $('bRetry').addEventListener('click', () => { if (S.phase !== 'menu') begin(true); });

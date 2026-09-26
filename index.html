@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <style>
 :root{
-  color-scheme: dark;
+  color-scheme: light;
   --bg:#0b0a14;
   --ink:#f2ecff;
   --dim:#8c83a8;
@@ -18,23 +18,28 @@
   --gold:#ffcf4a;
   --red:#ff4d5e;
   --green:#58e07a;
-  --ab:#b8385a;
+  --ab:#a3245c;
+  --gb-body:#c5c4bd;
+  --gb-ink:#2b2a5c;
+  --gb-dim:#6a6980;
+  --gb-dark:#34333d;
+  --gb-bezel:#5d5b6e;
   --px: "DotGothic16", "MS Gothic", "Osaka-Mono", ui-monospace, monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;align-items:flex-start;
+body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:15px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;align-items:flex-start;
   -webkit-user-select:none;user-select:none;overscroll-behavior:none}
 
 .gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;gap:6px}
-.top h1{margin:0;font:400 14px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
-.top h1 b{color:var(--gold);font-weight:400}
-.top h1 span{color:var(--ink)}
-.mini{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
-.mini.on{border-color:var(--green);color:var(--green)}
-.screen{position:relative;background:#1c1a3c;overflow:hidden;border:3px solid #5a4f8a;box-shadow:0 0 0 2px #000}
+.top h1{margin:0;font:400 14px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
+.top h1 b{color:var(--ab);font-weight:400}
+.top h1 span{color:var(--gb-ink)}
+.mini{font:13px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
+.mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
+.screen{position:relative;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
 
 /* 画面内の表示 */
@@ -66,29 +71,29 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 
 /* ===== 操作部 ===== */
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
-.stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #15121f;border-radius:50%;background:radial-gradient(circle,#1a1630 0 60%,#120f22 61%);touch-action:none}
-.knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:#3a3354;border:3px solid #6a5f94;box-shadow:inset -4px -4px 0 #2a2440;pointer-events:none}
+.stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
+.knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
 .ab{display:flex;gap:14px;transform:rotate(-25deg);padding:18px 0 0;margin-right:4px}
 .abw{display:flex;flex-direction:column;align-items:center;gap:8px}
 .abw.b{margin-top:30px}
-.abw span{font-size:11px;color:var(--dim);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
-.round{--p:0;width:68px;height:68px;border-radius:50%;font:22px var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #15121f;
+.abw span{font-size:11px;color:var(--gb-ink);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
+.round{--p:0;width:68px;height:68px;border-radius:50%;font:22px var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
   background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}
 .round.ready{border-color:var(--gold)}
 .round.press{transform:translateY(2px);box-shadow:inset 4px 4px 0 rgba(0,0,0,.35)}
 .ss{display:flex;justify-content:center;gap:26px;margin-top:8px}
 .ssw{display:flex;flex-direction:column;align-items:center;gap:3px;transform:rotate(-25deg)}
-.ssw span{font-size:11px;color:var(--dim);letter-spacing:.08em}
-.pill{width:58px;height:16px;border-radius:8px;background:#6a6480;border:2px solid #15121f;cursor:pointer;touch-action:manipulation;box-shadow:inset -2px -2px 0 rgba(0,0,0,.3)}
+.ssw span{font-size:11px;color:var(--gb-ink);letter-spacing:.08em}
+.pill{width:58px;height:16px;border-radius:8px;background:#77767f;border:2px solid #4a4952;cursor:pointer;touch-action:manipulation;box-shadow:inset -2px -2px 0 rgba(0,0,0,.3)}
 .pill:active{transform:translateY(1px)}
-.help{margin:0;text-align:center;color:var(--dim);font-size:12px;line-height:1.9}
-.help kbd{font:12px var(--px);color:var(--ink);border:2px solid var(--edge);padding:0 4px;background:var(--btn)}
+.help{margin:0;text-align:center;color:var(--gb-dim);font-size:12px;line-height:1.9}
+.help kbd{font:12px var(--px);color:#e8e6f0;border:2px solid #1e1d24;padding:0 4px;background:var(--gb-dark)}
 .touch .help{display:none}
 
 /* ===== 設定 ===== */
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
-.panel{width:100%;max-width:380px;max-height:100%;overflow:auto;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel{color:var(--ink);width:100%;max-width:380px;max-height:100%;overflow:auto;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
 .panel h2{margin:0;font:400 16px var(--px);color:var(--gold)}
 .panel h3{margin:4px 0 0;font:400 13px var(--px);color:var(--dim)}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -960,28 +965,28 @@ window.addEventListener('touchstart', () => document.body.classList.add('touch')
 
 const stick = $('stick'), knob = $('knob');
 let stickId = null;
+let stickO = null;
+const STICK_DEAD = .55, STICK_MAX = 44; // 倒し幅 44px のうち 55% までは動かない
 function stickMove(e){
-  const r = stick.getBoundingClientRect(), R = r.width / 2;
-  let dx = e.clientX - (r.left + R), dz = e.clientY - (r.top + R);
-  const d = Math.hypot(dx, dz), max = R - 20;
-  if (d > max){ dx *= max / d; dz *= max / d; }
+  let dx = e.clientX - stickO.x, dz = e.clientY - stickO.y;
+  const d = Math.hypot(dx, dz);
+  if (d > STICK_MAX){ dx *= STICK_MAX / d; dz *= STICK_MAX / d; }
   knob.style.transform = `translate(${dx}px,${dz}px)`;
-  const n = Math.hypot(dx, dz) / max;
-  if (n < .4){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / Math.hypot(dx, dz); stickVec.z = dz / Math.hypot(dx, dz); }
+  if (d < STICK_MAX * STICK_DEAD){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / d; stickVec.z = dz / d; }
 }
-function stickEnd(){ stickId = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; stickRepeat = 0; }
-stick.addEventListener('pointerdown', e => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); e.preventDefault(); });
+function stickEnd(){ stickId = null; stickO = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; stickRepeat = 0; }
+stick.addEventListener('pointerdown', e => { stickId = e.pointerId; stickO = { x:e.clientX, y:e.clientY }; try { stick.setPointerCapture(e.pointerId); } catch {} e.preventDefault(); });
 stick.addEventListener('pointermove', e => { if (e.pointerId === stickId) stickMove(e); });
 stick.addEventListener('pointerup', stickEnd);
 stick.addEventListener('pointercancel', stickEnd);
 
 // 画面をドラッグしても移動できる
 let dragId = null, dragO = null;
-cv.addEventListener('pointerdown', e => { dragId = e.pointerId; dragO = { x:e.clientX, y:e.clientY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointerdown', e => { dragId = e.pointerId; dragO = { x:e.clientX, y:e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch {} });
 cv.addEventListener('pointermove', e => {
   if (e.pointerId !== dragId) return;
   const dx = e.clientX - dragO.x, dz = e.clientY - dragO.y, d = Math.hypot(dx, dz);
-  if (d < 24){ stickVec.x = stickVec.z = 0; return; }
+  if (d < 30){ stickVec.x = stickVec.z = 0; return; }
   stickVec.x = dx / d; stickVec.z = dz / d;
   if (d > 60){ dragO.x = e.clientX - dx / d * 60; dragO.y = e.clientY - dz / d * 60; }
 });

@@ -67,6 +67,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dmg{position:absolute;transform:translate(-50%,0);font-size:clamp(13px,4vw,18px);color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
 .dmg.crit{color:var(--gold);font-size:clamp(16px,5vw,23px)}
+.dmg.miss{color:#ff4d5e;font-size:clamp(15px,4.6vw,21px);text-align:center;line-height:1.1;animation-duration:1.4s}
+.dmg.miss small{display:block;font-size:.72em;color:#fff}
 @keyframes dmg{0%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-28px}}
 
 /* ===== 操作部 ===== */
@@ -386,7 +388,26 @@ function drawSafe(){
 }
 
 // 被弾（1回の判定につき1カウント）
-function hurt(){ S.hits++; S.hurtT = performance.now(); sfx.hurt(); }
+let missStack = 0, missStackT = 0;
+function hurt(reason){
+  const now = performance.now();
+  S.hits++; S.hurtT = now; sfx.hurt();
+  // 同時に2つミスしたときは縦にずらして両方見せる
+  missStack = now - missStackT < 200 ? missStack + 1 : 0; missStackT = now;
+  const el = document.createElement('div');
+  el.className = 'dmg outline miss';
+  el.innerHTML = `MISS<small>${reason}</small>`;
+  el.style.left = (px(S.player.x) / W * 100) + '%';
+  el.style.top = Math.max(2, (px(S.player.z) - 34) / W * 100 - missStack * 9) + '%';
+  fxEl.appendChild(el);
+  setTimeout(() => el.remove(), 1450);
+}
+function drawHurtFlash(){
+  const dt = performance.now() - S.hurtT; if (dt > 400) return;
+  const a = 1 - dt / 400;
+  alpha(.22 * a, () => rect(0, 0, W, W, P.hurt));
+  alpha(a, () => { rect(0, 0, W, 4, P.hurt); rect(0, W - 4, W, 4, P.hurt); rect(0, 0, 4, W, P.hurt); rect(W - 4, 0, 4, W, P.hurt); });
+}
 const inArena = (x, z) => x * x + z * z <= ARENA_R * ARENA_R;
 
 // =====================================================================
@@ -434,7 +455,7 @@ const EXA = (() => {
           all.forEach(h => {
             if (h.done || t < h.t) return;
             h.done = true; boom = true;
-            if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt();
+            if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt('エクサ');
           });
           if (boom) sfx.boom();
         },
@@ -495,7 +516,7 @@ const FLOOD = (() => {
           ticks.forEach(tk => {
             if (tk.done || t < tk.hit) return;
             tk.done = true; sfx.splash();
-            if (inTick(tk, S.player.x, S.player.z)) hurt();
+            if (inTick(tk, S.player.x, S.player.z)) hurt('フラッド');
           });
         },
         safeActive: t => !!next(t),
@@ -564,7 +585,9 @@ const CELES = (() => {
         const el = (p.debuff + OFFSET[s]) % 3, mine = act.filter(i => TOWERS[i].el === el);
         return mine.length === 2 ? mine[opt.dbl === 'second' ? 1 : 0] : mine[0];
       });
-      const done = [false, false, false], flash = [-9, -9, -9];
+      const done = [false, false, false], flash = [-9, -9, -9], towerMiss = [false, false, false];
+      // 耐性低下デバフ：最初の1つ + 塔を踏むたびにその属性が20秒付く
+      const debuffs = p.debuff < 0 ? [] : [{ el:p.debuff, from:DEBUFF_AT, until:DEBUFF_AT + DEBUFF_LEN }];
       const setAt = t => { for (let s = 2; s >= 0; s--) if (t >= TOWER_ON[s]) return s; return -1; };
       const casts = [{ name:'スリースターズ', start:1.0, len:4.7 }];
       CC_AT.forEach((at, s) => { if (at != null) casts.push({ name:'二択のカタストロフ', start:at, len:CC_LEN, color:CC[p.cc[s]].color }); });
@@ -575,18 +598,19 @@ const CELES = (() => {
         casts,
         progress: t => `SET ${Math.max(0, setAt(t) + 1)}/3`,
         status(t){
-          if (t < DEBUFF_AT) return null;
-          if (p.debuff < 0) return t < DEBUFF_AT + 3 ? 'デバフなし' : null;
-          const left = DEBUFF_AT + DEBUFF_LEN - t;
-          return left > 0 ? `${EL[p.debuff].name}耐性低下 ${Math.ceil(left)}` : null;
+          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => `${EL[d.el].name}耐性低下 ${Math.ceil(d.until - t)}`);
+          if (p.debuff < 0 && t >= DEBUFF_AT && t < DEBUFF_AT + 3) on.unshift('デバフなし');
+          return on;
         },
         tick(t){
           for (let s = 0; s < 3; s++){
             if (done[s] || t < RESOLVE[s]) continue;
             done[s] = true; flash[s] = t; sfx.boom();
             const { x, z } = S.player;
-            if (!inTarget(s, x, z)) hurt();          // 自分の塔を踏めていない（別の塔・塔の外）
-            else if (!ccSafe(s, x, z)) hurt();       // 塔の中でも二択のカタストロフに当たった
+            const inTower = p.active[s].find(i => (x - TOWERS[i].x) ** 2 + (z - TOWERS[i].z) ** 2 <= SOAK * SOAK);
+            if (inTower != null) debuffs.push({ el:TOWERS[inTower].el, from:t, until:t + DEBUFF_LEN });
+            if (!inTarget(s, x, z)){ towerMiss[s] = true; hurt(inTower == null ? '塔に入っていない' : '担当と違う塔'); }
+            if (!ccSafe(s, x, z)) hurt(`${CC[p.cc[s]].name}に被弾`); // 塔ミスとは別に数える
           }
         },
         safeActive: t => { const s = setAt(t); return s >= 0 && !done[s]; },
@@ -620,6 +644,11 @@ const CELES = (() => {
               alpha(.55 * (1 - dt / .5), () => CC[cc].inner ? disc(C0, C0, R, CC[cc].color) : donut(C0, C0, R, ARENA_R * PPY, CC[cc].color));
             }
           }
+          towerMiss.forEach((m, k) => {
+            const dt = t - RESOLVE[k]; if (!m || dt < 0 || dt > 1.6) return;
+            const tw = TOWERS[target[k]], R = Math.round((SOAK + .8) * PPY);
+            thickRing(px(tw.x), px(tw.z), R, blink ? P.hurt : P.white, 2);
+          });
           flash.forEach((f, k) => { const dt = t - f; if (dt >= 0 && dt < .35) p.active[k].forEach(i => alpha(.7 * (1 - dt / .35), () => disc(px(TOWERS[i].x), px(TOWERS[i].z), Math.round(SOAK * PPY), P.white))); });
         },
       };
@@ -667,10 +696,10 @@ const MISS = (() => {
           });
           // 消えた床・紫の床に入った瞬間に1回カウント
           const v = onVoid(x, z);
-          if (v && !inVoid) hurt();
+          if (v && !inVoid) hurt('落下');
           inVoid = v;
           const now = new Set(puddles.map((p, i) => (t >= p.on && (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R) ? i : -1).filter(i => i >= 0));
-          now.forEach(i => { if (!inPuddle.has(i)) hurt(); });
+          now.forEach(i => { if (!inPuddle.has(i)) hurt('紫の床'); });
           inPuddle = now;
         },
         safeActive: () => true,
@@ -735,7 +764,7 @@ function draw(){
   drawBoss();
   if (S.inst) S.inst.draw(S.t);
   drawSafe();
-  drawActFx(); drawPlayer(); drawCast();
+  drawActFx(); drawPlayer(); drawCast(); drawHurtFlash();
 }
 
 // ===== アクション（A=GCD / B=アビリティ） =====
@@ -828,7 +857,7 @@ function drawButtons(){
   btnB.classList.toggle('ready', run && rb === 0);
   const bl = rb > 0 ? String(Math.ceil(rb)) : 'B';
   if (btnB.textContent !== bl) btnB.textContent = bl;
-  const st = [S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) : null, A.swift ? '迅速魔' : null].filter(Boolean);
+  const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : []), A.swift ? '迅速魔' : null].filter(Boolean);
   const html = st.map(s => `<span>${s}</span>`).join('');
   if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }

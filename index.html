@@ -32,7 +32,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padd
 .iconbtn{font:16px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);width:38px;height:38px;border-radius:0;cursor:pointer;touch-action:manipulation}
 .screen{position:relative;border:4px solid var(--edge);box-shadow:0 0 0 2px #000, 0 0 0 6px var(--edge);background:#000}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
-.cast{position:absolute;left:12%;right:12%;top:9%;pointer-events:none}
+.cast{position:absolute;left:12%;right:12%;bottom:11%;pointer-events:none}
 .cast .bar{height:clamp(8px,2.2vw,12px);border:3px solid #ff9f2a;background:#3a2a55;box-shadow:0 0 0 2px #000}
 .cast .fill{height:100%;width:0;background:#fff}
 .cast .name{text-align:right;font-size:clamp(16px,5vw,26px);line-height:1.2;margin-top:2px;
@@ -76,7 +76,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   </div>
 
   <div class="screen">
-    <canvas id="cv" width="216" height="216" tabindex="0" aria-label="フィールド"></canvas>
+    <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
     <div class="cast" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name">混沌の終末</div></div>
     <div class="hud"><span id="hSet">SET -/6</span><span id="hHit">HIT 0</span></div>
     <div class="msg" id="msg"></div>
@@ -123,7 +123,7 @@ const PLAYER_SPEED = 6, COUNTDOWN = 3;
 const PATTERNS = { A: [-25, 5], B: [-15, 15], C: [-5, 25] }; // レーン i と i+3
 
 // ===== 画面（内部 216px、1y = 4px） =====
-const W = 216, PPY = 4, C0 = W / 2;
+const W = 288, PPY = 4, C0 = W / 2; // 描画範囲 ±36y（場外の予兆まで見える）
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
@@ -365,7 +365,8 @@ function drawExas(){
       const h1 = l.hits[0], h2 = l.hits[1];
       const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
       if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
-      if (tt < FIRST_HIT) exaMark(px(h1.x), px(h1.z), sx, sz, blink);
+      // 予兆は場外の発生地点に出る（実機スクショで確認）
+      if (tt < FIRST_HIT) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink);
       // 着弾
       l.hits.forEach(h => {
         const dt = t - h.t;

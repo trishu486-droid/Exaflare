@@ -34,7 +34,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padd
 .top h1 span{color:var(--ink)}
 .mini{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{border-color:var(--green);color:var(--green)}
-.screen{position:relative;background:#000;overflow:hidden}
+.screen{position:relative;background:#1c1a3c;overflow:hidden;border:3px solid #5a4f8a;box-shadow:0 0 0 2px #000}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
 
 /* 画面内の表示 */
@@ -190,7 +190,7 @@ const px = x => Math.round(C0 + x * PPY);
 
 // 8bitパレット
 const P = {
-  void:'#000000', floor:'#4b4c8a', grid:'#3e3f7a', diag:'#3a3a70', rim:'#4c6ed8', rim2:'#2d3f8f',
+  void:'#000000', space:'#1c1a3c', star:'#4a4478', floor:'#4b4c8a', grid:'#3e3f7a', diag:'#3a3a70', rim:'#4c6ed8', rim2:'#2d3f8f',
   exa:'#ff7a1f', exaDk:'#3a1606', exaHi:'#ffe08a', chev:'#fff4d6', white:'#ffffff',
   safe:'#58e07a', boss:'#b04a8a', bossEdge:'#d8609c', bossTip:'#ff5aa8', hurt:'#ff2a3a',
   water:'#3ab8ff', waterHi:'#c8f0ff', purple:'#b05aff', purpleDk:'#3a1060',
@@ -319,7 +319,8 @@ function drawIcon(X, Z, hurt){
 }
 
 function drawField(){
-  rect(0, 0, W, W, P.void);
+  rect(0, 0, W, W, P.space);
+  for (let i = 0; i < 60; i++) rect((i * 97 + 13) % W, (i * 53 + 29) % W, 1, 1, P.star);
   const R = ARENA_R * PPY;
   disc(C0, C0, R, P.floor);
   // 床の模様：2yグリッド + 10yごとの斜め線
@@ -966,7 +967,7 @@ function stickMove(e){
   if (d > max){ dx *= max / d; dz *= max / d; }
   knob.style.transform = `translate(${dx}px,${dz}px)`;
   const n = Math.hypot(dx, dz) / max;
-  if (n < .2){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / Math.hypot(dx, dz); stickVec.z = dz / Math.hypot(dx, dz); }
+  if (n < .4){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / Math.hypot(dx, dz); stickVec.z = dz / Math.hypot(dx, dz); }
 }
 function stickEnd(){ stickId = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; stickRepeat = 0; }
 stick.addEventListener('pointerdown', e => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); e.preventDefault(); });
@@ -980,7 +981,7 @@ cv.addEventListener('pointerdown', e => { dragId = e.pointerId; dragO = { x:e.cl
 cv.addEventListener('pointermove', e => {
   if (e.pointerId !== dragId) return;
   const dx = e.clientX - dragO.x, dz = e.clientY - dragO.y, d = Math.hypot(dx, dz);
-  if (d < 10){ stickVec.x = stickVec.z = 0; return; }
+  if (d < 24){ stickVec.x = stickVec.z = 0; return; }
   stickVec.x = dx / d; stickVec.z = dz / d;
   if (d > 60){ dragO.x = e.clientX - dx / d * 60; dragO.y = e.clientY - dz / d * 60; }
 });

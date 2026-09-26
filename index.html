@@ -50,7 +50,9 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .cast .name{text-align:right;font-size:clamp(16px,5vw,24px);line-height:1.2;margin-top:2px}
 .hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(11px,3.2vw,15px);font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
-.buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
+.buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
+.buff span{display:flex;align-items:center;gap:5px}
+.buff svg{width:1.35em;height:1.35em;flex:none;box-shadow:0 0 0 2px #000}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
 .msg .big{font-size:clamp(26px,9vw,42px);line-height:1.1}
 .msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
@@ -389,14 +391,16 @@ function drawSafe(){
 
 // 被弾（1回の判定につき1カウント）
 let missStack = 0, missStackT = 0;
-function hurt(reason){
+const misses = new Map(); // 理由 → 回数
+function hurt(reason, onBoard = reason){
   const now = performance.now();
   S.hits++; S.hurtT = now; sfx.hurt();
+  misses.set(reason, (misses.get(reason) || 0) + 1);
   // 同時に2つミスしたときは縦にずらして両方見せる
   missStack = now - missStackT < 200 ? missStack + 1 : 0; missStackT = now;
   const el = document.createElement('div');
   el.className = 'dmg outline miss';
-  el.innerHTML = `MISS<small>${reason}</small>`;
+  el.innerHTML = onBoard ? `MISS<small>${onBoard}</small>` : 'MISS';
   el.style.left = (px(S.player.x) / W * 100) + '%';
   el.style.top = Math.max(2, (px(S.player.z) - 34) / W * 100 - missStack * 9) + '%';
   fxEl.appendChild(el);
@@ -455,7 +459,7 @@ const EXA = (() => {
           all.forEach(h => {
             if (h.done || t < h.t) return;
             h.done = true; boom = true;
-            if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt('エクサ');
+            if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt('エクサに被弾', '');
           });
           if (boom) sfx.boom();
         },
@@ -516,7 +520,7 @@ const FLOOD = (() => {
           ticks.forEach(tk => {
             if (tk.done || t < tk.hit) return;
             tk.done = true; sfx.splash();
-            if (inTick(tk, S.player.x, S.player.z)) hurt('フラッド');
+            if (inTick(tk, S.player.x, S.player.z)) hurt('フラッドに被弾', '');
           });
         },
         safeActive: t => !!next(t),
@@ -598,7 +602,7 @@ const CELES = (() => {
         casts,
         progress: t => `SET ${Math.max(0, setAt(t) + 1)}/3`,
         status(t){
-          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => `${EL[d.el].name}耐性低下 ${Math.ceil(d.until - t)}`);
+          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => ({ icon:EL[d.el], text:`${EL[d.el].name}耐性低下 ${Math.ceil(d.until - t)}` }));
           if (p.debuff < 0 && t >= DEBUFF_AT && t < DEBUFF_AT + 3) on.unshift('デバフなし');
           return on;
         },
@@ -847,6 +851,13 @@ function drawActFx(){
 }
 
 const btnA = $('btnA'), btnB = $('btnB'), buffEl = $('buff');
+// ステータスアイコン：属性色の四角に白いドット絵（右下に下向き矢印＝耐性低下）
+function statusIcon({ color, icon }){
+  let r = `<rect width="8" height="8" fill="${color}"/>`;
+  icon.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') r += `<rect x="${i + .5}" y="${j + .5}" width="1" height="1" fill="#fff"/>`; }));
+  r += '<rect x="5.5" y="5.5" width="2.5" height="2.5" fill="#000"/><rect x="6" y="6" width="1.5" height=".5" fill="#ff4d5e"/><rect x="6.5" y="6.5" width=".5" height="1" fill="#ff4d5e"/>';
+  return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+}
 function drawButtons(){
   const run = S.phase === 'run';
   const pa = run ? Math.max(0, Math.min(1, (A.readyAt - S.t) / GCD)) : 0;
@@ -858,7 +869,7 @@ function drawButtons(){
   const bl = rb > 0 ? String(Math.ceil(rb)) : 'B';
   if (btnB.textContent !== bl) btnB.textContent = bl;
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : []), A.swift ? '迅速魔' : null].filter(Boolean);
-  const html = st.map(s => `<span>${s}</span>`).join('');
+  const html = st.map(s => typeof s === 'string' ? `<span>${s}</span>` : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
   if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }
 
@@ -867,7 +878,7 @@ function begin(same){
   const m = mech();
   if (!same || !S.problem || S.problem.mech !== m.id) S.problem = { mech:m.id, data:m.gen() };
   S.inst = m.create(S.problem.data);
-  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; actReset();
+  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...m.start };
   $('menu').hidden = true;
   sfx.unlock(); sfx.blip(660, .08);
@@ -903,6 +914,7 @@ function updateHud(){
       rankHtml() +
       `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
       `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
+      [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
       `<div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
   } else setMsg('');
 }

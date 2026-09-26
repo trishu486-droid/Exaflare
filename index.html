@@ -6,143 +6,103 @@
 <title>混沌の終末トレーナー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <style>
 :root{
   color-scheme: dark;
-  --void:#0c0a12;
-  --panel:#16131f;
-  --line:#2c2638;
-  --text:#e9e4f2;
-  --muted:#9a91ad;
-  --exa:#ff7a2f;
-  --tele:#ffc46b;
-  --safe:#58d68d;
-  --hit:#ff4d5e;
-  --player:#5fd4ff;
-  --accent:#c9a2ff;
-  --font-ui:"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-  --font-hud:"Chakra Petch", "Zen Kaku Gothic New", ui-monospace, monospace;
+  --bg:#0b0a14;
+  --ink:#f2ecff;
+  --dim:#8c83a8;
+  --edge:#3a3354;
+  --btn:#1d1930;
+  --gold:#ffcf4a;
+  --red:#ff4d5e;
+  --green:#58e07a;
+  --px: "DotGothic16", "MS Gothic", "Osaka-Mono", ui-monospace, monospace;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--void);color:var(--text);font:14px/1.6 var(--font-ui);padding-inline:16px;padding-block:16px 24px}
-.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
-h1{margin:0;font:700 22px/1.2 var(--font-hud);letter-spacing:.04em;text-wrap:balance}
-h1 small{font:400 13px var(--font-ui);color:var(--muted);letter-spacing:0;margin-left:8px}
-.main{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
-.stage{position:relative;flex:1 1 520px;max-width:680px;width:100%}
-canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;max-width:100%;border-radius:10px;background:var(--void);touch-action:none;outline:none}
-canvas:focus-visible{box-shadow:0 0 0 2px var(--accent)}
-.side{flex:1 1 280px;display:flex;flex-direction:column;gap:12px;min-width:0}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-.box h2{margin:0 0 8px;font:700 12px var(--font-hud);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat .k{font-size:11px;color:var(--muted);letter-spacing:.06em}
-.stat .v{font:700 20px var(--font-hud);font-variant-numeric:tabular-nums}
-.stat .v.bad{color:var(--hit)}
-.stat .v.good{color:var(--safe)}
-.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;margin:0;align-items:center}
-.keys dt{white-space:nowrap}
-.keys dd{margin:0;color:var(--muted)}
-kbd{font:600 12px var(--font-hud);background:#221d2e;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--text)}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-button{font:700 13px var(--font-ui);color:var(--text);background:#231e30;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
-button:hover{border-color:var(--accent)}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button.primary{background:var(--accent);color:#1a1226;border-color:var(--accent)}
-label{display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer}
-select{font:13px var(--font-ui);color:var(--text);background:#231e30;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
-input[type=range]{accent-color:var(--accent);width:120px}
-input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
-.opts{display:flex;flex-direction:column;gap:8px}
-.opts .inline{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
-.seq{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;font:600 12px var(--font-hud)}
-.seq div{background:#1d1828;border:1px solid var(--line);border-radius:6px;padding:4px 2px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
-.seq div.on{border-color:var(--tele);color:var(--text)}
-.seq div.done{color:var(--text)}
-.seq div.hit{border-color:var(--hit)}
-.seq span{display:block;font:400 10px var(--font-ui)}
-.note{font-size:12px;color:var(--muted);margin:0}
-.note a{color:var(--accent)}
-@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;
+  -webkit-user-select:none;user-select:none;overscroll-behavior:none}
+.game{width:100%;max-width:560px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;gap:8px}
+.top h1{margin:0;font:400 16px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top h1 b{color:var(--gold);font-weight:400}
+.iconbtn{font:16px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);width:38px;height:38px;border-radius:0;cursor:pointer;touch-action:manipulation}
+.screen{position:relative;border:4px solid var(--edge);box-shadow:0 0 0 2px #000, 0 0 0 6px var(--edge);background:#000}
+canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+.hud{position:absolute;inset:6px 8px auto 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(12px,3.4vw,16px);text-shadow:2px 2px 0 #000;font-variant-numeric:tabular-nums}
+.hud .hit{color:var(--red)}
+.msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;text-shadow:3px 3px 0 #000;white-space:nowrap}
+.msg .big{font-size:clamp(26px,9vw,44px);line-height:1.1}
+.msg .sub{font-size:clamp(12px,3.4vw,15px);color:var(--ink);margin-top:6px}
+.msg .blink{animation:blink 1s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+.help{margin:0;text-align:center;color:var(--dim);font-size:13px}
+.help kbd{font:13px var(--px);color:var(--ink);border:2px solid var(--edge);padding:0 5px;background:var(--btn)}
+/* タッチ操作 */
+.pad{display:none;align-items:center;justify-content:space-between;gap:12px;padding-top:4px}
+.touch .pad{display:flex}
+.touch .help{display:none}
+.stick{position:relative;width:132px;height:132px;flex:none;border:3px solid var(--edge);border-radius:50%;background:radial-gradient(circle,#1a1630 0 60%,#120f22 61%);touch-action:none}
+.knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#3a3354;border:3px solid #6a5f94;box-shadow:inset -4px -4px 0 #2a2440}
+.btns{display:grid;grid-template-columns:repeat(2,64px);gap:10px}
+.pbtn{font:14px/1.1 var(--px);color:var(--ink);background:var(--btn);border:3px solid var(--edge);box-shadow:inset -3px -3px 0 #0f0d1b;height:56px;cursor:pointer;touch-action:manipulation}
+.pbtn:active,.pbtn.on{background:#2c2548;border-color:var(--gold);color:var(--gold)}
+.pbtn.go{border-color:var(--gold);color:var(--gold)}
+/* 設定 */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.panel{width:100%;max-width:380px;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h2{margin:0;font:400 16px var(--px);color:var(--gold)}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.opt select,.opt input[type=range]{font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:3px 4px;accent-color:var(--gold)}
+.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold)}
+.panel .note{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){.msg .blink{animation:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>STRAY APOCALYPSE<small>絶妖星乱舞 P5「混沌の終末」エクサ練習</small></h1>
-  </header>
+<div class="game" id="game">
+  <div class="top">
+    <h1><b>混沌の終末</b> エクサ練習</h1>
+    <button class="iconbtn" id="bOpt" type="button" aria-label="設定">⚙</button>
+  </div>
 
-  <div class="main">
-    <div class="stage">
-      <canvas id="cv" width="680" height="680" tabindex="0" aria-label="フィールド。WASDか矢印キーで移動"></canvas>
+  <div class="screen">
+    <canvas id="cv" width="216" height="216" tabindex="0" aria-label="フィールド"></canvas>
+    <div class="hud"><span id="hSet">SET -/6</span><span id="hHit">HIT 0</span></div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <p class="help"><kbd>WASD</kbd>/<kbd>矢印</kbd> 移動　<kbd>E</kbd> 向き回転　<kbd>Space</kbd> 安置表示　<kbd>Enter</kbd> スタート　<kbd>R</kbd> リトライ</p>
+
+  <div class="pad">
+    <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+    <div class="btns">
+      <button class="pbtn go" id="tStart" type="button">START</button>
+      <button class="pbtn" id="tRetry" type="button">RETRY</button>
+      <button class="pbtn" id="tRot" type="button">回転</button>
+      <button class="pbtn" id="tSafe" type="button">安置</button>
     </div>
+  </div>
+</div>
 
-    <div class="side">
-      <div class="box">
-        <h2>Status</h2>
-        <div class="hud">
-          <div class="stat"><div class="k">セット</div><div class="v" id="sSet">–</div></div>
-          <div class="stat"><div class="k">経過</div><div class="v" id="sTime">0.0</div></div>
-          <div class="stat"><div class="k">被弾</div><div class="v" id="sHits">0</div></div>
-        </div>
-        <div class="seq" id="seq" style="margin-top:10px"></div>
-      </div>
-
-      <div class="box">
-        <h2>Controls</h2>
-        <dl class="keys">
-          <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 矢印</dt><dd>移動</dd>
-          <dt><kbd>E</kbd> / <kbd>Q</kbd></dt><dd>ボスの向きを回転（ギミックごと90°）</dd>
-          <dt><kbd>Space</kbd></dt><dd>安置表示の切り替え</dd>
-          <dt><kbd>Enter</kbd></dt><dd>新しい問題を開始</dd>
-          <dt><kbd>R</kbd></dt><dd>同じ問題をやり直す</dd>
-          <dt><kbd>P</kbd></dt><dd>一時停止</dd>
-        </dl>
-        <p class="note" style="margin-top:8px">スマホ・マウスはフィールドを押している間、その方向へ移動します。</p>
-        <div class="row" style="margin-top:10px">
-          <button class="primary" id="bNew" type="button">新しい問題</button>
-          <button id="bRetry" type="button">やり直す</button>
-          <button id="bPause" type="button">一時停止</button>
-        </div>
-      </div>
-
-      <div class="box">
-        <h2>Options</h2>
-        <div class="opts">
-          <label><input type="checkbox" id="oSafe"> 安置を表示（Space）</label>
-          <label><input type="checkbox" id="oPath"> エクサの進路を表示</label>
-          <label><input type="checkbox" id="oSpots"> 4点避けの位置を表示</label>
-          <div class="inline">
-            <span>最初の方向</span>
-            <select id="oFirst">
-              <option value="rand">ランダム</option>
-              <option value="NW">北西から</option>
-              <option value="NE">北東から</option>
-            </select>
-          </div>
-          <div class="inline">
-            <span>マーカー</span>
-            <select id="oMarker">
-              <option value="nw">1=北西（時計回り）</option>
-              <option value="ne">1=北東（時計回り）</option>
-            </select>
-          </div>
-          <div class="inline">
-            <span>ゲーム速度</span>
-            <input type="range" id="oSpeed" min="0.4" max="1" step="0.05" value="1">
-            <span id="oSpeedV" style="font:600 13px var(--font-hud);font-variant-numeric:tabular-nums">100%</span>
-          </div>
-        </div>
-      </div>
-
-      <p class="note">
-        座標・タイミングは cactbot / Splatoon のデータから算出。6レーン中2本（i と i+3）が光り、北西・北東が2.5秒ごとに交互に来ます。
-        1発目は予兆の4.6秒後、以降は0.51秒間隔で6発、着弾円は半径6y、移動速度は6y/sです。
-      </p>
-    </div>
+<div class="sheet" id="sheet" hidden>
+  <div class="panel" role="dialog" aria-label="設定">
+    <h2>設定</h2>
+    <label class="opt"><span>最初の方向</span>
+      <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
+    <label class="opt"><span>ゲーム速度 <span id="oSpeedV">100%</span></span>
+      <input type="range" id="oSpeed" min="0.4" max="1" step="0.1" value="1"></label>
+    <label class="opt"><span>エクサの進路を表示</span><input type="checkbox" id="oPath"></label>
+    <label class="opt"><span>4点避けの位置を表示</span><input type="checkbox" id="oSpots"></label>
+    <label class="opt"><span>マーカー</span>
+      <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
+    <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
+    <p class="note">6レーン中2本が光り、北西・北東から2.5秒ごとに交互に計6セット。予兆の4.6秒後から0.51秒間隔で6発、着弾円は半径6y。座標とタイミングは cactbot / Splatoon のデータから算出。</p>
+    <button class="pbtn go" id="bClose" type="button">とじる</button>
   </div>
 </div>
 
@@ -150,426 +110,417 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 (() => {
 'use strict';
 
-// ---- ギミック定数（docs/research-stray-apocalypse.md 参照） ----
-const ARENA_R = 20;            // フィールド半径 (y)
-const EXA_R = 6;               // 着弾円半径
-const HIT_COUNT = 6;           // 1レーンあたりの着弾数
-const SET_INTERVAL = 2.5;      // セット間隔
-const TELE_LEN = 3.9;          // 予兆（詠唱）時間
-const FIRST_HIT = 4.6;         // 予兆開始から1発目まで
-const HIT_GAP = 0.51;          // 着弾間隔
-const PLAYER_SPEED = 6;        // y/s
-const BOSS_RING = 5.4;         // ターゲットサークル（見た目）
-const COUNTDOWN = 3;
-// 6レーンの横位置（u = x−z / v = x+z、√2倍単位）。パターンは i と i+3
-const PATTERNS = { A: [-25, 5], B: [-15, 15], C: [-5, 25] };
-const VIEW_R = 27;             // 描画範囲（発生地点が見えるように）
+// ===== ギミック定数（docs/research-stray-apocalypse.md） =====
+const ARENA_R = 20, EXA_R = 6, HIT_COUNT = 6;
+const SET_INTERVAL = 2.5, FIRST_HIT = 4.6, HIT_GAP = 0.51;
+const PLAYER_SPEED = 6, COUNTDOWN = 3;
+const PATTERNS = { A: [-25, 5], B: [-15, 15], C: [-5, 25] }; // レーン i と i+3
 
-// ---- DOM ----
+// ===== 画面（内部 216px、1y = 4px） =====
+const W = 216, PPY = 4, C0 = W / 2;
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
-const $ = id => document.getElementById(id);
-const sSet = $('sSet'), sTime = $('sTime'), sHits = $('sHits'), seqEl = $('seq');
-const oSafe = $('oSafe'), oPath = $('oPath'), oSpots = $('oSpots'), oFirst = $('oFirst'), oMarker = $('oMarker'), oSpeed = $('oSpeed'), oSpeedV = $('oSpeedV');
+ctx.imageSmoothingEnabled = false;
+const px = x => Math.round(C0 + x * PPY);
 
-// ---- 設定の保存（失敗しても動く） ----
+// 8bitパレット
+const P = {
+  void:'#000000', floor:'#241c3c', floor2:'#2e2450', rim:'#6a5f94', grid:'#2a2148',
+  exa:'#ff6a1a', exaHi:'#ffd24a', exaDk:'#8a2a08', tele:'#ffcf4a',
+  safe:'#58e07a', boss:'#ff4d8d', ring:'#a33a6a', player:'#4ad4ff', hurt:'#ff4d5e', white:'#ffffff',
+  mk:['#ff4d5e','#ffcf4a','#4ad4ff','#c08cff']
+};
+
+// ===== 設定（保存に失敗しても動く） =====
+const $ = id => document.getElementById(id);
 const store = {
   get(k, d){ try { const v = localStorage.getItem('exa-kefka:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v){ try { localStorage.setItem('exa-kefka:' + k, JSON.stringify(v)); } catch {} }
 };
-oSafe.checked = store.get('safe', false);
-oPath.checked = store.get('path', false);
-oSpots.checked = store.get('spots', false);
-oFirst.value = store.get('first', 'rand');
-oMarker.value = store.get('marker', 'nw');
-oSpeed.value = store.get('speed', 1);
-
-// ---- 状態 ----
-const S = {
-  phase: 'idle',      // idle | count | run | done
-  t: -COUNTDOWN,      // ギミック時間（0 = 1セット目の予兆）
-  paused: false,
-  rot: 0,             // ボスの向き（90°単位, 時計回り）
-  sets: [],           // [{dir:'NW'|'NE', pat:'A'|'B'|'C', hits:[{t,x,z,done}], hitMe:false}]
-  player: { x: 0, z: 5 },
-  hits: 0,
-  flashes: [],        // 被弾エフェクト
-  pointer: null,
+const opt = {
+  first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
+  spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true),
+  safe: store.get('safe', false)
 };
+
+// ===== 状態 =====
+const S = { phase:'title', t:-COUNTDOWN, rot:0, sets:[], player:{x:0,z:5}, hits:0, hurtT:-9, clearT:0 };
 const keys = new Set();
+const stickVec = { x:0, z:0 };
 
-// ---- 問題生成 ----
+// ===== 問題 =====
 function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
-
 function makeProblem(){
-  const first = oFirst.value === 'rand' ? (Math.random() < .5 ? 'NW' : 'NE') : oFirst.value;
+  const first = opt.first === 'rand' ? (Math.random() < .5 ? 'NW' : 'NE') : opt.first;
   const second = first === 'NW' ? 'NE' : 'NW';
-  const p1 = shuffle(['A','B','C']), p2 = shuffle(['A','B','C']);
-  const list = [];
-  for (let i = 0; i < 3; i++){ list.push({ dir: first, pat: p1[i] }); list.push({ dir: second, pat: p2[i] }); }
+  const p1 = shuffle(['A','B','C']), p2 = shuffle(['A','B','C']), list = [];
+  for (let i = 0; i < 3; i++){ list.push({ dir:first, pat:p1[i] }); list.push({ dir:second, pat:p2[i] }); }
   return list;
 }
-
-// ボスが北向きの時のローカル座標（x=東, z=南, 中心0）
+// ボス北向き時のローカル座標（x=東, z=南）
 function laneHit(dir, off, k){
-  if (dir === 'NW'){ const s = -35 + 10 * k; return { x: (s + off) / 2, z: (s - off) / 2 }; }
-  const d = 35 - 10 * k; return { x: (off + d) / 2, z: (off - d) / 2 };
+  if (dir === 'NW'){ const s = -35 + 10 * k; return { x:(s + off) / 2, z:(s - off) / 2 }; }
+  const d = 35 - 10 * k; return { x:(off + d) / 2, z:(off - d) / 2 };
 }
-function rotPt(p, r){
-  // 時計回り r×90°（画面上: 北→東）
-  let { x, z } = p;
-  for (let i = 0; i < ((r % 4) + 4) % 4; i++){ [x, z] = [-z, x]; }
-  return { x, z };
-}
-
+function rotPt(p, r){ let { x, z } = p; for (let i = 0; i < r; i++) [x, z] = [-z, x]; return { x, z }; }
 function buildSets(list){
   return list.map((w, k) => {
     const start = SET_INTERVAL * k;
-    const lanes = PATTERNS[w.pat].map(off => {
-      const spawn = rotPt(laneHit(w.dir, off, 0), S.rot);
-      const hits = [];
-      for (let i = 1; i <= HIT_COUNT; i++){
-        const p = rotPt(laneHit(w.dir, off, i), S.rot);
-        hits.push({ t: start + FIRST_HIT + HIT_GAP * (i - 1), x: p.x, z: p.z, done: false });
-      }
-      return { spawn, hits };
-    });
-    return { ...w, start, lanes, hitMe: false };
+    const lanes = PATTERNS[w.pat].map(off => ({
+      spawn: rotPt(laneHit(w.dir, off, 0), S.rot),
+      hits: Array.from({ length:HIT_COUNT }, (_, i) => {
+        const p = rotPt(laneHit(w.dir, off, i + 1), S.rot);
+        return { t:start + FIRST_HIT + HIT_GAP * i, x:p.x, z:p.z, done:false };
+      })
+    }));
+    return { ...w, start, lanes };
   });
 }
-
 let problem = makeProblem();
+const END_T = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1);
 
 function begin(same){
   if (!same) problem = makeProblem();
   S.sets = buildSets(problem);
-  S.t = -COUNTDOWN;
-  S.phase = 'count';
-  S.hits = 0;
-  S.flashes = [];
-  S.paused = false;
-  S.player = { x: 0, z: 5 };
-  $('bPause').textContent = '一時停止';
-  renderSeq();
-  cv.focus({ preventScroll: true });
+  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9;
+  S.player = { x:0, z:5 };
+  sfx.unlock(); sfx.blip(660, .08);
+  cv.focus({ preventScroll:true });
 }
 
-// ---- 方角表示 ----
-const DIRS8 = ['北','北東','東','南東','南','南西','西','北西'];
-function dirName(base, r){ // base: 'NW'|'NE'
-  const idx = base === 'NW' ? 7 : 1;
-  return DIRS8[(idx + 2 * r) % 8];
-}
-function patName(set){
-  if (set.pat === 'B') return '中央';
-  // A: 最初のレーン（-25）側が端。NW: 南西端, NE: 北西端
-  const base = set.dir === 'NW' ? (set.pat === 'A' ? 5 : 1) : (set.pat === 'A' ? 7 : 3);
-  return DIRS8[(base + 2 * S.rot) % 8] + '端';
-}
-function renderSeq(){
-  const reveal = S.phase === 'done';
-  seqEl.innerHTML = S.sets.map((s, i) => {
-    const active = S.phase === 'run' && S.t >= s.start && S.t < s.start + FIRST_HIT + HIT_GAP * 5 + .3;
-    const seen = S.t >= s.start;
-    const cls = [active ? 'on' : '', seen ? 'done' : '', s.hitMe ? 'hit' : ''].join(' ');
-    return `<div class="${cls}">${i + 1}<span>${seen ? dirName(s.dir, S.rot) : '?'}${reveal ? '・' + patName(s) : ''}</span></div>`;
-  }).join('');
-}
+// ===== 効果音（8bit矩形波） =====
+const sfx = {
+  ac:null,
+  unlock(){ if (!opt.sound) return; try { this.ac ||= new (window.AudioContext || window.webkitAudioContext)(); if (this.ac.state === 'suspended') this.ac.resume(); } catch {} },
+  tone(freq, dur, type = 'square', vol = .06, slide = 0){
+    if (!opt.sound || !this.ac) return;
+    const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(this.ac.destination); o.start(t); o.stop(t + dur + .02);
+  },
+  blip(f, d){ this.tone(f, d); },
+  boom(){ this.tone(140, .09, 'square', .025, -80); },
+  hurt(){ this.tone(220, .25, 'sawtooth', .08, -160); },
+  clear(){ [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, .12), i * 110)); },
+  fail(){ [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, .16), i * 150)); }
+};
 
-// ---- 描画 ----
-let DPR = 1, SIZE = 680, SC = 1;
-function resize(){
-  const w = cv.clientWidth || 680;
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  SIZE = w;
-  cv.width = Math.round(w * DPR); cv.height = Math.round(w * DPR);
-  SC = (w / 2) / VIEW_R;
-}
-const X = x => SIZE / 2 + x * SC;
-const Z = z => SIZE / 2 + z * SC;
-
-function circle(x, z, r){ ctx.beginPath(); ctx.arc(X(x), Z(z), r * SC, 0, Math.PI * 2); }
-
-function drawArena(){
-  ctx.fillStyle = '#0c0a12'; ctx.fillRect(0, 0, SIZE, SIZE);
-  // 床
-  const g = ctx.createRadialGradient(X(0), Z(0), 0, X(0), Z(0), ARENA_R * SC);
-  g.addColorStop(0, '#2b2340'); g.addColorStop(1, '#1b1628');
-  circle(0, 0, ARENA_R); ctx.fillStyle = g; ctx.fill();
-  // 5yグリッド
-  ctx.save(); circle(0, 0, ARENA_R); ctx.clip();
-  ctx.strokeStyle = 'rgba(201,162,255,.07)'; ctx.lineWidth = 1;
-  for (let v = -20; v <= 20; v += 5){
-    ctx.beginPath(); ctx.moveTo(X(v), Z(-20)); ctx.lineTo(X(v), Z(20)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(X(-20), Z(v)); ctx.lineTo(X(20), Z(v)); ctx.stroke();
+// ===== ドット描画 =====
+function rect(x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+// 塗りつぶし円（スキャンライン、dither=true で市松）
+function disc(cx, cy, r, c, dither, phase = 0){
+  ctx.fillStyle = c;
+  for (let dy = -r; dy <= r; dy++){
+    const hw = Math.floor(Math.sqrt(r * r - dy * dy));
+    if (!dither){ ctx.fillRect(cx - hw, cy + dy, hw * 2 + 1, 1); continue; }
+    for (let dx = -hw; dx <= hw; dx++) if (((cx + dx + cy + dy + phase) & 1) === 0) ctx.fillRect(cx + dx, cy + dy, 1, 1);
   }
-  ctx.restore();
-  circle(0, 0, ARENA_R); ctx.strokeStyle = '#5b4d78'; ctx.lineWidth = 2; ctx.stroke();
+}
+// 円の縁（ブレゼンハム）
+function ring(cx, cy, r, c, dash){
+  ctx.fillStyle = c;
+  let x = r, y = 0, e = 1 - r, n = 0;
+  while (x >= y){
+    if (!dash || ((n >> 1) & 1) === 0){
+      [[x,y],[y,x],[-y,x],[-x,y],[-x,-y],[-y,-x],[y,-x],[x,-y]].forEach(([a, b]) => ctx.fillRect(cx + a, cy + b, 1, 1));
+    }
+    y++; n++;
+    if (e < 0) e += 2 * y + 1; else { x--; e += 2 * (y - x) + 1; }
+  }
+}
+function line(x0, y0, x1, y1, c){
+  ctx.fillStyle = c;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let e = dx + dy;
+  for (;;){ ctx.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy){ e += dy; x0 += sx; } if (e2 <= dx){ e += dx; y0 += sy; } }
+}
+function sprite(rows, cx, cy, pal){
+  const h = rows.length, w = rows[0].length, ox = cx - (w >> 1), oy = cy - (h >> 1);
+  rows.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') rect(ox + i, oy + j, 1, 1, pal[ch]); }));
+}
+// 3x5 ドット数字・英字（マーカー用）
+const GLYPH = {
+  A:'010101111101101', B:'110101110101110', C:'011100100100011', D:'110101101101110',
+  1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', N:'101111111111101'
+};
+function glyph(ch, cx, cy, c){
+  const g = GLYPH[ch]; if (!g) return;
+  for (let i = 0; i < 15; i++) if (g[i] === '1') rect(cx - 1 + (i % 3), cy - 2 + (i / 3 | 0), 1, 1, c);
+}
 
-  // フィールドマーカー（A–D 東西南北, 1–4 斜め）
-  const m = 16, d = m / Math.SQRT2;
-  const letters = [['A',0,-m,'#ff6b6b'],['B',m,0,'#ffd166'],['C',0,m,'#5fd4ff'],['D',-m,0,'#c9a2ff']];
-  const corners = oMarker.value === 'nw'
-    ? [['1',-d,-d],['2',d,-d],['3',d,d],['4',-d,d]]
-    : [['1',d,-d],['2',d,d],['3',-d,d],['4',-d,-d]];
-  const numCol = ['#ff6b6b','#ffd166','#5fd4ff','#c9a2ff'];
-  ctx.font = `700 ${Math.max(11, SC * 1.6)}px "Chakra Petch", sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  letters.forEach(([t, x, z, c]) => {
-    circle(x, z, 1.4); ctx.fillStyle = c + '33'; ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = c; ctx.fillText(t, X(x), Z(z) + 1);
+const HERO = [
+  '..kkk..',
+  '.kccck.',
+  '.kcwck.',
+  'kbbbbbk',
+  '.kbbbk.',
+  '.kb.bk.',
+  '.kk.kk.'
+];
+const HERO_PAL = { k:'#000000', c:'#ffe0b0', w:'#000000', b:P.player };
+const HERO_HURT = { ...HERO_PAL, b:P.hurt };
+const KEFKA = [
+  '....r.y....',
+  '...rryy....',
+  '..rryyyy...',
+  '..kffffk...',
+  '..kfkfkf...',
+  '..kffffk...',
+  '..krrrrk...',
+  '.kpprrppk..',
+  'kpppyypppk.',
+  '.kppyyppk..',
+  '..kk..kk...'
+];
+const KEFKA_PAL = { r:'#ff4d5e', y:'#ffcf4a', k:'#000000', f:'#f4f0ff', p:'#9a4dff' };
+
+function drawField(){
+  rect(0, 0, W, W, P.void);
+  // 星
+  for (let i = 0; i < 40; i++){ const x = (i * 97) % W, y = (i * 53 + 17) % W; rect(x, y, 1, 1, i % 3 ? '#2a2448' : '#50487a'); }
+  disc(C0, C0, ARENA_R * PPY, P.floor);
+  // 5yタイル
+  ctx.fillStyle = P.floor2;
+  for (let gx = -20; gx < 20; gx += 5) for (let gz = -20; gz < 20; gz += 5){
+    if (((gx + gz) / 5 & 1) !== 0) continue;
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++){
+      const wx = gx + x / 4 + .125, wz = gz + y / 4 + .125;
+      if (wx * wx + wz * wz < ARENA_R * ARENA_R) ctx.fillRect(px(gx) + x, px(gz) + y, 1, 1);
+    }
+  }
+  ring(C0, C0, ARENA_R * PPY, P.rim);
+  ring(C0, C0, ARENA_R * PPY + 1, '#3a3354');
+  // マーカー
+  const m = 16, d = Math.round(m / Math.SQRT2);
+  [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => { ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.mk[i]); });
+  const corners = opt.marker === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
+  corners.forEach(([x, z], i) => {
+    const X = px(x), Z = px(z), c = P.mk[i];
+    line(X - 5, Z - 5, X + 5, Z - 5, c); line(X + 5, Z - 5, X + 5, Z + 5, c); line(X + 5, Z + 5, X - 5, Z + 5, c); line(X - 5, Z + 5, X - 5, Z - 5, c);
+    glyph(String(i + 1), X, Z, c);
   });
-  corners.forEach(([t, x, z], i) => {
-    const c = numCol[i], s = 1.25 * SC;
-    ctx.fillStyle = c + '33'; ctx.strokeStyle = c; ctx.lineWidth = 1.5;
-    ctx.fillRect(X(x) - s, Z(z) - s, 2 * s, 2 * s); ctx.strokeRect(X(x) - s, Z(z) - s, 2 * s, 2 * s);
-    ctx.fillStyle = c; ctx.fillText(t, X(x), Z(z) + 1);
-  });
-  // 方角
-  ctx.fillStyle = '#9a91ad'; ctx.font = `600 ${Math.max(10, SC * 1.2)}px "Chakra Petch", sans-serif`;
-  ctx.fillText('N', X(0), Z(-ARENA_R - 1.6));
+  glyph('N', C0, px(-ARENA_R) - 5, '#8c83a8');
 }
 
 function drawBoss(){
-  const f = rotPt({ x: 0, z: -1 }, S.rot);
-  circle(0, 0, BOSS_RING); ctx.strokeStyle = 'rgba(255,120,140,.55)'; ctx.lineWidth = 1.5; ctx.stroke();
-  // 正面の三角
-  const tip = { x: f.x * (BOSS_RING + 1.4), z: f.z * (BOSS_RING + 1.4) };
-  const side = { x: -f.z, z: f.x };
-  ctx.beginPath();
-  ctx.moveTo(X(tip.x), Z(tip.z));
-  ctx.lineTo(X(f.x * BOSS_RING + side.x * 1), Z(f.z * BOSS_RING + side.z * 1));
-  ctx.lineTo(X(f.x * BOSS_RING - side.x * 1), Z(f.z * BOSS_RING - side.z * 1));
-  ctx.closePath(); ctx.fillStyle = 'rgba(255,120,140,.85)'; ctx.fill();
-  circle(0, 0, 1.3); ctx.fillStyle = '#ff788c'; ctx.fill();
+  ring(C0, C0, 22, P.ring, true);
+  const f = rotPt({ x:0, z:-1 }, S.rot);
+  // 正面マーカー（三角）
+  const tx = C0 + f.x * 25, tz = C0 + f.z * 25, sx = -f.z, sz = f.x;
+  for (let i = 0; i < 4; i++) line(Math.round(tx - f.x * i + sx * i), Math.round(tz - f.z * i + sz * i), Math.round(tx - f.x * i - sx * i), Math.round(tz - f.z * i - sz * i), P.boss);
+  sprite(KEFKA, C0, C0, KEFKA_PAL);
 }
 
 function drawSpots(){
-  if (!oSpots.checked) return;
-  [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => {
-    circle(x, z, .7); ctx.strokeStyle = 'rgba(201,162,255,.9)'; ctx.lineWidth = 2; ctx.stroke();
-  });
+  if (!opt.spots) return;
+  [[0,-5],[5,0],[0,5],[-5,0]].forEach(([x, z]) => ring(px(x), px(z), 3, '#c08cff'));
 }
 
-// 安置：予兆が出ていて、まだ着弾していない全ての円の外側
 function drawSafe(){
-  if (!oSafe.checked || S.phase !== 'run') return;
+  if (!opt.safe || S.phase !== 'run') return;
   const pending = [];
   S.sets.forEach(s => { if (S.t >= s.start) s.lanes.forEach(l => l.hits.forEach(h => { if (!h.done) pending.push(h); })); });
   if (!pending.length) return;
-  const step = .5, r2 = EXA_R * EXA_R;
-  ctx.fillStyle = 'rgba(88,214,141,.28)';
-  for (let x = -ARENA_R; x < ARENA_R; x += step){
-    for (let z = -ARENA_R; z < ARENA_R; z += step){
-      const cx = x + step / 2, cz = z + step / 2;
-      if (cx * cx + cz * cz > ARENA_R * ARENA_R) continue;
-      let ok = true;
-      for (const h of pending){ const dx = cx - h.x, dz = cz - h.z; if (dx * dx + dz * dz <= r2){ ok = false; break; } }
-      if (ok) ctx.fillRect(X(x), Z(z), step * SC + .5, step * SC + .5);
-    }
+  ctx.fillStyle = P.safe;
+  const r2 = EXA_R * EXA_R, R2 = ARENA_R * ARENA_R;
+  for (let y = 0; y < W; y += 2) for (let x = (y >> 1) & 1 ? 2 : 0; x < W; x += 4){
+    const wx = (x - C0 + .5) / PPY, wz = (y - C0 + .5) / PPY;
+    if (wx * wx + wz * wz > R2) continue;
+    let ok = true;
+    for (const h of pending){ const dx = wx - h.x, dz = wz - h.z; if (dx * dx + dz * dz <= r2){ ok = false; break; } }
+    if (ok) ctx.fillRect(x, y, 2, 2);
   }
 }
 
-function arrow(from, to, color, alpha){
-  const ax = X(from.x), az = Z(from.z), bx = X(to.x), bz = Z(to.z);
-  const ang = Math.atan2(bz - az, bx - ax), L = 1.6 * SC;
-  ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(2, SC * .35); ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(bx, bz);
-  ctx.lineTo(bx - L * Math.cos(ang - .5), bz - L * Math.sin(ang - .5));
-  ctx.lineTo(bx - L * Math.cos(ang + .5), bz - L * Math.sin(ang + .5));
-  ctx.closePath(); ctx.fill(); ctx.restore();
-}
-
 function drawExas(){
-  const t = S.t;
+  const t = S.t, blink = Math.floor(performance.now() / 120) & 1;
   S.sets.forEach(s => {
     if (t < s.start) return;
-    const teleT = t - s.start;
+    const tt = t - s.start;
     s.lanes.forEach(l => {
-      const h1 = l.hits[0];
-      // 進路ガイド（補助）
-      if (oPath.checked && !l.hits[HIT_COUNT - 1].done){
-        l.hits.forEach(h => { if (h.done) return; circle(h.x, h.z, EXA_R); ctx.strokeStyle = 'rgba(255,196,107,.18)'; ctx.lineWidth = 1; ctx.stroke(); });
-      }
-      // 予兆：1発目の円 + 進行方向の矢印（詠唱中）
-      if (teleT < FIRST_HIT){
-        const pulse = .55 + .25 * Math.sin(teleT * 9);
-        circle(h1.x, h1.z, EXA_R);
-        ctx.fillStyle = `rgba(255,196,107,${.10 + .06 * pulse})`; ctx.fill();
-        ctx.setLineDash([6, 5]); ctx.strokeStyle = `rgba(255,196,107,${pulse})`; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
-        const dir = { x: l.hits[1].x - h1.x, z: l.hits[1].z - h1.z };
-        arrow({ x: h1.x - dir.x * .35, z: h1.z - dir.z * .35 }, { x: h1.x + dir.x * .45, z: h1.z + dir.z * .45 }, '#ffe2b8', .95);
-        // 発生元のオーブ（フィールド外）
-        circle(l.spawn.x, l.spawn.z, 1.3); ctx.fillStyle = '#ff9d5c'; ctx.fill();
+      const h1 = l.hits[0], h2 = l.hits[1];
+      if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#5a4a2a'); });
+      // 予兆：1発目の円（点滅破線）＋ 進行方向の矢印 ＋ 場外の発生源
+      if (tt < FIRST_HIT){
+        ring(px(h1.x), px(h1.z), EXA_R * PPY, blink ? P.tele : '#a0781e', true);
+        const ux = (h2.x - h1.x) / 7.07, uz = (h2.z - h1.z) / 7.07;
+        const ax = px(h1.x - ux * 3), az = px(h1.z - uz * 3), bx = px(h1.x + ux * 3.5), bz = px(h1.z + uz * 3.5);
+        line(ax, az, bx, bz, P.tele); line(ax + 1, az, bx + 1, bz, P.tele);
+        const back = 7, side = 5;
+        line(bx, bz, Math.round(bx - ux * back * 1 - uz * side), Math.round(bz - uz * back + ux * side), P.tele);
+        line(bx, bz, Math.round(bx - ux * back + uz * side), Math.round(bz - uz * back - ux * side), P.tele);
+        disc(px(l.spawn.x), px(l.spawn.z), 4, blink ? P.exaHi : P.exa);
       }
       // 着弾
       l.hits.forEach(h => {
         const dt = t - h.t;
-        if (dt < -.18 || dt > .45) return;
-        if (dt < 0){ // 直前の赤熱
-          circle(h.x, h.z, EXA_R); ctx.fillStyle = `rgba(255,122,47,${.25 * (1 + dt / .18)})`; ctx.fill(); return;
-        }
-        const a = 1 - dt / .45;
-        circle(h.x, h.z, EXA_R); ctx.fillStyle = `rgba(255,122,47,${.55 * a})`; ctx.fill();
-        ctx.strokeStyle = `rgba(255,226,184,${a})`; ctx.lineWidth = 2; ctx.stroke();
-        circle(h.x, h.z, EXA_R * (.4 + .6 * (dt / .45))); ctx.strokeStyle = `rgba(255,255,255,${.6 * a})`; ctx.lineWidth = 1.5; ctx.stroke();
+        if (dt < -.15 || dt > .4) return;
+        const X = px(h.x), Z = px(h.z), R = EXA_R * PPY;
+        if (dt < 0){ disc(X, Z, R, P.exaDk, true); return; }
+        const k = dt / .4;
+        if (k < .35){ disc(X, Z, R, P.exa); disc(X, Z, Math.round(R * .6), P.exaHi); disc(X, Z, Math.round(R * .25), P.white); }
+        else { disc(X, Z, R, P.exaDk, true, 1); ring(X, Z, Math.round(R * (0.6 + k * .4)), P.exa); }
       });
     });
   });
 }
 
 function drawPlayer(){
-  const p = S.player;
-  S.flashes = S.flashes.filter(f => performance.now() - f < 500);
-  const hurt = S.flashes.length > 0;
-  circle(p.x, p.z, .9); ctx.fillStyle = hurt ? '#ff4d5e' : '#5fd4ff'; ctx.fill();
-  ctx.strokeStyle = '#0c0a12'; ctx.lineWidth = 2; ctx.stroke();
-  circle(p.x, p.z, .18); ctx.fillStyle = '#0c0a12'; ctx.fill(); // 判定点
-}
-
-function drawOverlay(){
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (S.phase === 'idle'){
-    banner('Enter / 新しい問題 でスタート', '#e9e4f2', 20);
-  } else if (S.phase === 'count'){
-    banner(String(Math.ceil(-S.t)), '#ffc46b', 64);
-  } else if (S.phase === 'done'){
-    banner(S.hits === 0 ? 'ノーミス！' : `被弾 ${S.hits}`, S.hits === 0 ? '#58d68d' : '#ff4d5e', 40);
-    ctx.font = `500 ${Math.max(12, SC * 1.1)}px "Zen Kaku Gothic New", sans-serif`;
-    ctx.fillStyle = '#9a91ad'; ctx.fillText('R：同じ問題 ／ Enter：新しい問題', SIZE / 2, SIZE / 2 + SC * 4.5);
-  }
-  if (S.paused) banner('一時停止中', '#c9a2ff', 30);
-}
-function banner(text, color, px){
-  const fs = Math.max(14, px * SIZE / 680);
-  ctx.font = `700 ${fs}px "Chakra Petch", "Zen Kaku Gothic New", sans-serif`;
-  const w = ctx.measureText(text).width + fs * 1.4;
-  ctx.fillStyle = 'rgba(12,10,18,.78)';
-  ctx.fillRect(SIZE / 2 - w / 2, SIZE / 2 - fs * .9, w, fs * 1.8);
-  ctx.fillStyle = color; ctx.fillText(text, SIZE / 2, SIZE / 2 + 1);
+  const hurt = performance.now() - S.hurtT < 500;
+  if (hurt && (Math.floor(performance.now() / 60) & 1)) return; // 点滅
+  sprite(HERO, px(S.player.x), px(S.player.z) - 2, hurt ? HERO_HURT : HERO_PAL);
+  rect(px(S.player.x), px(S.player.z) + 2, 1, 1, '#ffffff'); // 判定点
 }
 
 function draw(){
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  drawArena();
-  drawSafe();
-  drawSpots();
-  drawBoss();
-  drawExas();
-  drawPlayer();
-  drawOverlay();
+  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawPlayer();
 }
 
-// ---- 更新 ----
+// ===== HUD / メッセージ =====
+const hSet = $('hSet'), hHit = $('hHit'), msg = $('msg');
+let lastMsg = '';
+function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
+const DIR8 = ['北','北東','東','南東','南','南西','西','北西'];
+function patName(s){
+  if (s.pat === 'B') return '中';
+  const base = s.dir === 'NW' ? (s.pat === 'A' ? 5 : 1) : (s.pat === 'A' ? 7 : 3);
+  return DIR8[(base + 2 * S.rot) % 8] + '端';
+}
+function dirName(s){ return DIR8[((s.dir === 'NW' ? 7 : 1) + 2 * S.rot) % 8]; }
+function updateHud(){
+  const n = S.phase === 'run' || S.phase === 'done' ? S.sets.filter(s => S.t >= s.start).length : 0;
+  hSet.textContent = `SET ${n || '-'}/6`;
+  hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
+  const touch = document.body.classList.contains('touch');
+  if (S.phase === 'title') setMsg(`<div class="big">EXAFLARE</div><div class="sub blink">${touch ? 'STARTをタップ' : 'Enterでスタート'}</div>`);
+  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div>`);
+  else if (S.phase === 'done'){
+    const ok = S.hits === 0;
+    const order = S.sets.map(s => `${dirName(s)}${patName(s)}`).join(' → ');
+    setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div><div class="sub">${order}</div><div class="sub blink">${touch ? 'START / RETRY' : 'Enter:次の問題　R:リトライ'}</div>`);
+  } else setMsg('');
+}
+
+// ===== 更新 =====
 function movePlayer(dt){
-  let mx = 0, mz = 0;
+  let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;
-  if (S.pointer){
-    const dx = S.pointer.x - S.player.x, dz = S.pointer.z - S.player.z, dd = Math.hypot(dx, dz);
-    if (dd > .15){ mx = dx / dd * Math.min(1, dd / .5); mz = dz / dd * Math.min(1, dd / .5); }
-  }
-  const len = Math.hypot(mx, mz);
-  if (!len) return;
-  const n = Math.max(len, 1);
-  let x = S.player.x + mx / n * PLAYER_SPEED * dt, z = S.player.z + mz / n * PLAYER_SPEED * dt;
-  const r = Math.hypot(x, z);
-  if (r > ARENA_R - .5){ x *= (ARENA_R - .5) / r; z *= (ARENA_R - .5) / r; }
+  const len = Math.hypot(mx, mz); if (!len) return;
+  let x = S.player.x + mx / len * PLAYER_SPEED * dt, z = S.player.z + mz / len * PLAYER_SPEED * dt;
+  const r = Math.hypot(x, z); if (r > ARENA_R - .5){ x *= (ARENA_R - .5) / r; z *= (ARENA_R - .5) / r; }
   S.player.x = x; S.player.z = z;
 }
 
-let last = performance.now(), uiTick = 0;
+let last = performance.now();
 function frame(now){
-  const raw = Math.min(.05, (now - last) / 1000); last = now;
-  const dt = S.paused ? 0 : raw * parseFloat(oSpeed.value);
+  const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   movePlayer(dt);
-
   if (S.phase === 'count' || S.phase === 'run'){
+    const before = S.t;
     S.t += dt;
-    if (S.phase === 'count' && S.t >= 0){ S.phase = 'run'; }
+    if (S.phase === 'count'){
+      if (Math.ceil(-before) !== Math.ceil(-S.t) && S.t < 0) sfx.blip(660, .08);
+      if (S.t >= 0){ S.phase = 'run'; sfx.blip(990, .15); }
+    }
     if (S.phase === 'run'){
-      let lastT = 0;
+      let boom = false;
       S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => {
-        lastT = Math.max(lastT, h.t);
-        if (!h.done && S.t >= h.t){
-          h.done = true;
-          const dx = S.player.x - h.x, dz = S.player.z - h.z;
-          if (dx * dx + dz * dz <= EXA_R * EXA_R){
-            s.hitMe = true;
-            S.hits++; S.flashes.push(now);
-          }
-        }
+        if (h.done || S.t < h.t) return;
+        h.done = true; boom = true;
+        const dx = S.player.x - h.x, dz = S.player.z - h.z;
+        if (dx * dx + dz * dz <= EXA_R * EXA_R){ S.hits++; S.hurtT = now; sfx.hurt(); }
       })));
-      if (S.t > lastT + .6){ S.phase = 'done'; renderSeq(); }
+      if (boom) sfx.boom();
+      if (S.t > END_T + .6){ S.phase = 'done'; S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
-
-  if (now - uiTick > 100){
-    uiTick = now;
-    const cur = S.sets.filter(s => S.t >= s.start).length;
-    sSet.textContent = S.phase === 'idle' ? '–' : `${Math.max(0, cur)}/6`;
-    sTime.textContent = Math.max(0, S.t).toFixed(1);
-    sHits.textContent = S.hits;
-    sHits.className = 'v' + (S.hits ? ' bad' : (S.phase === 'done' ? ' good' : ''));
-    if (S.phase === 'run') renderSeq();
-  }
-  draw();
+  draw(); updateHud();
   requestAnimationFrame(frame);
 }
 
-// ---- 入力 ----
+// ===== 入力：キーボード =====
 const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
-function rotate(dir){
-  if (S.phase === 'run' || S.phase === 'count') return; // 実行中は回さない
-  S.rot = (S.rot + dir + 4) % 4;
-  S.sets = buildSets(problem);
-  S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
-  renderSeq();
+function rotate(){
+  if (S.phase === 'count' || S.phase === 'run') return;
+  S.rot = (S.rot + 1) % 4;
+  S.sets = buildSets(problem); S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
+  sfx.unlock(); sfx.blip(440, .05);
 }
+function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); $('tSafe').classList.toggle('on', opt.safe); }
+function start(){ begin(false); }
 window.addEventListener('keydown', e => {
-  if (e.target.closest && e.target.closest('select,input')) return;
+  if (!$('sheet').hidden) { if (e.key === 'Escape') closeSheet(); return; }
   const k = e.key.toLowerCase();
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
-  if (k === ' '){ oSafe.checked = !oSafe.checked; store.set('safe', oSafe.checked); e.preventDefault(); }
-  else if (k === 'e') rotate(1);
-  else if (k === 'q') rotate(-1);
-  else if (k === 'enter'){ begin(false); e.preventDefault(); }
+  if (k === ' '){ toggleSafe(); e.preventDefault(); }
+  else if (k === 'e') rotate();
+  else if (k === 'enter'){ start(); e.preventDefault(); }
   else if (k === 'r') begin(true);
-  else if (k === 'p') togglePause();
 });
 window.addEventListener('keyup', e => { const k = KEYMAP[e.key.toLowerCase()]; if (k) keys.delete(k); });
-window.addEventListener('blur', () => keys.clear());
+window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; });
 
-function toWorld(e){
-  const r = cv.getBoundingClientRect();
-  return { x: ((e.clientX - r.left) - r.width / 2) / (r.width / 2) * VIEW_R, z: ((e.clientY - r.top) - r.height / 2) / (r.height / 2) * VIEW_R };
-}
-cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); S.pointer = toWorld(e); cv.focus({ preventScroll: true }); });
-cv.addEventListener('pointermove', e => { if (S.pointer) S.pointer = toWorld(e); });
-['pointerup','pointercancel'].forEach(t => cv.addEventListener(t, () => { S.pointer = null; }));
+// ===== 入力：スマホ（バーチャルスティック + ボタン） =====
+const game = $('game');
+if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+window.addEventListener('touchstart', () => document.body.classList.add('touch'), { once:true, passive:true });
 
-function togglePause(){
-  if (S.phase !== 'run' && S.phase !== 'count') return;
-  S.paused = !S.paused; $('bPause').textContent = S.paused ? '再開' : '一時停止';
+const stick = $('stick'), knob = $('knob');
+let stickId = null;
+function stickMove(e){
+  const r = stick.getBoundingClientRect(), R = r.width / 2;
+  let dx = e.clientX - (r.left + R), dz = e.clientY - (r.top + R);
+  const d = Math.hypot(dx, dz), max = R - 20;
+  if (d > max){ dx *= max / d; dz *= max / d; }
+  knob.style.transform = `translate(${dx}px,${dz}px)`;
+  const n = Math.hypot(dx, dz) / max;
+  if (n < .2){ stickVec.x = stickVec.z = 0; } else { stickVec.x = dx / Math.hypot(dx, dz); stickVec.z = dz / Math.hypot(dx, dz); }
 }
-$('bNew').addEventListener('click', () => begin(false));
-$('bRetry').addEventListener('click', () => begin(true));
-$('bPause').addEventListener('click', togglePause);
-oSafe.addEventListener('change', () => store.set('safe', oSafe.checked));
-oPath.addEventListener('change', () => store.set('path', oPath.checked));
-oSpots.addEventListener('change', () => store.set('spots', oSpots.checked));
-oFirst.addEventListener('change', () => store.set('first', oFirst.value));
-oMarker.addEventListener('change', () => store.set('marker', oMarker.value));
-function speedLabel(){ oSpeedV.textContent = Math.round(oSpeed.value * 100) + '%'; }
-oSpeed.addEventListener('input', () => { speedLabel(); store.set('speed', parseFloat(oSpeed.value)); });
+function stickEnd(){ stickId = null; stickVec.x = stickVec.z = 0; knob.style.transform = ''; }
+stick.addEventListener('pointerdown', e => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); e.preventDefault(); });
+stick.addEventListener('pointermove', e => { if (e.pointerId === stickId) stickMove(e); });
+stick.addEventListener('pointerup', stickEnd);
+stick.addEventListener('pointercancel', stickEnd);
+
+// 画面をドラッグしても移動できる（スティック代わり）
+let dragId = null, dragO = null;
+cv.addEventListener('pointerdown', e => { dragId = e.pointerId; dragO = { x:e.clientX, y:e.clientY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (e.pointerId !== dragId) return;
+  const dx = e.clientX - dragO.x, dz = e.clientY - dragO.y, d = Math.hypot(dx, dz);
+  if (d < 10){ stickVec.x = stickVec.z = 0; return; }
+  stickVec.x = dx / d; stickVec.z = dz / d;
+  if (d > 60){ dragO.x = e.clientX - dx / d * 60; dragO.y = e.clientY - dz / d * 60; } // 追従
+});
+['pointerup','pointercancel'].forEach(t => cv.addEventListener(t, e => { if (e.pointerId === dragId){ dragId = null; stickVec.x = stickVec.z = 0; } }));
+
+$('tStart').addEventListener('click', start);
+$('tRetry').addEventListener('click', () => begin(true));
+$('tRot').addEventListener('click', rotate);
+$('tSafe').addEventListener('click', toggleSafe);
+$('tSafe').classList.toggle('on', opt.safe);
+
+// ===== 設定シート =====
+const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound');
+oFirst.value = opt.first; oSpeed.value = opt.speed; oPath.checked = opt.path; oSpots.checked = opt.spots; oMarker.value = opt.marker; oSound.checked = opt.sound;
+function speedLabel(){ $('oSpeedV').textContent = Math.round(opt.speed * 100) + '%'; }
 speedLabel();
+oFirst.addEventListener('change', () => { opt.first = oFirst.value; store.set('first', opt.first); });
+oSpeed.addEventListener('input', () => { opt.speed = parseFloat(oSpeed.value); store.set('speed', opt.speed); speedLabel(); });
+oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('path', opt.path); });
+oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });
+oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set('marker', opt.marker); });
+oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
+function closeSheet(){ $('sheet').hidden = true; cv.focus({ preventScroll:true }); }
+$('bOpt').addEventListener('click', () => { $('sheet').hidden = false; });
+$('bClose').addEventListener('click', closeSheet);
+$('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
-window.addEventListener('resize', resize);
-resize();
-S.sets = buildSets(problem);
-S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
-renderSeq();
+// 初期表示：タイトル画面にも問題の配置だけ用意しておく
+S.sets = buildSets(problem); S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
 requestAnimationFrame(frame);
 })();
 </script>

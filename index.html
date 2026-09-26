@@ -132,8 +132,8 @@ const px = x => Math.round(C0 + x * PPY);
 // 8bitパレット
 const P = {
   void:'#000000', floor:'#4b4c8a', grid:'#3e3f7a', diag:'#3a3a70', rim:'#4c6ed8', rim2:'#2d3f8f',
-  exa:'#ff4f7b', exaDk:'#2a1030', exaHi:'#ffd0dc', white:'#ffffff',
-  safe:'#58e07a', boss:'#e0763a', bossEdge:'#c9562a', bossTip:'#ff4f7b', hurt:'#ff2a3a',
+  exa:'#ff7a1f', exaDk:'#3a1606', exaHi:'#ffe08a', chev:'#fff4d6', white:'#ffffff',
+  safe:'#58e07a', boss:'#b04a8a', bossEdge:'#d8609c', bossTip:'#ff5aa8', hurt:'#ff2a3a',
   mk:['#ff5a5a','#ffd84a','#5ad0ff','#d08cff']
 };
 
@@ -347,14 +347,13 @@ function corner(cx, cz, sx, sz, L, c){
   rect(Math.min(cx, cx - sx * (L - 1)), sz > 0 ? cz - 1 : cz, L, 2, c);
   rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
 }
-// エクサの予兆マーク（DSR版風：ピンクの円 + 白い山形 + 中心の四角）
+// エクサの予兆マーク（実機に合わせて：オレンジの円 + 進行方向の白い「>>>」）
 function exaMark(X, Z, sx, sz, on){
   const R = EXA_R * PPY;
-  alpha(.4, () => disc(X, Z, R, P.exaDk));
-  thickRing(X, Z, R, on ? P.exa : '#b8385a', 2);
-  corner(X + sx * 12, Z + sz * 12, sx, sz, 11, P.white);
-  corner(X + sx * 5, Z + sz * 5, sx, sz, 8, P.exa);
-  rect(X - 2, Z - 2, 5, 5, P.exa); rect(X - 1, Z - 1, 3, 3, P.exaDk); rect(X, Z, 1, 1, P.white);
+  alpha(.35, () => disc(X, Z, R, P.exa));
+  thickRing(X, Z, R, on ? P.exa : '#c9561a', 2);
+  // 後ろから前へ3本、先頭ほど明るい
+  [[-7, '#c98a5a'], [1, '#ffd9a8'], [9, P.chev]].forEach(([o, c]) => corner(X + sx * o, Z + sz * o, sx, sz, 10, c));
 }
 
 function drawExas(){

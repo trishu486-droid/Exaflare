@@ -47,12 +47,20 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .help{margin:0;text-align:center;color:var(--dim);font-size:13px}
 .help kbd{font:13px var(--px);color:var(--ink);border:2px solid var(--edge);padding:0 5px;background:var(--btn)}
 /* タッチ操作 */
-.pad{display:none;align-items:center;justify-content:space-between;gap:12px;padding-top:4px}
-.touch .pad{display:flex}
+.pad{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding-top:4px}
+.pad .stick,.pad .btns{display:none}
+.touch .pad{justify-content:space-between}
+.touch .pad .stick,.touch .pad .btns{display:grid}
 .touch .help{display:none}
 .stick{position:relative;width:132px;height:132px;flex:none;border:3px solid var(--edge);border-radius:50%;background:radial-gradient(circle,#1a1630 0 60%,#120f22 61%);touch-action:none}
 .knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#3a3354;border:3px solid #6a5f94;box-shadow:inset -4px -4px 0 #2a2440}
-.btns{display:grid;grid-template-columns:repeat(2,64px);gap:10px}
+.btns{display:grid;grid-template-columns:64px;gap:8px}
+.btns .pbtn{height:44px}
+.gcd{--p:0;flex:none;width:104px;height:104px;font:18px var(--px);color:var(--ink);cursor:pointer;touch-action:none;
+  border:3px solid var(--edge);box-shadow:inset -4px -4px 0 #0f0d1b;
+  background:conic-gradient(rgba(0,0,0,.62) calc(var(--p) * 360deg), transparent 0), linear-gradient(135deg,#b8385a,#6a1f5a)}
+.gcd.ready{border-color:var(--gold);color:var(--gold)}
+.gcd.press{transform:translateY(2px);box-shadow:inset 4px 4px 0 #0f0d1b}
 .pbtn{font:14px/1.1 var(--px);color:var(--ink);background:var(--btn);border:3px solid var(--edge);box-shadow:inset -3px -3px 0 #0f0d1b;height:56px;cursor:pointer;touch-action:manipulation}
 .pbtn:active,.pbtn.on{background:#2c2548;border-color:var(--gold);color:var(--gold)}
 .pbtn.go{border-color:var(--gold);color:var(--gold)}
@@ -78,20 +86,20 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   <div class="screen">
     <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
     <div class="cast" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name">混沌の終末</div></div>
-    <div class="hud"><span id="hSet">SET -/6</span><span id="hHit">HIT 0</span></div>
+    <div class="hud"><span id="hSet">SET -/6</span><span id="hGcd">GCD 0</span><span id="hHit">HIT 0</span></div>
     <div class="msg" id="msg"></div>
   </div>
 
-  <p class="help"><kbd>WASD</kbd>/<kbd>矢印</kbd> 移動　<kbd>E</kbd> 向き回転　<kbd>Space</kbd> 安置表示　<kbd>Enter</kbd> スタート　<kbd>R</kbd> リトライ</p>
+  <p class="help"><kbd>WASD</kbd>/<kbd>矢印</kbd> 移動　<kbd>1</kbd>/<kbd>J</kbd> GCD　<kbd>Space</kbd> 安置表示　<kbd>Enter</kbd> スタート　<kbd>R</kbd> リトライ</p>
 
   <div class="pad">
     <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
     <div class="btns">
       <button class="pbtn go" id="tStart" type="button">START</button>
       <button class="pbtn" id="tRetry" type="button">RETRY</button>
-      <button class="pbtn" id="tRot" type="button">回転</button>
       <button class="pbtn" id="tSafe" type="button">安置</button>
     </div>
+    <button class="gcd" id="tGcd" type="button" aria-label="GCDアクション">GCD</button>
   </div>
 </div>
 
@@ -106,6 +114,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <label class="opt"><span>4点避けの位置を表示</span><input type="checkbox" id="oSpots"></label>
     <label class="opt"><span>マーカー</span>
       <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
+    <label class="opt"><span>ロール</span>
+      <select id="oRole"><option value="melee">近接（射程3y）</option><option value="ranged">遠隔</option></select></label>
     <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
     <p class="note">6レーン中2本が光り、北西・北東から2.5秒ごとに交互に計6セット。予兆の4.6秒後から0.51秒間隔で6発、着弾円は半径6y。座標とタイミングは cactbot / Splatoon のデータから算出。</p>
     <button class="pbtn go" id="bClose" type="button">とじる</button>
@@ -146,11 +156,11 @@ const store = {
 const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true),
-  safe: store.get('safe', false)
+  safe: store.get('safe', false), role: store.get('role', 'melee')
 };
 
 // ===== 状態 =====
-const S = { phase:'title', t:-COUNTDOWN, rot:0, sets:[], player:{x:0,z:5}, hits:0, hurtT:-9, clearT:0 };
+const S = { phase:'title', t:-COUNTDOWN, sets:[], player:{x:0,z:5}, hits:0, hurtT:-9 };
 const keys = new Set();
 const stickVec = { x:0, z:0 };
 
@@ -168,14 +178,13 @@ function laneHit(dir, off, k){
   if (dir === 'NW'){ const s = -35 + 10 * k; return { x:(s + off) / 2, z:(s - off) / 2 }; }
   const d = 35 - 10 * k; return { x:(off + d) / 2, z:(off - d) / 2 };
 }
-function rotPt(p, r){ let { x, z } = p; for (let i = 0; i < r; i++) [x, z] = [-z, x]; return { x, z }; }
 function buildSets(list){
   return list.map((w, k) => {
     const start = SET_INTERVAL * k;
     const lanes = PATTERNS[w.pat].map(off => ({
-      spawn: rotPt(laneHit(w.dir, off, 0), S.rot),
+      spawn: laneHit(w.dir, off, 0),
       hits: Array.from({ length:HIT_COUNT }, (_, i) => {
-        const p = rotPt(laneHit(w.dir, off, i + 1), S.rot);
+        const p = laneHit(w.dir, off, i + 1);
         return { t:start + FIRST_HIT + HIT_GAP * i, x:p.x, z:p.z, done:false };
       })
     }));
@@ -188,7 +197,7 @@ const END_T = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1);
 function begin(same){
   if (!same) problem = makeProblem();
   S.sets = buildSets(problem);
-  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9;
+  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; gcdReset();
   S.player = { x:0, z:5 };
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
@@ -313,7 +322,7 @@ function drawBoss(){
   alpha(.6, () => disc(C0, C0, R, P.boss));
   ring(C0, C0, R, P.bossEdge);
   alpha(.5, () => ring(C0, C0, R - 6, P.bossEdge));
-  const f = rotPt({ x:0, z:-1 }, S.rot), sx = -f.z, sz = f.x;
+  const f = { x:0, z:-1 }, sx = -f.z, sz = f.x;
   for (let i = 0; i < 5; i++){
     const bx = C0 + f.x * (R + 4 - i), bz = C0 + f.z * (R + 4 - i);
     line(Math.round(bx + sx * i), Math.round(bz + sz * i), Math.round(bx - sx * i), Math.round(bz - sz * i), P.bossTip);
@@ -379,6 +388,18 @@ function drawExas(){
   });
 }
 
+function drawGcdFx(){
+  const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
+  if (opt.role !== 'ranged') alpha(.45, () => ring(C0, C0, (BOSS_R + MELEE) * PPY, '#c9a2ff'));
+  if (now - G.popT < 260){ // 斬撃エフェクト
+    const o = Math.round(3 + (now - G.popT) / 260 * 6);
+    line(X - o, Z - 10 - o, X + o, Z - 10 + o, P.white);
+  }
+  if (now - G.oorT < 500){ // 射程外
+    line(X - 3, Z - 14, X + 3, Z - 8, P.hurt); line(X + 3, Z - 14, X - 3, Z - 8, P.hurt);
+  }
+}
+
 function drawPlayer(){
   const now = performance.now(), hurt = now - S.hurtT < 500;
   const X = px(S.player.x), Z = px(S.player.z);
@@ -395,32 +416,58 @@ function drawCast(){
 }
 
 function draw(){
-  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawPlayer(); drawCast();
+  drawField(); drawSafe(); drawSpots(); drawBoss(); drawExas(); drawGcdFx(); drawPlayer(); drawCast();
 }
 
 // ===== HUD / メッセージ =====
-const hSet = $('hSet'), hHit = $('hHit'), msg = $('msg');
+const hSet = $('hSet'), hHit = $('hHit'), hGcd = $('hGcd'), msg = $('msg');
 let lastMsg = '';
 function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
 const DIR8 = ['北','北東','東','南東','南','南西','西','北西'];
 function patName(s){
   if (s.pat === 'B') return '中';
   const base = s.dir === 'NW' ? (s.pat === 'A' ? 5 : 1) : (s.pat === 'A' ? 7 : 3);
-  return DIR8[(base + 2 * S.rot) % 8] + '端';
+  return DIR8[base] + '端';
 }
-function dirName(s){ return DIR8[((s.dir === 'NW' ? 7 : 1) + 2 * S.rot) % 8]; }
+function dirName(s){ return s.dir === 'NW' ? '北西' : '北東'; }
 function updateHud(){
   const n = S.phase === 'run' || S.phase === 'done' ? S.sets.filter(s => S.t >= s.start).length : 0;
   hSet.textContent = `SET ${n || '-'}/6`;
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
+  hGcd.textContent = `GCD ${G.count}`;
   const touch = document.body.classList.contains('touch');
   if (S.phase === 'title') setMsg(`<div class="big">EXAFLARE</div><div class="sub blink">${touch ? 'STARTをタップ' : 'Enterでスタート'}</div>`);
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div>`);
   else if (S.phase === 'done'){
     const ok = S.hits === 0;
     const order = S.sets.map(s => `${dirName(s)}${patName(s)}`).join(' → ');
-    setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div><div class="sub">${order}</div><div class="sub blink">${touch ? 'START / RETRY' : 'Enter:次の問題　R:リトライ'}</div>`);
+    setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div><div class="sub">GCD ${G.count}回 ／ ロス ${G.loss.toFixed(1)}秒</div><div class="sub">${order}</div><div class="sub blink">${touch ? 'START / RETRY' : 'Enter:次の問題　R:リトライ'}</div>`);
   } else setMsg('');
+}
+
+// ===== GCD（スキル回しを止めずに避ける練習） =====
+const GCD = 2.5, QUEUE = 0.5, MELEE = 3; // リキャスト / 先行入力 / 近接射程（タゲサ外周から）
+const G = { readyAt:0, queued:false, count:0, loss:0, popT:-9, oorT:-9 };
+function gcdReset(){ Object.assign(G, { readyAt:0, queued:false, count:0, loss:0, popT:-9, oorT:-9 }); }
+function inRange(){ return opt.role === 'ranged' || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
+function pressGcd(){
+  sfx.unlock();
+  if (S.phase === 'run' && S.t >= G.readyAt - QUEUE) G.queued = true;
+}
+function gcdTick(dt, now){
+  if (S.t < G.readyAt) return;
+  if (G.queued){
+    G.queued = false;
+    if (inRange()){ G.readyAt = S.t + GCD; G.count++; G.popT = now; sfx.tone(988, .05, 'square', .04); return; }
+    G.oorT = now; sfx.tone(160, .12, 'square', .05);
+  }
+  if (S.t <= END_T) G.loss += dt; // 撃てるのに撃っていない時間
+}
+const gBtn = $('tGcd');
+function drawGcdButton(){
+  const p = S.phase === 'run' ? Math.max(0, Math.min(1, (G.readyAt - S.t) / GCD)) : 0;
+  gBtn.style.setProperty('--p', p.toFixed(3));
+  gBtn.classList.toggle('ready', S.phase === 'run' && p === 0);
 }
 
 // ===== 更新 =====
@@ -454,21 +501,16 @@ function frame(now){
         if (dx * dx + dz * dz <= EXA_R * EXA_R){ S.hits++; S.hurtT = now; sfx.hurt(); }
       })));
       if (boom) sfx.boom();
+      gcdTick(dt, now);
       if (S.t > END_T + .6){ S.phase = 'done'; S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
-  draw(); updateHud();
+  draw(); updateHud(); drawGcdButton();
   requestAnimationFrame(frame);
 }
 
 // ===== 入力：キーボード =====
 const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
-function rotate(){
-  if (S.phase === 'count' || S.phase === 'run') return;
-  S.rot = (S.rot + 1) % 4;
-  S.sets = buildSets(problem); S.sets.forEach(s => s.lanes.forEach(l => l.hits.forEach(h => h.done = true)));
-  sfx.unlock(); sfx.blip(440, .05);
-}
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); $('tSafe').classList.toggle('on', opt.safe); }
 function start(){ begin(false); }
 window.addEventListener('keydown', e => {
@@ -476,7 +518,7 @@ window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
   if (k === ' '){ toggleSafe(); e.preventDefault(); }
-  else if (k === 'e') rotate();
+  else if (k === '1' || k === 'j'){ if (!e.repeat) pressGcd(); e.preventDefault(); }
   else if (k === 'enter'){ start(); e.preventDefault(); }
   else if (k === 'r') begin(true);
 });
@@ -519,7 +561,10 @@ cv.addEventListener('pointermove', e => {
 
 $('tStart').addEventListener('click', start);
 $('tRetry').addEventListener('click', () => begin(true));
-$('tRot').addEventListener('click', rotate);
+// GCDボタンは押した瞬間に反応（スティック操作と同時押し可）
+gBtn.addEventListener('pointerdown', e => { e.preventDefault(); gBtn.classList.add('press'); pressGcd(); });
+['pointerup','pointercancel','pointerleave'].forEach(t => gBtn.addEventListener(t, () => gBtn.classList.remove('press')));
+gBtn.addEventListener('contextmenu', e => e.preventDefault());
 $('tSafe').addEventListener('click', toggleSafe);
 $('tSafe').classList.toggle('on', opt.safe);
 
@@ -533,6 +578,8 @@ oSpeed.addEventListener('input', () => { opt.speed = parseFloat(oSpeed.value); s
 oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('path', opt.path); });
 oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });
 oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set('marker', opt.marker); });
+const oRole = $('oRole'); oRole.value = opt.role;
+oRole.addEventListener('change', () => { opt.role = oRole.value; store.set('role', opt.role); });
 oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
 function closeSheet(){ $('sheet').hidden = true; cv.focus({ preventScroll:true }); }
 $('bOpt').addEventListener('click', () => { $('sheet').hidden = false; });

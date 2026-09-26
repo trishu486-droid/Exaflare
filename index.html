@@ -908,15 +908,18 @@ function updateHud(){
   hDmg.textContent = `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') setMsg('');
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>`);
-  else if (S.phase === 'done'){
-    const ok = S.hits === 0;
-    setMsg(`<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
-      rankHtml() +
-      `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
-      `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
-      [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
-      `<div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`);
-  } else setMsg('');
+  else if (S.phase === 'done') setMsg(S.resultHtml);
+  else setMsg('');
+}
+// リザルトは終了した瞬間の内容で固定する（後から SELECT でジョブを変えても変わらない）
+function buildResult(){
+  const ok = S.hits === 0;
+  return `<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
+    rankHtml() +
+    `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
+    `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
+    [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
+    `<div class="sub blink">START：次の問題　↻：リトライ　≡：ギミック選択</div>`;
 }
 // ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
@@ -970,7 +973,7 @@ function frame(now){
     if (S.phase === 'run'){
       S.inst.tick(S.t);
       actTick(dt);
-      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.hits ? sfx.fail() : sfx.clear(); }
+      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
   draw(); updateHud(); drawButtons();

@@ -742,7 +742,146 @@ const MISS = (() => {
   };
 })();
 
-const MECHS = [EXA, FLOOD, CELES, MISS];
+// =====================================================================
+// ギミック5（β）：狂気のオーケストラ 1回目（kanatan.info の処理法）
+// 味方7人は正しく動く。自分の担当はランダム（ナイト=MT/ST、機工士・黒=D1〜D4/H1/H2）
+// =====================================================================
+const ORCH = (() => {
+  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = 6;
+  const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // β：詠唱の長さと予兆のタイミングは推定
+  // 散開位置（攻略図から読み取り）
+  const SPREAD = {
+    MT:{ x:-5, z:-12.4 }, ST:{ x:4.8, z:-12.9 },
+    D3:{ x:-8.5, z:-5.9 }, D4:{ x:8.1, z:-5.9 }, D1:{ x:-8, z:1.5 }, D2:{ x:8.9, z:3.1 },
+    H1:{ x:-3.7, z:7.3 }, H2:{ x:4, z:7.7 },
+  };
+  const NON_TANK = ['D1','D2','D3','D4','H1','H2'];
+  const STACK = { x:0, z:-8.5 };                         // 2回目：タンクの頭割り（タゲサの外）
+  const BAIT = [{ x:-4.5, z:0 }, { x:0, z:4.5 }, { x:4.5, z:0 }]; // 2回目：タゲサ内の西・南・東
+  const FLARE_SPOT = { x:0, z:-18.5 };
+  const SOUTH = { H1:{ x:-6.5, z:14.5 }, H2:{ x:-9, z:13 }, D1:{ x:3.5, z:16 }, D2:{ x:6, z:14.5 }, D3:{ x:1.5, z:13.5 }, D4:{ x:8.5, z:12.5 } };
+  const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
+  const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
+  return {
+    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ 1回目', view:24, start:{ x:0, z:8 },
+    gen(){
+      const me = job().role === 'tank' ? pick(['MT','ST']) : pick(NON_TANK);
+      return { me, role:job().role, targets:shuffle([...NON_TANK]).slice(0, 3) };
+    },
+    valid: d => d.role === job().role, // ジョブを変えたら担当を引き直す
+    create(p){
+      const all = ['MT','ST', ...NON_TANK];
+      // 2回目の誘導役：1回目で当たらなかった3人を、散開位置の西から順に 西・南・東 へ
+      const baiters = NON_TANK.filter(k => !p.targets.includes(k)).sort((a, b) => SPREAD[a].x - SPREAD[b].x);
+      const spotAt = (k, t) => {
+        if (t < W1) return SPREAD[k];
+        if (t < W2){
+          if (k === 'MT' || k === 'ST') return STACK;
+          const bi = baiters.indexOf(k);
+          return bi >= 0 ? BAIT[bi] : outward(SPREAD[k], 14);
+        }
+        if (k === 'MT') return FLARE_SPOT;   // ヘイト1位＝フレア
+        if (k === 'ST') return STACK;        // ヘイト2位＝ホーリー（ボス前で無敵）
+        return SOUTH[k];
+      };
+      const bots = all.filter(k => k !== p.me).map(k => ({ k, ...SPREAD[k] }));
+      const pos = k => k === p.me ? S.player : bots.find(b => b.k === k);
+      const fired = { w1:false, w2:false, fin:false };
+      let w2targets = [], lastT = 0;
+      const fx = []; // { at, kind, x, z, r }
+      const vuln = p.targets.includes(p.me);
+      const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
+      return {
+        start: { ...SPREAD[p.me] },
+        intro: `あなたは ${p.me}`,
+        end: FINAL + .9,
+        casts: [{ name:'狂気のオーケストラ', start:0, len:CAST_END }],
+        progress: t => t < W1 ? '1回目' : t < W2 ? '2回目' : t < FINAL ? 'フレア/ホーリー' : '終了',
+        status(t){
+          const s = [`担当 ${p.me}`];
+          if (t >= W1 && vuln) s.push('被魔法ダメージ増加');
+          if (t >= W1 - .3 && t < FINAL && (p.me === 'MT' || p.me === 'ST')) s.push(`${p.me === 'MT' ? 'フレア' : 'ホーリー'} ${Math.ceil(FINAL - t)}`);
+          return s;
+        },
+        tick(t){
+          const dt = Math.max(0, t - lastT); lastT = t;
+          // 味方は担当の位置へ歩く
+          bots.forEach(b => {
+            const g = spotAt(b.k, t), d = dist(b, g), step = BOT_SPEED * dt;
+            if (d > .05){ const k = Math.min(1, step / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; }
+          });
+          const me = S.player;
+          if (!fired.w1 && t >= W1){
+            fired.w1 = true; sfx.boom();
+            p.targets.forEach(k => fx.push({ at:t, kind:'holy', ...pos(k), r:HOLY_R }));
+            ['MT','ST'].forEach(k => fx.push({ at:t, kind:'tb', ...pos(k), r:TB_R }));
+            const overlap = p.targets.filter(k => k !== p.me).some(k => dist(me, pos(k)) <= HOLY_R);
+            if (overlap) hurt('ホーリーが重なった');
+            if (vuln && all.filter(k => k !== p.me && !p.targets.includes(k)).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーに味方を巻き込んだ');
+            if (roleOf(p.me) !== 'T' && ['MT','ST'].some(k => dist(me, pos(k)) <= TB_R)) hurt('タンク強攻撃に巻き込まれた');
+          }
+          if (!fired.w2 && t >= W2){
+            fired.w2 = true; sfx.boom();
+            // ボスに近い3人（自分も含めて判定）
+            w2targets = [...all].sort((a, b) => Math.hypot(pos(a).x, pos(a).z) - Math.hypot(pos(b).x, pos(b).z)).slice(0, 3);
+            w2targets.forEach(k => fx.push({ at:t, kind:'holy', ...pos(k), r:HOLY_R }));
+            fx.push({ at:t, kind:'stack', ...pos('MT'), r:STACK_R });
+            const mine = w2targets.includes(p.me);
+            if (roleOf(p.me) === 'T'){
+              if (mine) hurt('タゲサに入った');
+              if (dist(me, pos(p.me === 'MT' ? 'ST' : 'MT')) > STACK_R) hurt('頭割りに入れていない');
+            } else {
+              if (mine && vuln) hurt('ホーリーを2回受けた');
+              if (!mine && !vuln) hurt('近い3人に入れなかった');
+              if (w2targets.filter(k => k !== p.me).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーが重なった');
+              if (dist(me, pos('MT')) <= STACK_R) hurt('タンク頭割りに入った');
+            }
+          }
+          if (!fired.fin && t >= FINAL){
+            fired.fin = true; sfx.boom();
+            fx.push({ at:t, kind:'flare', ...pos('MT'), r:FLARE_R });
+            fx.push({ at:t, kind:'tb', ...pos('ST'), r:TB_R });
+            if (p.me === 'MT'){ if (all.some(k => k !== 'MT' && dist(pos('MT'), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ'); }
+            else if (dist(me, pos('MT')) <= FLARE_R) hurt('フレアに巻き込まれた');
+            if (p.me === 'ST' && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
+          }
+        },
+        safeActive: () => true,
+        safe(x, z, t){ return dist({ x, z }, spotAt(p.me, t)) <= 1.8; },
+        guide(t){ const g = spotAt(p.me, t); ring(px(g.x), px(g.z), Math.round(1.8 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+        draw(t){
+          const blink = (Math.floor(performance.now() / 160) & 1) === 0;
+          // 1回目の予兆：ランダム3人に青い輪、MT/STに赤い輪
+          if (t >= MARK_AT && t < W1){
+            p.targets.forEach(k => { const q = pos(k); thickRing(px(q.x), px(q.z), Math.round(HOLY_R * PPY), blink ? '#5ab0ff' : P.white, 2); });
+            ['MT','ST'].forEach(k => { const q = pos(k); thickRing(px(q.x), px(q.z), Math.round(TB_R * PPY), blink ? P.hurt : '#ff9a9a', 2); });
+          }
+          // 2回目の頭割り予兆（MTに）、フレア/ホーリーの予兆
+          if (t >= W1 + .5 && t < W2){ const q = pos('MT'); ring(px(q.x), px(q.z), Math.round(STACK_R * PPY), blink ? P.hurt : P.white); }
+          if (t >= W2 + .3 && t < FINAL){ const q = pos('MT'); ring(px(q.x), px(q.z), Math.round(FLARE_R * PPY), blink ? '#ff9a3a' : P.white); }
+          // 着弾
+          fx.forEach(f => {
+            const dt = t - f.at; if (dt < 0 || dt > .6) return;
+            const c = f.kind === 'holy' ? '#5ab0ff' : f.kind === 'flare' ? '#ff9a3a' : P.hurt;
+            alpha(.6 * (1 - dt / .6), () => disc(px(f.x), px(f.z), Math.round(f.r * PPY), c));
+          });
+          // 味方
+          bots.forEach(b => {
+            const X = px(b.x), Z = px(b.z), r = roleOf(b.k);
+            rect(X - 4, Z - 4, 9, 9, P.white); rect(X - 3, Z - 3, 7, 7, ROLE_COL[r]);
+            const g = tileGlyph[r]; for (let i = 0; i < 15; i++) if (g[i] === '1') rect(X - 1 + (i % 3), Z - 2 + (i / 3 | 0), 1, 1, P.white);
+          });
+          // 2回目で狙われた人
+          if (t >= W2 && t < W2 + .6) w2targets.forEach(k => { const q = pos(k); ring(px(q.x), px(q.z), Math.round(HOLY_R * PPY), P.white); });
+        },
+      };
+    }
+  };
+})();
+
+const MECHS = [EXA, FLOOD, CELES, MISS, ORCH];
 const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
 
 // ===== 詠唱バー（ボス） =====
@@ -876,10 +1015,10 @@ function drawButtons(){
 // ===== 進行 =====
 function begin(same){
   const m = mech();
-  if (!same || !S.problem || S.problem.mech !== m.id) S.problem = { mech:m.id, data:m.gen() };
+  if (!same || !S.problem || S.problem.mech !== m.id || m.valid?.(S.problem.data) === false) S.problem = { mech:m.id, data:m.gen() };
   S.inst = m.create(S.problem.data);
   S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
-  S.player = { ...m.start };
+  S.player = { ...(S.inst.start || m.start) };
   $('menu').hidden = true;
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
@@ -907,7 +1046,7 @@ function updateHud(){
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   hDmg.textContent = `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') setMsg('');
-  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>`);
+  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
   else if (S.phase === 'done') setMsg(S.resultHtml);
   else setMsg('');
 }

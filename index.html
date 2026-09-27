@@ -217,7 +217,9 @@ const BUFFS = {
   bh:      { name:'桃園結義', dur:20, dmg:1.05, color:'#ffb84a' },
   wf:      { name:'ワイルドファイア', dur:10, dmg:1.1, color:'#ff6a3a' },
   soil:    { name:'野戦治療の陣', dur:18, mit:true, color:'#58e07a' },
-  cu:      { name:'集合的無意識', dur:5, mit:true, color:'#5ad8ff' },
+  cu:      { name:'運命の輪', dur:5, mit:true, color:'#5ad8ff' },
+  helios:  { name:'コンジャンクション・ヘリオス', dur:15, color:'#ffd84a' },
+  galv:    { name:'鼓舞', dur:30, mit:true, color:'#8ae05a' },
   div:     { name:'ディヴィネーション', dur:20, dmg:1.06, color:'#ffd84a' },
   exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
 };
@@ -260,12 +262,12 @@ const JOBS = {
          y:{ name:'三連魔', cd:60, instant:3 } },
   ast: { name:'占星術師', role:'healer', melee:false, slots:['H1'],
          a:{ name:'マレフィガ', pot:270, cast:1.5 },
-         b:{ name:'ロード・オブ・クラウン', cd:60, pot:400 },
-         x:{ name:'集合的無意識', cd:60, buff:'cu' },
+         b:{ name:'コンジャンクション・ヘリオス', gcd:true, cd:0, cast:1.5, buff:'helios' },
+         x:{ name:'運命の輪', cd:60, buff:'cu' },
          y:{ name:'ディヴィネーション', cd:120, buff:'div' } },
   sch: { name:'学者', role:'healer', melee:false, slots:['H2'],
          a:{ name:'気炎法', pot:310, cast:1.5 },
-         b:{ name:'エナジードレイン', cd:10, pot:100 },
+         b:{ name:'士気高揚の策', gcd:true, cd:0, cast:2.0, buff:'galv' },
          x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };
@@ -1398,7 +1400,12 @@ function pressKey(k){
 function runGcd(k){
   const j = job(), ab = j[k];
   A.readyAt = S.t + GCD; A.gcds++;
-  if (ab.gcd){ A.cds[k] = S.t + ab.cd; dealDamage(ab.pot, ab.name); return; }
+  if (ab.gcd){
+    A.cds[k] = S.t + ab.cd;
+    if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k }; return; }
+    if (ab.cast) A.instant--;
+    finishGcd(ab); return;
+  }
   if (ab.step){ // コンボ：前の段に続けて押すとフル威力
     const ok = ab.step === 1 || A.combo === ab.step - 1;
     dealDamage(ok ? ab.pot : ab.low, ab.name);
@@ -1407,7 +1414,12 @@ function runGcd(k){
   }
   if (!ab.cast){ dealDamage(ab.pot, ab.name); return; }
   if (A.instant > 0){ A.instant--; dealDamage(ab.pot, ab.name); return; }
-  A.cast = { start:S.t, end:S.t + ab.cast };
+  A.cast = { start:S.t, end:S.t + ab.cast, k };
+}
+// GCD技の効果：バフが付くもの（回復・バリア）かダメージ
+function finishGcd(ab){
+  if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); }
+  else dealDamage(ab.pot, ab.name);
 }
 function actTick(dt){
   const j = job(), a = j.a;
@@ -1424,7 +1436,7 @@ function actTick(dt){
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
     if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
-    else if (S.t >= A.cast.end){ A.cast = null; dealDamage(a.pot, a.name); }
+    else if (S.t >= A.cast.end){ const ab = job()[A.cast.k] || a; A.cast = null; finishGcd(ab); }
     return;
   }
   if (S.t < A.readyAt) return;
@@ -1489,6 +1501,12 @@ const BUFF_ART = {
   div:{ shape:'house', pal:{ n:'#2a1a5a', y:'#ffd84a', w:'#fffbe0', p:'#5a3a9a' }, px:[
     'nnnnnnnnnnnn','nnnnnynnnnnn','nnnnnynnnnnn','nnynnynnynnn','nnnywwwynnnn','yyyywwwyyyyn','nnnywwwynnnn',
     'nnynnynnynnn','nnnnnynnnnnn','nnnnnynnnnnn','nnnnnnnnnnnn','pppppppppppp','pppppppppppp','pppppppppppp'] },
+  helios:{ shape:'house', pal:{ y:'#e8b840', w:'#fff4c0', o:'#a07020', k:'#3a2a40' }, px:[
+    'yyyyywwyyyyy','yywyywwyywyy','yyywwwwwwyyy','ywwwwwwwwwwy','yyywwwwwwyyy','yywyykkyywyy','yyyyykkyyyyy',
+    'yyyykkkkyyyy','yyykkkkkkyyy','yyyykkkkyyyy','yyyykyykyyyy','oyyyyyyyyyyo','oooyyyyyyooo','oooooooooooo'] },
+  galv:{ shape:'house', pal:{ g:'#3a7a2a', l:'#8ae05a', y:'#e8ff9a', w:'#ffffff', d:'#1a4a1a' }, px:[
+    'gggggggggggg','ggggllllgggg','gggllyylllgg','ggllyyyyllgg','gllyywwyyllg','gllywwwwyllg','gllyywwyyllg',
+    'ggllyyyyllgg','gggllyylllgg','ggggllllgggg','gggggggggggg','dddddddddddd','dddddddddddd','dddddddddddd'] },
   // オーケストラ：フレア（橙の炎）とホーリー（水色の光）
   flare:{ shape:'house', pal:{ r:'#c83a1a', o:'#ff8a2a', y:'#ffe070', w:'#fffbe0' }, px:[
     'rrrrrrrrrrrr','rrrrroorrrrr','rrrrooorrrrr','rrrooyoorrrr','rrooyyyoorrr','rrooyyyyoorr','rooyywwyyoor',
@@ -1543,7 +1561,7 @@ function drawButtons(){
       return;
     }
     const left = run ? Math.max(0, A.cds[k] - S.t) : 0;
-    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(left / ab.cd, ab.gcd ? gcdP : 0), run && left === 0);
+    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)));
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
   const icons = st.filter(x => x && x.art);

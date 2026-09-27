@@ -82,6 +82,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .menu .head{font-size:16px;color:var(--gold)}
 .menu .note{font-size:16px;color:var(--dim)}
 .menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
+.menu .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(84%,360px)}
+.menu .jobgrid button{width:100%}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
 .menu button.cur::before{content:"▶";margin-right:4px}
@@ -1675,13 +1677,13 @@ function begin(){
   S.player = { ...(S.inst.start || m.start) };
   hpReset();
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
-  $('menu').hidden = true;
+  $('menu').hidden = true; applyTitle();
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
   bgm.stop(); if (!titleOn) menuBgm.start();
-  S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null;
+  S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null; applyTitle();
   HP.on = false; $('hp').hidden = true;
   S.cursor = Math.max(0, MECHS.indexOf(mech()));
   renderMenu(); $('menu').hidden = titleOn; lastMsg = ''; setMsg('');
@@ -1689,7 +1691,14 @@ function openMenu(){
 // メニュー：ジョブの行（SELECT／左右で切り替え）＋ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
-  const jobRow = `<button type="button" data-job="1"><span>◀ ${job().name} ▶</span><small>ジョブ（SELECT）</small></button>`;
+  const list = $('menuList');
+  list.className = S.menu === 'job' ? 'jobgrid' : ''; list.style.display = S.menu === 'job' ? '' : 'contents';
+  if (S.menu === 'job'){
+    head.textContent = 'ジョブ選択';
+    note.textContent = '十字で選んでA／STARTで決定';
+    list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
+    return;
+  }
   if (S.menu === 'slot'){
     head.textContent = `${job().name}の担当`;
     note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
@@ -1705,16 +1714,22 @@ function renderMenu(){
     }).join('');
     return;
   }
-  head.textContent = 'ギミック選択';
-  note.textContent = '十字で選んでA／STARTで開始';
-  $('menuList').innerHTML = jobRow + MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
+  head.textContent = `ギミック選択（${job().name}）`;
+  note.textContent = 'A／STARTで開始　Bでジョブ選択へ';
+  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
 }
-function menuCount(){ return S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+function menuCount(){ return S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
 // タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
 const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
 function openOrchN(){ S.menu = 'orchn'; S.cursor = opt.orch - 1; renderMenu(); }
 function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
+  if (S.menu === 'job'){
+    opt.job = JOB_ORDER[i]; store.set('job', opt.job); applyTitle();
+    S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu();
+    return;
+  }
   if (S.menu === 'slot'){
     opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle();
     if (needOrchN()) openOrchN(); else begin();
@@ -1730,12 +1745,13 @@ function menuConfirm(i = S.cursor){
   begin();
 }
 function menuBack(){
-  if (S.menu === 'mech') return;
+  if (S.menu === 'job') return;
+  if (S.menu === 'mech'){ openJobs(); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
   else { S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }
-function moveCursor(d){ S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
+function moveCursor(d, horiz = false){ if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
@@ -1777,14 +1793,15 @@ function rankHtml(){
   return `<span style="color:${color}">RANK ${name}</span>`;
 }
 function applyTitle(){
+  document.querySelector('.top h1').style.visibility = S.phase === 'menu' ? 'hidden' : '';
   $('mechName').textContent = mech().name;
   $('jobName').textContent = job().name + (job().slots.length > 1 && mech().slots ? ` ${mySlot()}` : '') + (needOrchN() ? ` ${opt.orch}回目` : '');
 }
 function selectJob(d = 1){
   if (S.phase === 'count' || S.phase === 'run') return;
+  if (S.phase === 'menu'){ if (!titleOn){ openJobs(); sfx.unlock(); sfx.cursor(); } return; } // メニュー中の SELECT はジョブ選択画面へ
   opt.job = JOB_ORDER[(JOB_ORDER.indexOf(opt.job) + d + JOB_ORDER.length) % JOB_ORDER.length];
   store.set('job', opt.job); applyTitle(); lastMsg = '';
-  if (S.phase === 'menu'){ if (S.menu !== 'mech') menuBack(); renderMenu(); }
   sfx.unlock(); sfx.blip(520, .05);
 }
 
@@ -1837,8 +1854,9 @@ window.addEventListener('keydown', e => {
     if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
     if (k === 'j' || k === '1' || k === 'enter'){ menuConfirm(); e.preventDefault(); return; }
     if (k === 'k' || k === '2' || k === 'escape'){ menuBack(); return; }
-    if (k === 'a' || k === 'arrowleft'){ selectJob(-1); e.preventDefault(); return; }
-    if (k === 'd' || k === 'arrowright' || k === 'shift'){ selectJob(1); e.preventDefault(); return; }
+    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); e.preventDefault(); return; }
+    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); e.preventDefault(); return; }
+    if (k === 'shift'){ selectJob(1); e.preventDefault(); return; }
     return;
   }
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
@@ -1906,7 +1924,6 @@ $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bMenu').addEventListener('click', openMenu);
 $('bSafe').addEventListener('click', toggleSafe);
 $('menuList').addEventListener('click', e => {
-  if (e.target.closest('button[data-job]')){ selectJob(1); return; }
   const b = e.target.closest('button[data-i]'); if (b) menuConfirm(Number(b.dataset.i));
 });
 syncSafe();
@@ -1924,7 +1941,7 @@ oBgm.addEventListener('change', () => {
 let titleOn = true, swallowClickUntil = 0;
 function leaveTitle(){
   titleOn = false; swallowClickUntil = performance.now() + 600;
-  $('title').hidden = true; $('menu').hidden = false; sfx.unlock(); sfx.ok(); menuBgm.start();
+  $('title').hidden = true; $('menu').hidden = false; openJobs(); sfx.unlock(); sfx.ok(); menuBgm.start();
 }
 ['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, e => {
   if (!titleOn || !$('sheet').hidden) return;

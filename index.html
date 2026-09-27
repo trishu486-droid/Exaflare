@@ -286,6 +286,9 @@ const sfx = {
     o.connect(g).connect(this.ac.destination); o.start(t); o.stop(t + dur + .02);
   },
   blip(f, d){ this.tone(f, d); },
+  cursor(){ this.tone(880, .035, 'square', .045); },
+  ok(){ [660, 990].forEach((f, i) => setTimeout(() => this.tone(f, .07, 'square', .05), i * 70)); },
+  back(){ [520, 350].forEach((f, i) => setTimeout(() => this.tone(f, .07, 'square', .045), i * 70)); },
   boom(){ this.tone(140, .09, 'square', .025, -80); },
   splash(){ this.tone(420, .18, 'triangle', .05, -300); },
   hurt(){ this.tone(220, .25, 'sawtooth', .08, -160); },
@@ -297,12 +300,10 @@ const sfx = {
   fail(){ [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, .16), i * 150)); }
 };
 
-// ===== BGM（オリジナル曲。ラスボス終盤風：テンポ130・7/8拍子の混在・聖歌風の急な減速） =====
-// 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14）とテンポを持つ
-// 構成：イントロ(4/4×2) → A 7/8リフ(×4) → B 4/4旋律(×6) → C 聖歌風 BPM66(×2) → A に戻る（1周 約25秒）
-// 激しさ：歪んだパワーコードの刻み・重いキック・タムのフィル・コンプレッサーで音圧を上げる
-const bgm = (() => {
-  const VOL = .7;
+// ===== BGMの再生エンジン（戦闘・メニューで共通） =====
+// 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14、6/8=12）とテンポを持つ
+// build(曲を組み立てる関数) はループ開始位置を返す
+function makePlayer(VOL, build){
   const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s, ch, n, l) => song.push({ s, ch, n:n && N(n), l });
@@ -312,58 +313,7 @@ const bgm = (() => {
   const bar = (len, bpm, fn) => { const s0 = cur; for (let i = 0; i < len; i++) stepDur.push(60 / bpm / 4); cur += len; fn(s0); };
   const fill = (s0, from, to) => { for (let i = from; i < to; i++) add(s0 + i, 'tom', ['A2','G2','E2','D2'][(i - from) % 4]); };
 
-  // --- イントロ（4/4、130）---
-  bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5'); });
-  bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'gtr', 'A1', 8); for (let i = 8; i < 16; i++){ add(s0 + i, 'snare'); add(s0 + i, 'kick'); } });
-
-  // --- A：7/8 のリフ（2+2+3 に刻む）---
-  const LOOP = cur;
-  const A_CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['G3','Bb3','D4'], ['A3','C#4','E4']];
-  const A_BASS = ['D2','Bb1','G1','A1'];
-  A_CH.forEach((c, b) => bar(14, 130, s0 => {
-    const groups = [0, 4, 8], r = A_BASS[b];
-    if (b % 2 === 0) add(s0, 'crash');
-    for (let i = 0; i < 14; i++){ add(s0 + i, 'bass', r, 1); add(s0 + i, 'kick'); add(s0 + i, 'gtr', r, groups.includes(i) ? 2 : 1); }
-    groups.forEach((g, gi) => { c.forEach(n => add(s0 + g, 'stab', n, 2)); add(s0 + g, gi ? 'snare' : 'timp', gi ? undefined : r.replace(/\d/, '2')); });
-    const riff = [c[0], c[2], c[1], c[2],  c[0], c[2], c[1], c[2],  c[0], c[1], c[2], up8(c[0]), c[2], c[1]];
-    riff.forEach((n, i) => add(s0 + i, 'toc', n, 1));
-    if (b === 3) fill(s0, 10, 14);
-  }));
-
-  // --- B：4/4 の旋律（Dm B♭ E° A7 / E♭ A）---
-  const B_CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['E4','G4','Bb4'], ['C#4','E4','A4'], ['Eb4','G4','Bb4'], ['C#4','E4','A4']];
-  const B_BASS = ['D2','Bb1','E2','A1','Eb2','A1'];
-  const B_MEL = [
-    [['A4',8],['D5',4],['F5',4]],
-    [['F5',8],['D5',4],['Bb4',4]],
-    [['E5',6],['G5',2],['Bb5',8]],
-    [['A5',8],['C#5',4],['E5',4]],
-    [['Eb6',8],['D6',4],['Bb5',4]],
-    [['C#6',4],['A5',4],['E5',2],['F5',2],['G5',2],['A5',2]],
-  ];
-  B_CH.forEach((c, b) => bar(16, 130, s0 => {
-    const r = B_BASS[b];
-    if (b % 2 === 0) add(s0, 'crash');
-    for (let i = 0; i < 16; i++){ add(s0 + i, 'bass', r, 1); add(s0 + i, 'kick'); add(s0 + i, 'gtr', r, [0, 6, 12].includes(i) ? 2 : 1); }
-    add(s0, 'pedal', r, 16);
-    c.forEach(n => add(s0, 'organ', n, 16));
-    [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); add(s0 + i, 'timp', r.replace(/\d/, '2')); });
-    [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let k = 0; k < 4; k++) add(s0 + k * 4 + i, 'toc', n, 1); });
-    let s1 = s0; B_MEL[b].forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; });
-    if (b === 5) fill(s0, 12, 16);
-  }));
-
-  // --- C：聖歌風（テンポ66に急減速）---
-  const C_CH = [['D3','F3','A3','D4'], ['A2','C#3','E3','A3']];
-  const C_MEL = [[['F4',8],['A4',8]], [['A4',8],['C#5',8]]];
-  C_CH.forEach((c, b) => bar(16, 66, s0 => {
-    c.forEach(n => add(s0, 'organ', n, 16));
-    add(s0, 'pedal', dn8(c[0]), 16);
-    add(s0, 'bell', up8(up8(c[0])));
-    add(s0, 'timp', c[0].replace(/\d/, '2'));
-    let s1 = s0; C_MEL[b].forEach(([n, l]) => { add(s1, 'choir', n, l); add(s1, 'choir', up8(n), l); s1 += l; });
-    if (b === 1) for (let i = 8; i < 16; i++){ add(s0 + i, 'timp', 'A1'); if (i >= 12) add(s0 + i, 'snare'); }
-  }));
+  const LOOP = build({ add, bar, up8, dn8, fill, pos:() => cur });
 
   const TOTAL = cur;
   const byStep = Array.from({ length:TOTAL }, () => []);
@@ -441,6 +391,16 @@ const bgm = (() => {
       oo.connect(gg).connect(master); oo.start(t); oo.stop(t + 2.5);
     });
   }
+  // ハープ：はじいて減衰する音
+  function pluck(ac, t, f){
+    [['triangle', 1, .14], ['pulse', 2, .02]].forEach(([type, m, v]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      if (type === 'pulse') o.setPeriodicWave(pulse); else o.type = type;
+      o.frequency.setValueAtTime(f * m, t);
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0005, t + 1.4);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 1.45);
+    });
+  }
   function play(ac, e, t){
     const dur = (e.l || 1) * stepDur[e.s], f = e.n && hz(e.n);
     switch (e.ch){
@@ -458,6 +418,9 @@ const bgm = (() => {
       case 'tom':   hit(ac, t, 'tom', f); break;
       case 'timp':  hit(ac, t, 'timp', f); break;
       case 'bell':  hit(ac, t, 'bell', f); break;
+      case 'harp':  pluck(ac, t, f); break;
+      case 'flute': voice(ac, t, 'triangle', f, dur * .95, .09, .08, master, .008); voice(ac, t, 'sine', f * 2, dur * .9, .02, .1); break;
+      case 'pad':   voice(ac, t, 'triangle', f, dur, .035, .4); voice(ac, t, 'pulse', f * 1.003, dur, .008, .5); break;
     }
   }
   function tick(){
@@ -487,7 +450,86 @@ const bgm = (() => {
       // 予約済みの音はフェードで消える。次の再生は新しい音量で始める
     },
   };
-})();
+}
+
+// ===== 戦闘BGM（オリジナル曲。ラスボス終盤風：テンポ130・7/8拍子の混在・聖歌風の急な減速） =====
+// 構成：イントロ(4/4×2) → A 7/8リフ(×4) → B 4/4旋律(×6) → C 聖歌風 BPM66(×2) → A に戻る（1周 約25秒）
+// 激しさ：歪んだパワーコードの刻み・重いキック・タムのフィル・コンプレッサーで音圧を上げる
+const bgm = makePlayer(.5, ({ add, bar, up8, dn8, fill, pos }) => {
+  // --- イントロ（4/4、130）---
+  bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5'); });
+  bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'gtr', 'A1', 8); for (let i = 8; i < 16; i++){ add(s0 + i, 'snare'); add(s0 + i, 'kick'); } });
+
+  // --- A：7/8 のリフ（2+2+3 に刻む）---
+  const LOOP = pos();
+  const A_CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['G3','Bb3','D4'], ['A3','C#4','E4']];
+  const A_BASS = ['D2','Bb1','G1','A1'];
+  A_CH.forEach((c, b) => bar(14, 130, s0 => {
+    const groups = [0, 4, 8], r = A_BASS[b];
+    if (b % 2 === 0) add(s0, 'crash');
+    for (let i = 0; i < 14; i++){ add(s0 + i, 'bass', r, 1); add(s0 + i, 'kick'); add(s0 + i, 'gtr', r, groups.includes(i) ? 2 : 1); }
+    groups.forEach((g, gi) => { c.forEach(n => add(s0 + g, 'stab', n, 2)); add(s0 + g, gi ? 'snare' : 'timp', gi ? undefined : r.replace(/\d/, '2')); });
+    const riff = [c[0], c[2], c[1], c[2],  c[0], c[2], c[1], c[2],  c[0], c[1], c[2], up8(c[0]), c[2], c[1]];
+    riff.forEach((n, i) => add(s0 + i, 'toc', n, 1));
+    if (b === 3) fill(s0, 10, 14);
+  }));
+
+  // --- B：4/4 の旋律（Dm B♭ E° A7 / E♭ A）---
+  const B_CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['E4','G4','Bb4'], ['C#4','E4','A4'], ['Eb4','G4','Bb4'], ['C#4','E4','A4']];
+  const B_BASS = ['D2','Bb1','E2','A1','Eb2','A1'];
+  const B_MEL = [
+    [['A4',8],['D5',4],['F5',4]],
+    [['F5',8],['D5',4],['Bb4',4]],
+    [['E5',6],['G5',2],['Bb5',8]],
+    [['A5',8],['C#5',4],['E5',4]],
+    [['Eb6',8],['D6',4],['Bb5',4]],
+    [['C#6',4],['A5',4],['E5',2],['F5',2],['G5',2],['A5',2]],
+  ];
+  B_CH.forEach((c, b) => bar(16, 130, s0 => {
+    const r = B_BASS[b];
+    if (b % 2 === 0) add(s0, 'crash');
+    for (let i = 0; i < 16; i++){ add(s0 + i, 'bass', r, 1); add(s0 + i, 'kick'); add(s0 + i, 'gtr', r, [0, 6, 12].includes(i) ? 2 : 1); }
+    add(s0, 'pedal', r, 16);
+    c.forEach(n => add(s0, 'organ', n, 16));
+    [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); add(s0 + i, 'timp', r.replace(/\d/, '2')); });
+    [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let k = 0; k < 4; k++) add(s0 + k * 4 + i, 'toc', n, 1); });
+    let s1 = s0; B_MEL[b].forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; });
+    if (b === 5) fill(s0, 12, 16);
+  }));
+
+  // --- C：聖歌風（テンポ66に急減速）---
+  const C_CH = [['D3','F3','A3','D4'], ['A2','C#3','E3','A3']];
+  const C_MEL = [[['F4',8],['A4',8]], [['A4',8],['C#5',8]]];
+  C_CH.forEach((c, b) => bar(16, 66, s0 => {
+    c.forEach(n => add(s0, 'organ', n, 16));
+    add(s0, 'pedal', dn8(c[0]), 16);
+    add(s0, 'bell', up8(up8(c[0])));
+    add(s0, 'timp', c[0].replace(/\d/, '2'));
+    let s1 = s0; C_MEL[b].forEach(([n, l]) => { add(s1, 'choir', n, l); add(s1, 'choir', up8(n), l); s1 += l; });
+    if (b === 1) for (let i = 8; i < 16; i++){ add(s0 + i, 'timp', 'A1'); if (i >= 12) add(s0 + i, 'snare'); }
+  }));
+
+  return LOOP;
+});
+
+// ===== メニューBGM（オリジナル曲。FFのメニュー画面っぽい、ハープの分散和音＋フルート） =====
+// ニ長調・6/8（1小節＝16分×12）。D A/C# Bm F#m/A G D/F# Em A の下降ベース（1周 約19秒）
+const menuBgm = makePlayer(.4, ({ add, bar, up8 }) => {
+  const CH = [['D3','A3','D4','F#4'], ['C#3','A3','C#4','E4'], ['B2','F#3','B3','D4'], ['A2','F#3','A3','C#4'],
+              ['G2','D3','G3','B3'], ['F#2','D3','F#3','A3'], ['E2','B2','E3','G3'], ['A2','E3','A3','C#4']];
+  const MEL = [[['F#5',6],['E5',6]], [['E5',6],['A4',6]], [['D5',6],['C#5',3],['B4',3]], [['C#5',12]],
+               [['B4',6],['D5',6]], [['A5',6],['F#5',6]], [['G5',4],['F#5',4],['E5',4]], [['E5',12]]];
+  CH.forEach((c, b) => bar(12, 76, s0 => {
+    add(s0, 'pedal', c[0].replace(/\d/, d => String(+d - 1)), 12);
+    // ハープ：8分で 根音→5度→オクターブ→3度（上）→オクターブ→5度
+    [c[0], c[1], c[2], up8(c[3]), c[2], c[1]].forEach((n, i) => add(s0 + i * 2, 'harp', n, 2));
+    c.slice(1).forEach(n => add(s0, 'pad', n, 12));
+    let s1 = s0; MEL[b].forEach(([n, l]) => { add(s1, 'flute', n, l); s1 += l; });
+    if (b === 0) add(s0, 'bell', 'D6');
+  }));
+  return 0;
+});
+
 
 // ===== ドット描画 =====
 function rect(x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
@@ -1317,13 +1359,13 @@ function begin(same){
   S.inst = m.create(S.problem.data);
   S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
-  bgm.stop(.05); setTimeout(() => bgm.start(), 60);
+  menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true;
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
-  bgm.stop();
+  bgm.stop(); menuBgm.start();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null;
   S.cursor = Math.max(0, MECHS.indexOf(mech()));
   renderMenu(); $('menu').hidden = false; lastMsg = ''; setMsg('');
@@ -1344,19 +1386,20 @@ function renderMenu(){
 }
 function menuCount(){ return S.menu === 'slot' ? job().slots.length : MECHS.length; }
 function menuConfirm(i = S.cursor){
+  sfx.unlock(); sfx.ok();
   if (S.menu === 'slot'){
     opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle(); begin(false);
     return;
   }
   opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle();
   if (MECHS[i].slots && job().slots.length > 1){
-    S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu(); sfx.unlock(); sfx.blip(520, .04);
+    S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu(); sfx.unlock(); sfx.ok();
     return;
   }
   begin(false);
 }
-function menuBack(){ if (S.menu === 'slot'){ S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu(); } }
-function moveCursor(d){ S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.blip(520, .04); }
+function menuBack(){ if (S.menu === 'slot'){ S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu(); sfx.unlock(); sfx.back(); } }
+function moveCursor(d){ S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
@@ -1532,7 +1575,14 @@ syncSafe();
 
 // ===== 設定シート =====
 const oBgm = $('oBgm'); oBgm.checked = opt.bgm;
-oBgm.addEventListener('change', () => { opt.bgm = oBgm.checked; store.set('bgm', opt.bgm); if (!opt.bgm) bgm.stop(.2); else if (S.phase === 'run' || S.phase === 'count') bgm.start(); });
+oBgm.addEventListener('change', () => {
+  opt.bgm = oBgm.checked; store.set('bgm', opt.bgm);
+  if (!opt.bgm){ bgm.stop(.2); menuBgm.stop(.2); }
+  else if (S.phase === 'run' || S.phase === 'count') bgm.start();
+  else if (S.phase === 'menu') menuBgm.start();
+});
+// ブラウザは操作があるまで音を出せないので、最初の操作でメニューBGMを鳴らし始める
+['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, () => { if (S.phase === 'menu') menuBgm.start(); }, { once:true }));
 const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound'), oDebuff = $('oDebuff'), oDouble = $('oDouble');
 oFirst.value = opt.first; oSpeed.value = opt.speed; oPath.checked = opt.path; oSpots.checked = opt.spots; oMarker.value = opt.marker; oSound.checked = opt.sound;
 oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;

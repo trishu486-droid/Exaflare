@@ -1053,6 +1053,7 @@ const CELES = (() => {
 const MISS = (() => {
   const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
   const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, STACK_AT = 5.12, STACK_R = 6; // 頭割りは穴より少し早く着弾
+  const MISS_EASE = .9; // ヒーラーの被ダメージ：実機どおりだと厳しすぎるので、ミッシングだけさらに10%軽くする
   // 方角（北から時計回りの角度）→ 格子の位置
   const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
   const cell = d => d === 'MID' ? [0, 0] : [Math.round(Math.sin(DIRS.indexOf(d) * Math.PI / 4)), Math.round(-Math.cos(DIRS.indexOf(d) * Math.PI / 4))];
@@ -1073,7 +1074,7 @@ const MISS = (() => {
     },
     create(d){
       const gone = [], warn = [], oranges = [];
-      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false, raid:[202967, 243000, 243000, 243000][r], bond:[243000, 300000, 243000, 243000][r] }));
+      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false, raid:[202967, 243000, 243000, 243000][r] * MISS_EASE, bond:[243000, 300000, 243000, 243000][r] * MISS_EASE }));
       const spots = d.route.map(k => INNER[k]);
       let inVoid = false;
       return {

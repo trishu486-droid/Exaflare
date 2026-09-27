@@ -1152,12 +1152,12 @@ const MISS = (() => {
 })();
 
 // =====================================================================
-// ギミック5（β）：狂気のオーケストラ 1回目（kanatan.info の処理法）
+// ギミック5：狂気のオーケストラ（kanatan.info の処理法。1回目・2回目）
 // 味方7人は正しく動く（着弾ギリギリまで動かない）。自分の担当はジョブで決まる（ナイト MT/ST、モンク D1/D2、機工士 D3、黒 D4、学者 H1/H2）
 // =====================================================================
 const ORCH = (() => {
   const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = 30; // 味方は着弾直前に駆け込む（答えが見えないように）
-  const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // β：詠唱の長さと予兆のタイミングは推定
+  const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // 詠唱の長さと予兆のタイミングは推定
   // 散開位置（攻略図から読み取り）
   const SPREAD = {
     MT:{ x:-5, z:-12.4 }, ST:{ x:4.8, z:-12.9 },
@@ -1174,7 +1174,7 @@ const ORCH = (() => {
   const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
   const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
   return {
-    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ', view:24, start:{ x:0, z:8 }, slots:true,
+    id:'orch', name:'狂気のオーケストラ', sub:'1回目・2回目', view:24, start:{ x:0, z:8 }, slots:true,
     gen(){
       return { me:mySlot(), n:job().role === 'tank' ? opt.orch : 1, targets:shuffle([...NON_TANK]).slice(0, 3) };
     },
@@ -1330,7 +1330,8 @@ const ORCH = (() => {
   };
 })();
 
-const MECHS = [EXA, FLOOD, CELES, MISS, ORCH];
+// メニューは P5 で来る順：フラッド → オーケストラ → スリースターズ → 混沌の終末 →（オーケストラ2回目）→ ミッシング
+const MECHS = [FLOOD, ORCH, CELES, EXA, MISS];
 const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
 
 // ===== 詠唱バー（ボス） =====

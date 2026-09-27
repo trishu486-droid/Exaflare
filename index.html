@@ -640,25 +640,33 @@ function corner(cx, cz, sx, sz, L, c){
   rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
 }
 
-// 自キャラ：ジョブアイコン（ロール色の角丸タイル＋金のジョブマーク。実機のジョブアイコンを 9×9 に寄せたドット絵）
+// 自キャラ：ジョブアイコン（ロール色の角丸タイル＋影付きの金のジョブマーク。実機のジョブアイコンを 11×11 に寄せたドット絵）
 const ICON = {
-  pld: ['.xxxxxxx.','.x..x..x.','.x.xxx.x.','.x..x..x.','.x..x..x.','..x.x.x..','..x...x..','...x.x...','....x....'],
-  drk: ['....x....','....x....','.x.xxx.x.','..xxxxx..','xxxx.xxxx','..xxxxx..','.x.x.x.x.','...x.x...','....x....'],
-  mnk: ['......xx.','.....xx..','....xx..x','...xx..xx','..xx..xx.','.xx..xx..','xx..xx...','...xx....','..xx.....'],
-  rpr: ['.....xxx.','...xx...x','..x......','.x...xx..','.x..x..x.','.x...xx.x','..x.....x','...xxxxx.','.........'],
-  mch: ['x........','.xx......','..xxx....','...xxxx..','....x.xx.','.....xx.x','......x.x','.....xxx.','.........'],
-  blm: ['......x.x','.....x.x.','..xxxx.x.','.x...xx..','x..x..x..','x.x.x.x..','x..x..x..','.x...x...','..xxx....'],
-  ast: ['.....x...','..xxxxxx.','..x....x.','..x.xxxx.','..x.x....','xxx.x....','.x..x....','x..xx....','.........'],
-  sch: ['.........','.xx...xx.','x..x.x..x','x..x.x..x','x..xxx..x','x...x...x','.x.x.x.x.','..x...x..','.........'],
+  pld: ['.xxxxxxxxx.','.x...x...x.','.x.xxxxx.x.','.x...x...x.','.x...x...x.','.x...x...x.','..x..x..x..','..x..x..x..','...x.x.x...','....x.x....','.....x.....'],
+  drk: ['.....x.....','..x..x..x..','...xxxxx...','xxxxxxxxxxx','...xxxxx...','..x.xxx.x..','.....x.....','....x.x....','...x...x...','....x.x....','.....x.....'],
+  mnk: ['.......xx..','......xx..x','.....xx..xx','....xx..xx.','...xx..xx..','..xx..xx...','.xx..xx....','xx..xx.....','x..xx......','..xx.......','.xx........'],
+  rpr: ['......xxx..','....xx...x.','...x.......','..x........','.x....xx...','.x...x..x..','.x...x..x..','..x...xx...','...x.......','....xx...x.','......xxx..'],
+  mch: ['xx.........','.xxx.......','..xxxx.....','...xxxxx...','....xx.xx..','.....x..xx.','......x.x.x','.......xx.x','........x.x','......xxx..','...........'],
+  blm: ['........x.x','.......x.x.','..xxx.x.x..','.x...x.x...','x.....x....','x..x..x....','x.xxx.x....','x..x..x....','x.....x....','.x...x.....','..xxx......'],
+  ast: ['......x....','..xxxxxx...','..x....xx..','..x.xxxxx..','..x.x......','..x.x......','xxx.x......','.x..x......','x..xx......','...x.......','...........'],
+  sch: ['...........','...........','.xx.....xx.','x..x...x..x','x..x...x..x','x..xx.xx..x','x...xxx...x','.x..x.x..x.','..xx...xx..','...........','...........'],
 };
-const ROLE_COLOR = { tank:'#2a4aa0', healer:'#2a7a3a', melee:'#9a2a3a', ranged:'#9a2a3a', caster:'#9a2a3a' };
+const ROLE_COLOR = { tank:['#2a4aa0', '#3a64c8', '#18306a'], healer:['#2a7a3a', '#3a9a4a', '#18502a'],
+  melee:['#9a2a3a', '#b83a4a', '#6a1a28'], ranged:['#9a2a3a', '#b83a4a', '#6a1a28'], caster:['#9a2a3a', '#b83a4a', '#6a1a28'] };
 function drawIcon(X, Z, hurt){
-  const bg = hurt ? '#ff2a3a' : ROLE_COLOR[job().role], fg = hurt ? '#ffffff' : '#f0d080', rim = hurt ? '#ffe066' : '#d8b060';
-  rect(X - 5, Z - 6, 11, 13, rim); rect(X - 6, Z - 5, 13, 11, rim);   // 金の縁（角を丸める）
-  rect(X - 4, Z - 5, 9, 11, bg); rect(X - 5, Z - 4, 11, 9, bg);
-  ICON[opt.job].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') rect(X - 4 + i, Z - 4 + j, 1, 1, fg); }));
-  if (hasInvuln()) ring(X, Z, 9, '#ffd84a');
-  else if (hasMit()) ring(X, Z, 9, '#5ab0ff');
+  const [bg, hi, lo] = hurt ? ['#ff2a3a', '#ff6a6a', '#a01020'] : ROLE_COLOR[job().role];
+  const rim = hurt ? '#ffe066' : '#d8b060', fg = hurt ? '#ffffff' : '#f4d888', sh = lo;
+  // 角丸タイル：金の縁 → ロール色（上半分を少し明るく、下端を暗く）
+  rect(X - 6, Z - 7, 13, 15, rim); rect(X - 7, Z - 6, 15, 13, rim);
+  rect(X - 5, Z - 6, 11, 13, bg); rect(X - 6, Z - 5, 13, 11, bg);
+  rect(X - 5, Z - 6, 11, 3, hi); rect(X - 6, Z - 5, 1, 2, hi);
+  rect(X - 5, Z + 5, 11, 1, lo);
+  // 金のマーク（右下に影を落として刺繍っぽく）
+  const g = ICON[opt.job];
+  g.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x' && g[j + 1]?.[i + 1] !== 'x') rect(X - 5 + i + 1, Z - 5 + j + 1, 1, 1, sh); }));
+  g.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') rect(X - 5 + i, Z - 5 + j, 1, 1, fg); }));
+  if (hasInvuln()) ring(X, Z, 10, '#ffd84a');
+  else if (hasMit()) ring(X, Z, 10, '#5ab0ff');
 }
 
 function drawField(){

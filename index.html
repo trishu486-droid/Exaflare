@@ -859,11 +859,6 @@ const EXA = (() => {
     thickRing(X, Z, R, on ? P.exa : '#c9561a', 2);
     [[-7, '#c98a5a'], [1, '#ffd9a8'], [9, P.chev]].forEach(([o, c]) => corner(X + sx * o, Z + sz * o, sx, sz, 10, c));
   }
-  // 画面外の予兆（倍率を変えないとき）：外周に小さい丸と、進む向きの矢印
-  function exaChip(X, Z, sx, sz, on){
-    disc(X, Z, 11, P.exaDk); thickRing(X, Z, 11, on ? P.exa : '#c9561a', 2);
-    [[-4, '#ffd9a8'], [3, P.chev]].forEach(([o, c]) => corner(X + sx * o, Z + sz * o, sx, sz, 7, c));
-  }
   return {
     id:'exa', name:'混沌の終末', sub:'エクサフレア', view:36, start:{ x:0, z:5 },
     gen(){
@@ -907,14 +902,7 @@ const EXA = (() => {
               const h1 = l.hits[0], h2 = l.hits[1];
               const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
               if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
-              if (t - s.start < FIRST_HIT){ // 予兆は場外の発生地点。画面に入らないときは、同じレーンのまま画面のふちまで進めて出す
-                const edge = W / 2 / PPY - EXA_R - .5;
-                if (Math.max(Math.abs(l.spawn.x), Math.abs(l.spawn.z)) <= edge) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink);
-                else { // レーンがフィールドに入る所（外周のすぐ外）に小さい矢印
-                  let k = 0; while (k < 40 && Math.hypot(l.spawn.x + sx * k, l.spawn.z + sz * k) > ARENA_R + 2) k += .25;
-                  exaChip(px(l.spawn.x + sx * k), px(l.spawn.z + sz * k), sx, sz, blink);
-                }
-              }
+              if (t - s.start < FIRST_HIT) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink); // 予兆は場外の発生地点
               l.hits.forEach(h => {
                 const dt = t - h.t;
                 if (dt < 0 || dt > .4) return;
@@ -1481,7 +1469,10 @@ const RUN = (() => {
           ...REPEAT.map(r => ({ name:'連続アルテマ', start:r.cast, len:4 })),
           { name:'終末の渦', start:ENTROPY.cast, len:ENTROPY.len },
           ...segs.flatMap(s => s.inst.casts.map(c => ({ ...c, start:c.start + s.at })))],
-        // 倍率は固定。混沌の終末の予兆は画面のふちに寄せて出す
+        view: t => {
+          const k = Math.max(0, Math.min(1, (t - (exa.at - 1)) / 1, (exa.end + 1 - t) / 1));
+          return 24 + 12 * k;
+        },
         // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 5 カウントで始める
         t0:TARGETABLE, countdown:5,
         targetable: t => t >= TARGETABLE,

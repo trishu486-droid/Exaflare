@@ -191,7 +191,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 'use strict';
 
 // ===== 共通定数 =====
-const ARENA_R = 20, BOSS_R = 6, PLAYER_SPEED = 6, COUNTDOWN = 3;
+const ARENA_R = 20, BOSS_R = 8, PLAYER_SPEED = 6, COUNTDOWN = 3;
 const SQ2 = Math.SQRT2;
 
 // ===== ジョブ（pot は見た目のダメージ用。slots は練習できる担当） =====
@@ -969,29 +969,39 @@ const CELES = (() => {
 })();
 
 // =====================================================================
-// ギミック4：ミッシング（円形AOEが2か所ずつ × 4ラウンド + 足元に落ちる紫の床）
-// 処理法：ヤーン速報の脳死法。2の内側から、頭割りマーカーが見えたら時計回りに90度ずつ移動 → 最後は残った東西南北へ
+// ギミック4：ミッシング（紫の穴が2か所ずつ × 4ラウンド + オレンジのAOE）
+// 紫の穴：予兆の約5.65秒後に床が消え、以後そこに入ると即死。出方の規則（実戦ログ・raidplan・ヤーン速報の4例から）
+//   1回目 中央＋斜めX → 2回目 Xの反対側＋Xから反時計回り90°の斜め → 3回目 残りの斜め＋東西南北（2択） → 4回目 残りの東西南北から2つ
+// オレンジ：頭割りのたびに、パーティに一番近いマーカー位置へ置かれるAOE。穴と同時に着弾して消える
+// 処理法：ヤーン速報の脳死法。2の内側 → 頭割りが見えたら時計回りに 3 → 4 → 1 の内側
+//   4回目は安地の東西南北が遠いことがあるので、隣の数字マーカーの内側（隙間。穴は届かない）へ逃げる
 // =====================================================================
 const MISS = (() => {
-  const G = 13.5, AOE_R = 6.5, PUDDLE_R = 6, IN = 6.75;
-  const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, PUDDLE_DELAY = 1.87;
-  // AOEの位置：中央・数字マーカー(1北西 2北東 3南東 4南西)・東西南北。13.5間隔の格子（ゲームデータ）
-  const NUMS = [[-1, -1], [1, -1], [1, 1], [-1, 1]], CARDS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-  // 脳死法の立ち位置：数字マーカーの内側（2 → 3 → 4 → 1）
-  const SPOTS = [[IN, -IN], [IN, IN], [-IN, IN], [-IN, -IN]];
-  const inAoe = (x, z, [tx, tz]) => (x - tx * G) ** 2 + (z - tz * G) ** 2 <= AOE_R * AOE_R;
+  const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
+  const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65;
+  // 方角（北から時計回りの角度）→ 格子の位置
+  const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
+  const cell = d => d === 'MID' ? [0, 0] : [Math.round(Math.sin(DIRS.indexOf(d) * Math.PI / 4)), Math.round(-Math.cos(DIRS.indexOf(d) * Math.PI / 4))];
+  const rot = (d, deg) => DIRS[(DIRS.indexOf(d) + deg / 45 + 8) % 8];
+  // オレンジが置かれるマーカー位置：東西南北（13.5）と数字マーカー（内側）
+  const MARKS = [[0, -G], [G, 0], [0, G], [-G, 0], [-IN, -IN], [IN, -IN], [IN, IN], [-IN, IN]];
+  const INNER = { NE:[IN, -IN], SE:[IN, IN], SW:[-IN, IN], NW:[-IN, -IN] };
+  const inHole = (x, z, [tx, tz]) => (x - tx * G) ** 2 + (z - tz * G) ** 2 <= HOLE_R * HOLE_R;
   return {
     id:'miss', name:'ミッシング', sub:'P5 時間切れ前', view:24, start:{ x:IN, z:-IN },
-    // 1回目：中央＋数字1か所 → 2回目：数字2か所 → 3回目：残りの数字＋東西南北1か所 → 4回目：東西南北2か所（1か所だけ残る）
     gen(){
-      const n = shuffle(NUMS.slice()), c = shuffle(CARDS.slice());
-      return { rounds:[[[0, 0], n[0]], [n[1], n[2]], [n[3], c[0]], [c[1], c[2]]], safe:c[3] };
+      const x = pick(['NE', 'SE', 'SW', 'NW']);
+      const c3 = rot(x, pick([135, -135])), left = shuffle(['N', 'E', 'S', 'W'].filter(c => c !== c3));
+      const rounds = [['MID', x], [rot(x, 180), rot(x, -90)], [rot(x, 90), c3], [left[0], left[1]]];
+      // 4回目の逃げ先：北が残っていれば時計回りに 2 の内側、北が消えていれば 4 の内側へ戻る
+      const last = c3 === 'N' ? 'SW' : 'NE';
+      return { rounds:rounds.map(r => r.map(cell)), route:['NE', 'SE', 'SW', 'NW', last] };
     },
     create(d){
-      const gone = [], warn = [], puddles = [];
+      const gone = [], warn = [], oranges = [];
       const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false }));
-      const goal = [...SPOTS.slice(1), [d.safe[0] * G, d.safe[1] * G]];
-      let inPuddle = new Set();
+      const spots = d.route.map(k => INNER[k]);
+      let inVoid = false;
       return {
         end: ROUND_AT[3] + VANISH + 2.5,
         casts: [{ name:'ミッシング', start:0, len:4.1 }, ...ROUND_AT.slice(1).map(at => ({ name:'ミッシング', start:at - 2.5, len:2.5 })), { name:'ミッシング・ゼロ', start:ROUND_AT[3] + VANISH + .5, len:26 }],
@@ -999,46 +1009,53 @@ const MISS = (() => {
         tick(t){
           const { x, z } = S.player;
           rounds.forEach(r => {
-            if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：足元に紫の床（少し遅れて危険になる）＋ AOEの予兆
-              r.baited = true; puddles.push({ x, z, on:t + PUDDLE_DELAY });
-              warn.push(...r.tiles); sfx.blip(300, .08);
+            if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：穴の予兆＋自分に一番近いマーカーにオレンジ
+              r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08);
+              const m = MARKS.reduce((b, q) => (q[0] - x) ** 2 + (q[1] - z) ** 2 < (b[0] - x) ** 2 + (b[1] - z) ** 2 ? q : b);
+              oranges.push({ x:m[0], z:m[1], hitAt:r.at + VANISH, done:false });
             }
             if (!r.hit && t >= r.at + VANISH){
               r.hit = true; sfx.boom();
-              if (r.tiles.some(tl => inAoe(x, z, tl))) hurt('床のAOE');
+              if (r.tiles.some(tl => inHole(x, z, tl))) hurt('穴に落ちた');
               r.tiles.forEach(tl => { gone.push(tl); warn.splice(warn.indexOf(tl), 1); });
+              inVoid = gone.some(tl => inHole(x, z, tl));
             }
           });
-          // 紫の床に入った瞬間に1回カウント
-          const now = new Set(puddles.map((p, i) => (t >= p.on && (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R) ? i : -1).filter(i => i >= 0));
-          now.forEach(i => { if (!inPuddle.has(i)) hurt('紫の床'); });
-          inPuddle = now;
+          oranges.forEach(o => {
+            if (o.done || t < o.hitAt) return;
+            o.done = true;
+            if ((x - o.x) ** 2 + (z - o.z) ** 2 <= ORANGE_R * ORANGE_R) hurt('オレンジのAOE');
+          });
+          // 消えた床（穴）に入った瞬間に1回カウント
+          const v = gone.some(tl => inHole(x, z, tl));
+          if (v && !inVoid) hurt('穴に落ちた');
+          inVoid = v;
         },
         safeActive: () => true,
         safe(x, z){
-          if (warn.some(tl => inAoe(x, z, tl))) return false;
-          return !puddles.some(p => (x - p.x) ** 2 + (z - p.z) ** 2 <= PUDDLE_R * PUDDLE_R);
+          if (gone.some(tl => inHole(x, z, tl)) || warn.some(tl => inHole(x, z, tl))) return false;
+          return !oranges.some(o => !o.done && (x - o.x) ** 2 + (z - o.z) ** 2 <= ORANGE_R * ORANGE_R);
         },
-        // ガイド：次に行く場所。最後の東西南北は4回目の予兆が出てから
+        // ガイド：2 → 3 → 4 → 1 → 最後の逃げ先。次に行く場所は黄色
         guide(t){
           const k = rounds.filter(r => t >= r.at).length;
-          goal.forEach(([x, z], i) => {
-            if (i === 3 && k < 4) return;
-            const next = i === k - 1;
+          spots.forEach(([x, z], i) => {
+            if (i === 4 && k < 4) return;
+            const next = i === k;
             ring(px(x), px(z), next ? 5 : 3, next ? P.exaHi : P.white); glyph(String(i + 1), px(x), px(z), next ? P.exaHi : P.white);
           });
         },
         drawFloor(t){
-          const blink = (Math.floor(performance.now() / 180) & 1) === 0, R = Math.round(AOE_R * PPY);
-          // AOEのあと：沼（見た目だけ）
-          gone.forEach(([tx, tz]) => { const X = px(tx * G), Z = px(tz * G); alpha(.7, () => disc(X, Z, R, P.void)); ring(X, Z, R, '#50487a'); });
-          // 予兆：点滅する赤い円
-          warn.forEach(([tx, tz]) => { const X = px(tx * G), Z = px(tz * G); alpha(blink ? .45 : .25, () => disc(X, Z, R, P.exa)); ring(X, Z, R, P.exa); });
-          // 紫の床（落ちた直後は予兆の輪、少し後に危険な床になる）
-          puddles.forEach(p => {
-            const X = px(p.x), Z = px(p.z), PR = Math.round(PUDDLE_R * PPY);
-            if (t < p.on){ thickRing(X, Z, PR, blink ? P.purple : P.white, 2); }
-            else { alpha(.6, () => disc(X, Z, PR, P.purple)); ring(X, Z, PR, '#e0b0ff'); }
+          const blink = (Math.floor(performance.now() / 180) & 1) === 0, R = Math.round(HOLE_R * PPY), OR = Math.round(ORANGE_R * PPY);
+          // 穴（入ると即死）
+          gone.forEach(([tx, tz]) => { const X = px(tx * G), Z = px(tz * G); disc(X, Z, R, P.void); ring(X, Z, R, P.purple); });
+          // 穴の予兆：点滅する紫
+          warn.forEach(([tx, tz]) => { const X = px(tx * G), Z = px(tz * G); alpha(blink ? .5 : .3, () => disc(X, Z, R, P.purple)); ring(X, Z, R, P.purple); });
+          // オレンジのAOE（着弾まで）
+          oranges.forEach(o => {
+            const X = px(o.x), Z = px(o.z);
+            if (!o.done){ alpha(blink ? .45 : .3, () => disc(X, Z, OR, P.exa)); ring(X, Z, OR, P.exa); }
+            else if (t - o.hitAt < .5) alpha(.6 * (1 - (t - o.hitAt) / .5), () => disc(X, Z, OR, P.exaHi));
           });
         },
         draw(){},

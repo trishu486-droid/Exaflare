@@ -299,7 +299,8 @@ const sfx = {
 
 // ===== BGM（オリジナル曲。速いけれど厳かな、トッカータ風パイプオルガンの8bit） =====
 // 1ステップ＝16分音符。イントロ（4小節）→ 本編（8小節）→ 本編＋聖歌隊（8小節）→ 本編へループ
-// 踊れる要素（ハイハット・裏拍・跳ねるベース・規則的なロックドラム）は入れない
+// 踊れる要素（ハイハット・裏拍・跳ねるベース・規則的な「ドン・タン」）は入れず、
+// 激しさは 16分のツーバス・同音連打の低音・3+3+2 の変則的な強打で出す
 const bgm = (() => {
   const BPM = 168, STEP = 60 / BPM / 4, VOL = .5;
   const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
@@ -326,14 +327,19 @@ const bgm = (() => {
   const section = (base, choir) => {
     for (let b = 0; b < 8; b++){
       const s0 = base + b * 16, c = CH[b];
-      // 低音：伸ばし（オクターブ重ね）
+      // 低音：同じ音を16分で刻む（跳ねない）＋ 伸ばしのペダル
+      for (let i = 0; i < 16; i++) add(s0 + i, 'bass', BASS[b], 1);
       add(s0, 'pedal', BASS[b], 16);
       // 和音：1小節伸ばす
       c.forEach(n => add(s0, 'organ', n, 16));
+      // ツーバス（16分連打）と、3+3+2 の位置の強打（オルガンの和音・スネア・ティンパニを同時に）
+      for (let i = 0; i < 16; i++) add(s0 + i, 'kick');
+      [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); });
+      if (b % 2 === 0) add(s0, 'crash');
       // トッカータ風の16分音型：最低音を軸に上の音へ行き来する（途切れず回り続ける）
       [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let r = 0; r < 4; r++) add(s0 + r * 4 + i, 'toc', n, 1); });
       // ティンパニは1拍目。4小節ごとの終わりはロール
-      add(s0, 'timp', BASS[b].replace(/\d/, '2'));
+      [0, 6, 12].forEach(i => add(s0 + i, 'timp', BASS[b].replace(/\d/, '2')));
       if (b % 4 === 3) for (let i = 12; i < 16; i++) add(s0 + i, 'timp', 'A1');
       if (b % 4 === 0) add(s0, 'bell', up8(c[0]).replace(/\d/, '6'));
       // 聖歌隊（2周目）：旋律の1オクターブ下を柔らかく重ねる
@@ -374,6 +380,18 @@ const bgm = (() => {
       g.gain.setValueAtTime(.4, t); g.gain.exponentialRampToValueAtTime(.001, t + .7);
       o.connect(g).connect(master); o.start(t); o.stop(t + .75); return;
     }
+    if (kind === 'kick'){ // ツーバス：短く重い
+      o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(45, t + .06);
+      g.gain.setValueAtTime(.32, t); g.gain.exponentialRampToValueAtTime(.001, t + .08);
+      o.connect(g).connect(master); o.start(t); o.stop(t + .09); return;
+    }
+    if (kind === 'snare' || kind === 'crash'){
+      const src = ac.createBufferSource(), fl = ac.createBiquadFilter(), gn = ac.createGain();
+      src.buffer = noise; fl.type = 'highpass'; fl.frequency.value = kind === 'snare' ? 1200 : 3500;
+      const len = kind === 'snare' ? .16 : .3;
+      gn.gain.setValueAtTime(kind === 'snare' ? .3 : .16, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
+      src.connect(fl).connect(gn).connect(master); src.start(t); src.stop(t + len + .01); return;
+    }
     // 鐘：高い正弦波＋倍音が長く残る
     [1, 2.76, 5.4].forEach((m, i) => {
       const oo = ac.createOscillator(), gg = ac.createGain();
@@ -386,11 +404,14 @@ const bgm = (() => {
     const dur = (e.l || 1) * STEP, f = e.n && hz(e.n);
     switch (e.ch){
       // パイプオルガン：25%パルス＋1オクターブ下の矩形＋三角波を重ね、ゆっくり立ち上げる
-      case 'organ': voice(ac, t, 'pulse', f, dur, .035, .09); voice(ac, t, 'square', f / 2, dur, .012, .12); voice(ac, t, 'triangle', f * 1.002, dur, .03, .09); break;
-      case 'pedal': voice(ac, t, 'triangle', f, dur, .2, .06); voice(ac, t, 'pulse', f * 2, dur, .02, .1); break;
-      case 'lead':  voice(ac, t, 'square', f, dur * .97, .05, .06); voice(ac, t, 'pulse', f * 1.004, dur * .97, .03, .08); break;
+      case 'organ': voice(ac, t, 'pulse', f, dur, .03, .02); voice(ac, t, 'square', f / 2, dur, .012, .03); voice(ac, t, 'triangle', f * 1.002, dur, .025, .02); break;
+      case 'stab':  voice(ac, t, 'square', f, dur * .6, .045, .003); voice(ac, t, 'pulse', f * 2, dur * .5, .025, .003); break;
+      case 'bass':  voice(ac, t, 'pulse', f * 2, dur * .7, .03, .003); break;
+      case 'pedal': voice(ac, t, 'triangle', f, dur, .22, .01); break;
+      case 'lead':  voice(ac, t, 'square', f, dur * .97, .07, .01); voice(ac, t, 'pulse', f * 2.004, dur * .95, .03, .01); break;
       case 'choir': voice(ac, t, 'triangle', f, dur, .06, .25); voice(ac, t, 'triangle', f * 1.006, dur, .04, .3); break;
-      case 'toc':   voice(ac, t, 'pulse', f, dur * .9, .028, .004); break;
+      case 'toc':   voice(ac, t, 'pulse', f, dur * .9, .045, .003); voice(ac, t, 'pulse', f / 2, dur * .9, .02, .003); break;
+      case 'kick': case 'snare': case 'crash': hit(ac, t, e.ch); break;
       case 'timp':  hit(ac, t, 'timp', f); break;
       case 'bell':  hit(ac, t, 'bell', f); break;
     }

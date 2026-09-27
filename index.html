@@ -92,6 +92,9 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .menu .head{font-size:16px;color:var(--gold)}
 .menu .note{font-size:16px;color:var(--dim)}
 .menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
+.menu .omake{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;max-height:228px;overflow-y:auto;scrollbar-width:none}
+.menu .omake::-webkit-scrollbar{display:none}
+.menu button.extra{border-style:dashed}
 .menu .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(84%,360px)}
 .menu .jobgrid button{width:100%}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center}
@@ -1370,6 +1373,14 @@ const ORCH = (() => {
 
 // メニューは P5 で来る順：フラッド → オーケストラ → スリースターズ → 混沌の終末 →（オーケストラ2回目）→ ミッシング
 const MECHS = [FLOOD, ORCH, CELES, EXA, MISS];
+// おまけ：しゃるるんさんのチャンネル（@syaruuu）の「陰キャと見るあたしンち」
+const OMAKE = [
+  ['cKpjYE8GsQk', '第1話', ''], ['RYBz1wS5E0Q', '第2話', ''], ['Psq9GrUjptQ', '第3話', ''], ['iUbahfL5izY', '第4話', ''],
+  ['9QsPSLhC1-Y', '第5話', ''], ['1YkqAOnqeLc', '第6話', 'かわを残すはかわり者'], ['Ip_1kK4H7os', '第7話', 'してはいけないパンツの話'],
+  ['0TZCN8HZkI8', '第8話', '君の心はプレミアム'], ['0NZAyHMBJE8', '第9話', '腹が減っては戦はできぬ'], ['sJzzdvlt31k', '第10話', '真夏の夜の陰キャ'],
+  ['mCdvBgQg5ZE', '第11話', '野菜室はラビリンス'], ['u-olmWNYtMY', '第12話', 'プディングウェイ'], ['bf2SGdZpFbo', '第13話', ''], ['d7PK6f5CX14', '第14話', ''],
+];
+const OMAKE_CHANNEL = 'https://www.youtube.com/@syaruuu';
 const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
 
 // ===== 詠唱バー（ボス） =====
@@ -1728,6 +1739,15 @@ function renderMenu(){
     list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
     return;
   }
+  if (S.menu === 'omake'){
+    head.textContent = '陰キャと見るあたしンち';
+    note.textContent = 'A／STARTでYouTubeを開く　Bでもどる';
+    list.className = 'omake'; list.style.display = '';
+    list.innerHTML = OMAKE.map(([, ep, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${ep}</span><small>${sub}</small></button>`).join('')
+      + `<button type="button" data-i="${OMAKE.length}" class="${S.cursor === OMAKE.length ? 'cur' : ''}"><span>チャンネルを見る</span><small>しゃるるん</small></button>`;
+    list.querySelector('.cur')?.scrollIntoView({ block:'nearest' });
+    return;
+  }
   if (S.menu === 'slot'){
     head.textContent = `${job().name}の担当`;
     note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
@@ -1745,9 +1765,10 @@ function renderMenu(){
   }
   head.textContent = `ギミック選択（${job().name}）`;
   note.textContent = 'A／STARTで開始　Bでジョブ選択へ';
-  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
+  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('')
+    + `<button type="button" data-i="${MECHS.length}" class="extra ${S.cursor === MECHS.length ? 'cur' : ''}"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>`;
 }
-function menuCount(){ return S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? MECHS.length + 1 : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
 function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
 // タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
 const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
@@ -1764,6 +1785,8 @@ function menuConfirm(i = S.cursor){
     if (needOrchN()) openOrchN(); else begin();
     return;
   }
+  if (S.menu === 'omake'){ window.open(i < OMAKE.length ? `https://www.youtube.com/watch?v=${OMAKE[i][0]}` : OMAKE_CHANNEL, '_blank', 'noopener'); return; }
+  if (S.menu === 'mech' && i === MECHS.length){ S.menu = 'omake'; S.cursor = 0; renderMenu(); return; }
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
   opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle();
   if (MECHS[i].slots && job().slots.length > 1){
@@ -1776,6 +1799,7 @@ function menuConfirm(i = S.cursor){
 function menuBack(){
   if (S.menu === 'job') return;
   if (S.menu === 'mech'){ openJobs(); sfx.unlock(); sfx.back(); return; }
+  if (S.menu === 'omake'){ S.menu = 'mech'; S.cursor = MECHS.length; renderMenu(); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
   else { S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();

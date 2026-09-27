@@ -58,6 +58,11 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
 .msg .blink{animation:blink 1s steps(2,start) infinite}
 @keyframes blink{to{visibility:hidden}}
+/* タイトル（PRESS START）：最初の操作で音を鳴らせるようにする */
+.title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,4vw,22px);background:rgba(0,0,0,.82);cursor:pointer;text-align:center}
+.title .logo{font-size:clamp(28px,10vw,52px);line-height:1.1;color:var(--gold)}
+.title .logo small{display:block;font-size:.42em;color:var(--ink);letter-spacing:.2em;margin-top:6px}
+.title .push{font-size:clamp(15px,5vw,22px);color:var(--ink);animation:blink 1s steps(2,start) infinite}
 /* ギミック選択メニュー */
 .menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
 .menu .head{font-size:clamp(18px,6vw,28px);color:var(--gold)}
@@ -128,6 +133,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
     <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
     <div class="msg outline" id="msg"></div>
+    <div class="title outline" id="title">
+      <div class="logo">絶ケフカ P5<small>TRAINER</small></div>
+      <div class="push">PRESS START</div>
+    </div>
     <div class="menu" id="menu" hidden>
       <div class="head outline">ギミック選択</div>
       <div id="menuList" style="display:contents"></div>
@@ -1364,10 +1373,10 @@ function begin(same){
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
-  bgm.stop(); menuBgm.start();
+  bgm.stop(); if (!titleOn) menuBgm.start();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null;
   S.cursor = Math.max(0, MECHS.indexOf(mech()));
-  renderMenu(); $('menu').hidden = false; lastMsg = ''; setMsg('');
+  renderMenu(); $('menu').hidden = titleOn; lastMsg = ''; setMsg('');
 }
 // メニュー：ジョブの行（SELECT／左右で切り替え）＋ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 function renderMenu(){
@@ -1464,7 +1473,7 @@ let last = performance.now(), stickRepeat = 0;
 function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   // メニューはスティックの上下でも選べる
-  if (S.phase === 'menu' && Math.abs(stickVec.z) > .7 && now > stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); stickRepeat = now + 280; }
+  if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.z) > .7 && now > stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;
@@ -1581,7 +1590,19 @@ oBgm.addEventListener('change', () => {
   else if (S.phase === 'menu') menuBgm.start();
 });
 // ブラウザは操作があるまで音を出せないので、最初の操作でメニューBGMを鳴らし始める
-['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, () => { if (S.phase === 'menu') menuBgm.start(); }, { once:true }));
+// タイトル画面：どのボタン・キーでも抜けてメニューへ（この操作で音が鳴らせるようになる）
+let titleOn = true, swallowClickUntil = 0;
+function leaveTitle(){
+  titleOn = false; swallowClickUntil = performance.now() + 600;
+  $('title').hidden = true; $('menu').hidden = false; sfx.unlock(); sfx.ok(); menuBgm.start();
+}
+['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, e => {
+  if (!titleOn || !$('sheet').hidden) return;
+  if (t === 'keydown' && ['Shift','Control','Alt','Meta','Tab'].includes(e.key)) return;
+  e.preventDefault(); e.stopPropagation(); leaveTitle();
+}, true));
+// タイトルを抜けたタップの直後の click（START など）は無視する
+window.addEventListener('click', e => { if (performance.now() < swallowClickUntil){ e.preventDefault(); e.stopPropagation(); } }, true);
 const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound'), oDebuff = $('oDebuff'), oDouble = $('oDouble');
 oFirst.value = opt.first; oSpeed.value = opt.speed; oPath.checked = opt.path; oSpots.checked = opt.spots; oMarker.value = opt.marker; oSound.checked = opt.sound;
 oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;

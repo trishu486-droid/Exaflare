@@ -769,6 +769,8 @@ const misses = new Map(); // 理由 → 回数
 function hurt(reason, onBoard = reason){
   const now = performance.now();
   S.hits++; S.hurtT = now; sfx.hurt();
+  // 被弾・死亡した時点で失敗（同じ瞬間の他のミスも数えるため、少しだけ待って終了）
+  if (S.phase === 'run' && S.failAt == null) S.failAt = S.t + .8;
   misses.set(reason, (misses.get(reason) || 0) + 1);
   // 同時に2つミスしたときは縦にずらして両方見せる
   missStack = now - missStackT < 200 ? missStack + 1 : 0; missStackT = now;
@@ -1666,7 +1668,7 @@ function drawButtons(){
 function begin(){
   const m = mech();
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
-  S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
+  S.t = -COUNTDOWN; S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
   hpReset();
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
@@ -1749,7 +1751,7 @@ function updateHud(){
 // リザルトは終了した瞬間の内容で固定する（後から SELECT でジョブを変えても変わらない）
 function buildResult(){
   const ok = S.hits === 0;
-  return `<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
+  return `<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</div>` +
     rankHtml() +
     `<div class="sub">${job().name}　DPS ${Math.round(fightDps()).toLocaleString('en-US')}（目標 ${TARGET_DPS[opt.job].toLocaleString('en-US')}）</div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
@@ -1759,7 +1761,7 @@ function buildResult(){
 }
 // ランク：目標DPSに対する割合。ヒーラーは被弾するギミックでは「回復・軽減の割合」と半々。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
-const fightDps = () => A.dmg / Math.max(1, S.inst.end);
+const fightDps = () => A.dmg / Math.max(1, S.endT ?? S.inst.end);
 // 受けたダメージ（ほかの人の軽減込み）のうち、自分の軽減・バリア・回復で埋めた割合
 const healRatio = () => HP.taken ? Math.min(1, (HP.prevented + HP.absorbed + HP.healed) / HP.taken) : 1;
 function rankHtml(){
@@ -1810,7 +1812,7 @@ function frame(now){
       S.inst.tick(S.t);
       hpTick(dt);
       actTick(dt);
-      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
+      if (S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
   draw(); updateHud(); drawButtons();

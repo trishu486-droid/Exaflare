@@ -57,6 +57,16 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .hp .hpshield{position:absolute;top:0;height:40%;left:0;width:0;background:#ffe070}
 .hp.low .hpfill{background:#ff4d5e}
 .dmg.hurtnum{color:#ff6a6a}
+/* 敵視リスト（タンクのオーケストラのみ・右上）：実機のパーティリストのように 順位・ジョブアイコン・下のバー */
+.enmity{position:absolute;right:8px;top:6px;pointer-events:none;display:flex;flex-direction:column;gap:6px;font-size:16px}
+.enmity .erow{display:flex;align-items:center;gap:4px}
+.enmity .rk{width:14px;text-align:center;font-weight:400}
+.enmity .rk.a{color:#ff7a9a}.enmity .rk.n{color:#f0d060}
+.enmity .ej{display:flex;flex-direction:column;gap:2px;width:26px}
+.enmity .ej svg{width:26px;height:26px}
+.enmity .ebar{display:block;height:4px;background:#222;box-shadow:0 0 0 1px #000}
+.enmity .ebar i{display:block;height:100%}
+.enmity .en{min-width:3.5em}
 .dmg.healnum{color:#8af0a0}
 .buff{position:absolute;left:8px;top:6px;font-size:16px;color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
 .buff span{display:flex;align-items:center;gap:5px}
@@ -154,6 +164,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="buff outline" id="buff"></div>
     <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
     <div class="hp outline" id="hp" hidden><span id="hpNum">HP 100</span><div class="hpbar"><div class="hpfill" id="hpFill"></div><div class="hpshield" id="hpShield"></div></div></div>
+    <div class="enmity outline" id="enmity" hidden></div>
     <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
     <div class="msg outline" id="msg"></div>
     <div class="title outline" id="title">
@@ -689,6 +700,13 @@ const ICON = {
 };
 const ROLE_COLOR = { tank:['#2a4aa0', '#3a64c8', '#18306a'], healer:['#2a7a3a', '#3a9a4a', '#18502a'],
   melee:['#9a2a3a', '#b83a4a', '#6a1a28'], ranged:['#9a2a3a', '#b83a4a', '#6a1a28'], caster:['#9a2a3a', '#b83a4a', '#6a1a28'] };
+function jobIconSvg(id){
+  const role = JOBS[id].role, [bg, hi] = ROLE_COLOR[role];
+  let r = `<rect x="1" y="0" width="13" height="15" fill="#d8b060"/><rect x="0" y="1" width="15" height="13" fill="#d8b060"/>` +
+    `<rect x="2" y="1" width="11" height="13" fill="${bg}"/><rect x="1" y="2" width="13" height="11" fill="${bg}"/><rect x="2" y="1" width="11" height="3" fill="${hi}"/>`;
+  ICON[id].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') r += `<rect x="${2 + i}" y="${2 + j}" width="1" height="1" fill="#f4d888"/>`; }));
+  return `<svg viewBox="0 0 15 15" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+}
 function drawIcon(X, Z, hurt){
   const [bg, hi, lo] = hurt ? ['#ff2a3a', '#ff6a6a', '#a01020'] : ROLE_COLOR[job().role];
   const rim = hurt ? '#ffe066' : '#d8b060', fg = hurt ? '#ffffff' : '#f4d888', sh = lo;
@@ -1245,6 +1263,7 @@ const ORCH = (() => {
         intro: roleOf(p.me) === 'T' ? `${p.n}回目　あなたは ${p.me}（${p.me === F ? 'フレア役' : 'ホーリー役'}）` : `あなたは ${p.me}`,
         end: FINAL + .9,
         casts: [{ name:'狂気のオーケストラ', start:0, len:CAST_END }],
+        enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === p.me })),
         progress: t => (roleOf(p.me) === 'T' ? `${p.n}回目 ` : '') + (t < W1 ? '散開' : t < W2 ? '頭割り' : t < FINAL ? 'フレア/ホーリー' : '終了'),
         status(t){
           const s = [`担当 ${p.me}`];
@@ -1416,6 +1435,16 @@ function hpTick(dt){
   if (!HP.on) return;
   Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); HP.healed += HP.hp - before; } });
   if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
+}
+let enmityHtml = '';
+function enmityDraw(){
+  const el = $('enmity'), show = !!S.inst?.enmity && job().role === 'tank' && S.phase !== 'menu';
+  el.hidden = !show;
+  if (!show) return;
+  const html = S.inst.enmity(Math.max(0, S.t)).map(r => `<div class="erow"><b class="rk ${r.top ? 'a' : 'n'}">${r.top ? 'A' : '2'}</b>` +
+    `<span class="ej">${jobIconSvg(r.k === 'MT' ? 'pld' : 'drk')}<span class="ebar"><i style="width:${r.top ? 100 : 70}%;background:${r.top ? '#ff7a9a' : '#f0d060'}"></i></span></span>` +
+    `<span class="en">${r.k}${r.me ? '<small style="color:var(--gold)">(自分)</small>' : ''}</span></div>`).join('');
+  if (html !== enmityHtml){ el.innerHTML = html; enmityHtml = html; }
 }
 function hpDraw(){
   if (!HP.on) return;
@@ -1659,7 +1688,7 @@ function drawButtons(){
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)));
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
-  hpDraw();
+  hpDraw(); enmityDraw();
   const icons = st.filter(x => x && x.art);
   const bufs = icons.map(x => `<i title="${x.name}">${buffIcon(x.art)}<b>${x.sec}</b></i>`).join('')
     + (run ? Object.keys(A.buffs).filter(hasBuff).map(id => `<i title="${BUFFS[id].name}">${buffIcon(id)}<b>${Math.ceil(A.buffs[id] - S.t)}</b></i>`).join('') : '');

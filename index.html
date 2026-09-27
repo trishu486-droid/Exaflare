@@ -77,13 +77,15 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
 .stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
 .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
-.ab{display:flex;gap:14px;transform:rotate(-25deg);padding:18px 0 0;margin-right:4px}
-.abw{display:flex;flex-direction:column;align-items:center;gap:8px}
-.abw.b{margin-top:30px}
-.abw span{font-size:11px;color:var(--gb-ink);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
-.round{--p:0;width:68px;height:68px;border-radius:50%;font:22px var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;
+.ab{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,54px);margin-right:2px}
+.abw{display:flex;align-items:center;justify-content:center}
+.abw.x{grid-area:1/2}.abw.y{grid-area:2/1}.abw.a{grid-area:2/3}.abw.b{grid-area:3/2}
+.round{--p:0;width:56px;height:56px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
   background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}
+.abw.x .round,.abw.y .round{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), #5b2a86;border-color:#3a1660}
+.round small{font-size:8px;line-height:1;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#ffe7f2}
 .round.ready{border-color:var(--gold)}
 .round.press{transform:translateY(2px);box-shadow:inset 4px 4px 0 rgba(0,0,0,.35)}
 .ss{display:flex;justify-content:center;gap:26px;margin-top:8px}
@@ -136,8 +138,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   <div class="controls">
     <div class="stick" id="stick"><div class="knob" id="knob"></div></div>
     <div class="ab">
-      <div class="abw b"><button class="round" id="btnB" type="button" aria-label="Bボタン">B</button><span id="nameB"></span></div>
-      <div class="abw a"><button class="round" id="btnA" type="button" aria-label="Aボタン">A</button><span id="nameA"></span></div>
+      <div class="abw x"><button class="round" id="btnX" type="button" aria-label="Xボタン"><b>X</b><small></small></button></div>
+      <div class="abw y"><button class="round" id="btnY" type="button" aria-label="Yボタン"><b>Y</b><small></small></button></div>
+      <div class="abw a"><button class="round" id="btnA" type="button" aria-label="Aボタン"><b>A</b><small></small></button></div>
+      <div class="abw b"><button class="round" id="btnB" type="button" aria-label="Bボタン"><b>B</b><small></small></button></div>
     </div>
   </div>
 
@@ -146,7 +150,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="ssw"><button class="pill" id="btnStart" type="button" aria-label="START：開始"></button><span>START</span></div>
   </div>
 
-  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安置表示　<kbd>R</kbd> リトライ　<kbd>Esc</kbd> ギミック選択</p>
+  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>U</kbd> X　<kbd>I</kbd> Y　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安置表示　<kbd>R</kbd> リトライ　<kbd>Esc</kbd> ギミック選択</p>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -180,14 +184,48 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 const ARENA_R = 20, BOSS_R = 6, PLAYER_SPEED = 6, COUNTDOWN = 3;
 const SQ2 = Math.SQRT2;
 
-// ===== ジョブ（pot は見た目のダメージ用） =====
-const JOBS = {
-  pld: { name:'ナイト',   role:'tank', melee:true,  a:{ name:'ロイエ', pot:460 },              b:{ name:'ドゥーム', pot:140 } },
-  mch: { name:'機工士',   role:'dps',  melee:false, a:{ name:'ドリル', pot:600 },              b:{ name:'チェックメイト', pot:170 } },
-  blm: { name:'黒魔道士', role:'dps',  melee:false, a:{ name:'ファイジャ', pot:320, cast:2.0 }, b:{ name:'迅速魔', swift:true } },
+// ===== ジョブ（pot は見た目のダメージ用。slots は練習できる担当） =====
+// A：GCD（3段コンボ or 詠唱魔法） B/X/Y：アビリティ・バフ・一部はGCD技（gcd:true）
+const BUFFS = {
+  invuln:  { name:'インビンシブル', dur:10, mit:true, invuln:true, color:'#ffd84a' },
+  rampart: { name:'ランパート', dur:20, mit:true, color:'#5ab0ff' },
+  sheltron:{ name:'シェルトロン', dur:8, mit:true, color:'#8ad0ff' },
+  riddle:  { name:'紅蓮の極意', dur:20, dmg:1.15, color:'#ff8a3a' },
+  bh:      { name:'桃園結義', dur:20, dmg:1.05, color:'#ffb84a' },
+  wf:      { name:'ワイルドファイア', dur:10, dmg:1.1, color:'#ff6a3a' },
+  soil:    { name:'野戦治療の陣', dur:18, mit:true, color:'#58e07a' },
+  exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
 };
-const JOB_ORDER = ['pld', 'mch', 'blm'];
-const GCD = 2.5, QUEUE = 0.5, MELEE = 3, ABILITY_CD = 10, SLIDECAST = 0.5;
+const JOBS = {
+  pld: { name:'ナイト', role:'tank', melee:true, slots:['MT','ST'],
+         a:{ combo:[['ファストブレード', 220], ['ライオットブレード', 330], ['ロイヤルアソリティ', 460]] },
+         b:{ name:'インビンシブル', cd:420, buff:'invuln' },
+         x:{ name:'ランパート', cd:90, buff:'rampart' },
+         y:{ name:'シェルトロン', cd:15, buff:'sheltron' } },
+  mnk: { name:'モンク', role:'melee', melee:true, slots:['D1','D2'],
+         a:{ combo:[['連撃', 220], ['正拳突き', 320], ['崩拳', 420]] },
+         b:{ name:'陰陽闘気斬', cd:10, pot:340 },
+         x:{ name:'紅蓮の極意', cd:60, buff:'riddle' },
+         y:{ name:'桃園結義', cd:120, buff:'bh' } },
+  mch: { name:'機工士', role:'ranged', melee:false, slots:['D3'],
+         a:{ combo:[['ヒートスプリットショット', 220], ['ヒートスラッグショット', 320], ['ヒートクリーンショット', 440]] },
+         b:{ name:'チェックメイト', cd:10, pot:170 },
+         x:{ name:'ドリル', cd:20, gcd:true, pot:600 },
+         y:{ name:'ワイルドファイア', cd:120, buff:'wf' } },
+  blm: { name:'黒魔道士', role:'caster', melee:false, slots:['D4'],
+         a:{ name:'ファイジャ', pot:320, cast:2.0 },
+         b:{ name:'迅速魔', cd:40, instant:1 },
+         x:{ name:'ゼノグロシー', cd:30, gcd:true, pot:880 },
+         y:{ name:'三連魔', cd:60, instant:3 } },
+  sch: { name:'学者', role:'healer', melee:false, slots:['H1','H2'],
+         a:{ name:'気炎法', pot:310, cast:1.5 },
+         b:{ name:'エナジードレイン', cd:10, pot:100 },
+         x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
+         y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
+};
+const JOB_ORDER = ['pld', 'mnk', 'mch', 'blm', 'sch'];
+const KEYS = ['b', 'x', 'y'];
+const GCD = 2.5, QUEUE = 0.5, MELEE = 3, SLIDECAST = 0.5;
 
 // ===== 画面（内部 288px。1y あたりのピクセル数はギミックごとに変える） =====
 const W = 288, C0 = W / 2;
@@ -216,10 +254,12 @@ const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true),
   safe: store.get('safe', false), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
-  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first')
+  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {})
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
 const job = () => JOBS[opt.job];
+// 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
+const mySlot = () => { const sl = job().slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
 
 // ===== 状態 =====
 const S = { phase:'menu', t:-COUNTDOWN, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };
@@ -316,15 +356,19 @@ function corner(cx, cz, sx, sz, L, c){
 // 自キャラ：ジョブアイコン（タンク=青、DPS=赤の枠付きタイル）
 const ICON = {
   pld: ['.........','......xx.','.....xxx.','..x.xxx..','...xxx...','...xx....','..x..x...','.x.......','.........'],
+  mnk: ['.........','..xxxx...','.xxxxxx..','.xxxxxxx.','.xxxxxxx.','..xxxxxx.','...xxxx..','...xx....','.........'],
   mch: ['.........','.........','.xxxxxxx.','.xxxxxxx.','.xx.x....','.xx......','.xx......','.........','.........'],
   blm: ['.....x...','....xx...','...xxx...','...xxxx..','..xxxxx..','..xxxxxx.','xxxxxxxxx','.........','.........'],
+  sch: ['.........','.xxx.xxx.','.x.x.x.x.','.xxx.xxx.','.x.x.x.x.','.xxx.xxx.','.xxxxxxx.','.........','.........'],
 };
-const ROLE_COLOR = { tank:'#3a6ad8', dps:'#d8404e' };
+const ROLE_COLOR = { tank:'#3a6ad8', healer:'#3aa84e', melee:'#d8404e', ranged:'#d8404e', caster:'#d8404e' };
 function drawIcon(X, Z, hurt){
   const bg = hurt ? '#ff2a3a' : ROLE_COLOR[job().role], fg = hurt ? '#ffe066' : '#ffffff';
   rect(X - 5, Z - 5, 11, 11, '#ffffff');
   rect(X - 4, Z - 4, 9, 9, bg);
   ICON[opt.job].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') rect(X - 4 + i, Z - 4 + j, 1, 1, fg); }));
+  if (hasBuff('invuln')) ring(X, Z, 8, '#ffd84a');
+  else if (hasMit()) ring(X, Z, 8, '#5ab0ff');
 }
 
 function drawField(){
@@ -744,7 +788,7 @@ const MISS = (() => {
 
 // =====================================================================
 // ギミック5（β）：狂気のオーケストラ 1回目（kanatan.info の処理法）
-// 味方7人は正しく動く。自分の担当はランダム（ナイト=MT/ST、機工士・黒=D1〜D4/H1/H2）
+// 味方7人は正しく動く（着弾ギリギリまで動かない）。自分の担当はジョブで決まる（ナイト MT/ST、モンク D1/D2、機工士 D3、黒 D4、学者 H1/H2）
 // =====================================================================
 const ORCH = (() => {
   const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = 6;
@@ -765,19 +809,18 @@ const ORCH = (() => {
   const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
   const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
   return {
-    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ 1回目', view:24, start:{ x:0, z:8 },
+    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ 1回目', view:24, start:{ x:0, z:8 }, slots:true,
     gen(){
-      const me = job().role === 'tank' ? pick(['MT','ST']) : pick(NON_TANK);
-      return { me, role:job().role, targets:shuffle([...NON_TANK]).slice(0, 3) };
+      return { me:mySlot(), targets:shuffle([...NON_TANK]).slice(0, 3) };
     },
-    valid: d => d.role === job().role, // ジョブを変えたら担当を引き直す
+    valid: d => d.me === mySlot(), // ジョブ・担当を変えたら引き直す
     create(p){
       const all = ['MT','ST', ...NON_TANK];
       // 2回目の誘導役：1回目で当たらなかった3人を、散開位置の西から順に 西・南・東 へ
       const baiters = NON_TANK.filter(k => !p.targets.includes(k)).sort((a, b) => SPREAD[a].x - SPREAD[b].x);
-      const spotAt = (k, t) => {
-        if (t < W1) return SPREAD[k];
-        if (t < W2){
+      const phaseSpot = (k, ph) => {
+        if (ph === 0) return SPREAD[k];
+        if (ph === 1){
           if (k === 'MT' || k === 'ST') return STACK;
           const bi = baiters.indexOf(k);
           return bi >= 0 ? BAIT[bi] : outward(SPREAD[k], 14);
@@ -785,6 +828,18 @@ const ORCH = (() => {
         if (k === 'MT') return FLARE_SPOT;   // ヘイト1位＝フレア
         if (k === 'ST') return STACK;        // ヘイト2位＝ホーリー（ボス前で無敵）
         return SOUTH[k];
+      };
+      // 自分の目安（ガイド表示・安置表示）は着弾のたびに次へ
+      const spotAt = (k, t) => phaseSpot(k, t < W1 ? 0 : t < W2 ? 1 : 2);
+      // 味方：着弾の0.35秒前に着くように、ギリギリで歩き出す
+      const DEADLINE = [W1, W2, FINAL];
+      const botGoal = (b, t) => {
+        const ph = t < W1 ? 0 : t < W2 ? 1 : 2;
+        if (ph < 2){
+          const nx = phaseSpot(b.k, ph + 1), leave = DEADLINE[ph + 1] - dist(b, nx) / BOT_SPEED - .35;
+          if (t >= Math.max(leave, DEADLINE[ph] + .05)) return nx;
+        }
+        return phaseSpot(b.k, ph);
       };
       const bots = all.filter(k => k !== p.me).map(k => ({ k, ...SPREAD[k] }));
       const pos = k => k === p.me ? S.player : bots.find(b => b.k === k);
@@ -809,7 +864,7 @@ const ORCH = (() => {
           const dt = Math.max(0, t - lastT); lastT = t;
           // 味方は担当の位置へ歩く
           bots.forEach(b => {
-            const g = spotAt(b.k, t), d = dist(b, g), step = BOT_SPEED * dt;
+            const g = botGoal(b, t), d = dist(b, g), step = BOT_SPEED * dt;
             if (d > .05){ const k = Math.min(1, step / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; }
           });
           const me = S.player;
@@ -821,6 +876,7 @@ const ORCH = (() => {
             if (overlap) hurt('ホーリーが重なった');
             if (vuln && all.filter(k => k !== p.me && !p.targets.includes(k)).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーに味方を巻き込んだ');
             if (roleOf(p.me) !== 'T' && ['MT','ST'].some(k => dist(me, pos(k)) <= TB_R)) hurt('タンク強攻撃に巻き込まれた');
+            if (roleOf(p.me) === 'T' && !hasMit()) hurt('軽減なしで強攻撃');
           }
           if (!fired.w2 && t >= W2){
             fired.w2 = true; sfx.boom();
@@ -832,6 +888,7 @@ const ORCH = (() => {
             if (roleOf(p.me) === 'T'){
               if (mine) hurt('タゲサに入った');
               if (dist(me, pos(p.me === 'MT' ? 'ST' : 'MT')) > STACK_R) hurt('頭割りに入れていない');
+              else if (!hasMit()) hurt('軽減なしで頭割り');
             } else {
               if (mine && vuln) hurt('ホーリーを2回受けた');
               if (!mine && !vuln) hurt('近い3人に入れなかった');
@@ -846,6 +903,7 @@ const ORCH = (() => {
             if (p.me === 'MT'){ if (all.some(k => k !== 'MT' && dist(pos('MT'), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ'); }
             else if (dist(me, pos('MT')) <= FLARE_R) hurt('フレアに巻き込まれた');
             if (p.me === 'ST' && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
+            if (p.me === 'ST' && !hasBuff('invuln')) hurt('インビンシブルなしでホーリー');
           }
         },
         safeActive: () => true,
@@ -910,13 +968,20 @@ function draw(){
   drawActFx(); drawPlayer(); drawCast(); drawHurtFlash();
 }
 
-// ===== アクション（A=GCD / B=アビリティ） =====
-const A = { readyAt:0, queued:false, bQueued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
+// ===== アクション（A=GCD / B・X・Y=アビリティ・バフ） =====
+const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
+            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
-const held = { a:false, b:false };
-function actReset(){ Object.assign(A, { readyAt:0, queued:false, bQueued:false, cast:null, abilityAt:0, swift:false, gcds:0, dmg:0, loss:0, failT:-9 }); fxEl.innerHTML = ''; }
+const held = { a:false, b:false, x:false, y:false };
+function actReset(){
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9 });
+  fxEl.innerHTML = '';
+}
+const hasBuff = id => (A.buffs[id] ?? -1) > S.t;
+const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
+const nextA = () => { const a = job().a; return a.combo ? a.combo[A.combo][0] : a.name; };
 
 const fxEl = $('fx');
 function popup(text, cls){
@@ -929,8 +994,9 @@ function popup(text, cls){
   setTimeout(() => el.remove(), 950);
 }
 function dealDamage(pot){
+  const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);
   const crit = Math.random() < .25;
-  const dmg = Math.round(pot * 58 * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
+  const dmg = Math.round(pot * 58 * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
   A.dmg += dmg; A.bossFlash = performance.now();
   popup(dmg.toLocaleString('en-US') + (crit ? '!' : ''), crit ? 'crit' : '');
   crit ? sfx.crit() : sfx.hit();
@@ -938,25 +1004,36 @@ function dealDamage(pot){
 function fail(){ A.failT = performance.now(); sfx.no(); }
 
 // 先行入力：リキャスト残り0.5秒から受け付ける（カウントダウン終了直前も可）
+const active = () => S.phase === 'run' || S.phase === 'count';
 function pressA(){
   sfx.unlock();
-  if ((S.phase === 'run' || S.phase === 'count') && !A.cast && S.t >= A.readyAt - QUEUE) A.queued = true;
+  if (active() && !A.cast && S.t >= A.readyAt - QUEUE && A.queued !== 'x') A.queued = 'a';
 }
-function pressB(){
+function pressKey(k){
   sfx.unlock();
-  if (S.phase !== 'run' && S.phase !== 'count') return;
-  if (S.phase === 'count' || S.t < A.abilityAt){ if (S.t >= A.abilityAt - QUEUE) A.bQueued = true; return; }
-  if (A.cast){ fail(); return; }
-  const b = job().b;
-  if (b.swift){ A.swift = true; A.abilityAt = S.t + ABILITY_CD; sfx.buff(); popup('迅速魔', 'crit'); return; }
-  if (!inRange()){ fail(); return; }
-  A.abilityAt = S.t + ABILITY_CD; dealDamage(b.pot);
+  if (!active()) return;
+  const ab = job()[k];
+  if (ab.gcd){ // GCD技（ドリル・ゼノグロシー）：覚えておいて次のGCDで割り込む。コンボは切れない
+    if (S.t >= A.cds[k] - QUEUE) A.q[k] = true;
+    return;
+  }
+  if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
+  if (A.cast){ A.q[k] = true; return; } // 詠唱中に押したら、詠唱が終わってから発動
+  if (ab.pot && !inRange()){ fail(); return; }
+  A.cds[k] = S.t + ab.cd;
+  if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); }
+  else if (ab.instant){ A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
+  else dealDamage(ab.pot);
 }
 function actTick(dt){
-  const a = job().a;
+  const j = job(), a = j.a;
   if (held.a) pressA();
-  if (held.b && !A.cast && S.t >= A.abilityAt && (job().b.swift ? !A.swift : inRange())) pressB();
-  if (A.bQueued && S.t >= A.abilityAt && !A.cast){ A.bQueued = false; pressB(); }
+  KEYS.forEach(k => {
+    if (held[k] && !A.cast && S.t >= A.cds[k] - (j[k].gcd ? QUEUE : 0) && (!j[k].pot || j[k].gcd || inRange())) pressKey(k);
+    if (!A.q[k] || A.cast) return;
+    if (j[k].gcd){ if (S.t >= A.cds[k] - QUEUE && S.t >= A.readyAt - QUEUE){ A.q[k] = false; A.queued = k; } }
+    else if (S.t >= A.cds[k]){ A.q[k] = false; pressKey(k); }
+  });
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
     if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
@@ -965,14 +1042,15 @@ function actTick(dt){
   }
   if (S.t < A.readyAt) return;
   if (A.queued){
-    A.queued = false;
-    if (!inRange()) fail();
-    else {
-      A.readyAt = S.t + GCD; A.gcds++;
-      if (a.cast && !A.swift) A.cast = { start:S.t, end:S.t + a.cast };
-      else { if (a.cast) A.swift = false; dealDamage(a.pot); }
-      return;
-    }
+    const k = A.queued; A.queued = null;
+    if (k !== 'a' && S.t < A.cds[k]) return;
+    if (!inRange()){ fail(); return; }
+    A.readyAt = S.t + GCD; A.gcds++;
+    if (k !== 'a'){ A.cds[k] = S.t + j[k].cd; dealDamage(j[k].pot); return; }
+    if (a.combo){ dealDamage(a.combo[A.combo][1]); A.combo = (A.combo + 1) % a.combo.length; return; }
+    if (A.instant > 0){ A.instant--; dealDamage(a.pot); return; }
+    A.cast = { start:S.t, end:S.t + a.cast };
+    return;
   }
   if (S.t <= S.inst.end) A.loss += dt; // 撃てるのに撃っていない時間
 }
@@ -989,7 +1067,7 @@ function drawActFx(){
   }
 }
 
-const btnA = $('btnA'), btnB = $('btnB'), buffEl = $('buff');
+const BTN = { a:$('btnA'), b:$('btnB'), x:$('btnX'), y:$('btnY') }, buffEl = $('buff');
 // ステータスアイコン：属性色の四角に白いドット絵（右下に下向き矢印＝耐性低下）
 function statusIcon({ color, icon }){
   let r = `<rect width="8" height="8" fill="${color}"/>`;
@@ -997,18 +1075,27 @@ function statusIcon({ color, icon }){
   r += '<rect x="5.5" y="5.5" width="2.5" height="2.5" fill="#000"/><rect x="6" y="6" width="1.5" height=".5" fill="#ff4d5e"/><rect x="6.5" y="6.5" width=".5" height="1" fill="#ff4d5e"/>';
   return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 }
+const buffIcon = c => `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${c}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
+function setBtn(el, key, name, p, ready){
+  el.style.setProperty('--p', p.toFixed(3));
+  el.classList.toggle('ready', ready);
+  const b = el.firstElementChild, sm = el.lastElementChild;
+  if (b.textContent !== key) b.textContent = key;
+  if (sm.textContent !== name) sm.textContent = name;
+}
 function drawButtons(){
-  const run = S.phase === 'run';
+  const run = S.phase === 'run', j = job();
   const pa = run ? Math.max(0, Math.min(1, (A.readyAt - S.t) / GCD)) : 0;
-  const rb = run ? Math.max(0, A.abilityAt - S.t) : 0;
-  btnA.style.setProperty('--p', pa.toFixed(3));
-  btnA.classList.toggle('ready', run && pa === 0 && !A.cast);
-  btnB.style.setProperty('--p', (rb / ABILITY_CD).toFixed(3));
-  btnB.classList.toggle('ready', run && rb === 0);
-  const bl = rb > 0 ? String(Math.ceil(rb)) : 'B';
-  if (btnB.textContent !== bl) btnB.textContent = bl;
-  const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : []), A.swift ? '迅速魔' : null].filter(Boolean);
-  const html = st.map(s => typeof s === 'string' ? `<span>${s}</span>` : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
+  setBtn(BTN.a, 'A', nextA(), pa, run && pa === 0 && !A.cast);
+  KEYS.forEach(k => {
+    const ab = j[k], left = run ? Math.max(0, A.cds[k] - S.t) : 0;
+    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, left / ab.cd, run && left === 0);
+  });
+  const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
+  if (run) Object.keys(A.buffs).forEach(id => { if (hasBuff(id)) st.push({ buff:BUFFS[id], text:`${BUFFS[id].name} ${Math.ceil(A.buffs[id] - S.t)}` }); });
+  if (run && A.instant) st.push(A.instant > 1 ? `三連魔 ×${A.instant}` : '迅速魔');
+  const html = st.filter(Boolean).map(s => typeof s === 'string' ? `<span>${s}</span>`
+    : s.buff ? `<span>${buffIcon(s.buff.color)}${s.text}</span>` : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
   if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }
 
@@ -1024,17 +1111,39 @@ function begin(same){
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
-  S.phase = 'menu'; S.inst = null; A.cast = null;
+  S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null;
   S.cursor = Math.max(0, MECHS.indexOf(mech()));
   renderMenu(); $('menu').hidden = false; lastMsg = ''; setMsg('');
 }
+// メニュー：ジョブの行（SELECT／左右で切り替え）＋ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 function renderMenu(){
-  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
+  const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
+  const jobRow = `<button type="button" data-job="1"><span>◀ ${job().name} ▶</span><small>ジョブ（SELECT）</small></button>`;
+  if (S.menu === 'slot'){
+    head.textContent = `${job().name}の担当`;
+    note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
+    $('menuList').innerHTML = job().slots.map((sl, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${sl}</span><small>${mech().name}</small></button>`).join('');
+    return;
+  }
+  head.textContent = 'ギミック選択';
+  note.textContent = '十字で選んでA／STARTで開始';
+  $('menuList').innerHTML = jobRow + MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
 }
-function chooseMech(i){
-  opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle(); begin(false);
+function menuCount(){ return S.menu === 'slot' ? job().slots.length : MECHS.length; }
+function menuConfirm(i = S.cursor){
+  if (S.menu === 'slot'){
+    opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle(); begin(false);
+    return;
+  }
+  opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle();
+  if (MECHS[i].slots && job().slots.length > 1){
+    S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu(); sfx.unlock(); sfx.blip(520, .04);
+    return;
+  }
+  begin(false);
 }
-function moveCursor(d){ S.cursor = (S.cursor + d + MECHS.length) % MECHS.length; renderMenu(); sfx.unlock(); sfx.blip(520, .04); }
+function menuBack(){ if (S.menu === 'slot'){ S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu(); } }
+function moveCursor(d){ S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.blip(520, .04); }
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
@@ -1064,23 +1173,22 @@ function buildResult(){
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
 function rankHtml(){
   const j = job(), end = S.inst.end, avg = 58 * 1.125; // クリ率25%・1.5倍の期待値
-  const max = (Math.floor(end / GCD) + 1) * j.a.pot * avg + (j.b.pot ? (Math.floor(end / ABILITY_CD) + 1) * j.b.pot * avg : 0);
+  const aPot = j.a.combo ? j.a.combo.reduce((s, c) => s + c[1], 0) / j.a.combo.length : j.a.pot;
+  const max = (Math.floor(end / GCD) + 1) * aPot * avg + (j.b.pot ? (Math.floor(end / j.b.cd) + 1) * j.b.pot * avg : 0);
   const ratio = A.dmg / max;
   const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => ratio >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];
   return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">理論値の ${Math.round(ratio * 100)}%</div>`;
 }
 function applyTitle(){
-  const j = job();
   $('mechName').textContent = mech().name;
-  $('jobName').textContent = j.name;
-  $('nameA').textContent = j.a.name;
-  $('nameB').textContent = j.b.name;
+  $('jobName').textContent = job().name + (job().slots.length > 1 && mech().slots ? ` ${mySlot()}` : '');
 }
-function selectJob(){
+function selectJob(d = 1){
   if (S.phase === 'count' || S.phase === 'run') return;
-  opt.job = JOB_ORDER[(JOB_ORDER.indexOf(opt.job) + 1) % JOB_ORDER.length];
+  opt.job = JOB_ORDER[(JOB_ORDER.indexOf(opt.job) + d + JOB_ORDER.length) % JOB_ORDER.length];
   store.set('job', opt.job); applyTitle(); lastMsg = '';
+  if (S.phase === 'menu'){ if (S.menu === 'slot') menuBack(); renderMenu(); }
   sfx.unlock(); sfx.blip(520, .05);
 }
 
@@ -1123,21 +1231,23 @@ function frame(now){
 const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSafe(); }
 function syncSafe(){ const b = $('bSafe'); b.classList.toggle('on', opt.safe); b.setAttribute('aria-pressed', String(opt.safe)); }
-function pressStart(){ if (S.phase === 'menu') chooseMech(S.cursor); else begin(false); }
+function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(false); }
 window.addEventListener('keydown', e => {
   if (!$('sheet').hidden) { if (e.key === 'Escape') closeSheet(); return; }
   const k = e.key.toLowerCase();
   if (S.phase === 'menu'){
     if (k === 'w' || k === 'arrowup'){ moveCursor(-1); e.preventDefault(); return; }
     if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
-    if (k === 'j' || k === '1' || k === 'enter'){ chooseMech(S.cursor); e.preventDefault(); return; }
-    if (k === 'shift') selectJob();
+    if (k === 'j' || k === '1' || k === 'enter'){ menuConfirm(); e.preventDefault(); return; }
+    if (k === 'k' || k === '2' || k === 'escape'){ menuBack(); return; }
+    if (k === 'a' || k === 'arrowleft'){ selectJob(-1); e.preventDefault(); return; }
+    if (k === 'd' || k === 'arrowright' || k === 'shift'){ selectJob(1); e.preventDefault(); return; }
     return;
   }
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
   if (e.repeat) return;
-  if (k === 'j' || k === '1'){ held.a = true; pressA(); e.preventDefault(); }
-  else if (k === 'k' || k === '2'){ held.b = true; pressB(); e.preventDefault(); }
+  const bk = { j:'a', 1:'a', k:'b', 2:'b', u:'x', 3:'x', i:'y', 4:'y' }[k];
+  if (bk){ held[bk] = true; bk === 'a' ? pressA() : pressKey(bk); e.preventDefault(); }
   else if (k === 'enter'){ pressStart(); e.preventDefault(); }
   else if (k === 'shift') selectJob();
   else if (k === ' '){ toggleSafe(); e.preventDefault(); }
@@ -1147,10 +1257,10 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
   if (KEYMAP[k]) keys.delete(KEYMAP[k]);
-  if (k === 'j' || k === '1') held.a = false;
-  if (k === 'k' || k === '2') held.b = false;
+  const bk = { j:'a', 1:'a', k:'b', 2:'b', u:'x', 3:'x', i:'y', 4:'y' }[k];
+  if (bk) held[bk] = false;
 });
-window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; held.a = held.b = false; });
+window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; held.a = held.b = held.x = held.y = false; });
 
 // ===== 入力：タッチ・マウス（スティックとボタンは同時に操作できる） =====
 if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
@@ -1191,14 +1301,18 @@ function holdButton(el, fn, onUp){
   ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, () => { el.classList.remove('press'); onUp?.(); }));
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-holdButton(btnA, () => { if (S.phase === 'menu') chooseMech(S.cursor); else { held.a = true; pressA(); } }, () => { held.a = false; });
-holdButton(btnB, () => { if (S.phase !== 'menu'){ held.b = true; pressB(); } }, () => { held.b = false; });
+holdButton(BTN.a, () => { if (S.phase === 'menu') menuConfirm(); else { held.a = true; pressA(); } }, () => { held.a = false; });
+holdButton(BTN.b, () => { if (S.phase === 'menu') menuBack(); else { held.b = true; pressKey('b'); } }, () => { held.b = false; });
+KEYS.slice(1).forEach(k => holdButton(BTN[k], () => { if (S.phase !== 'menu'){ held[k] = true; pressKey(k); } }, () => { held[k] = false; }));
 $('btnStart').addEventListener('click', pressStart);
-$('btnSelect').addEventListener('click', selectJob);
+$('btnSelect').addEventListener('click', () => selectJob(1));
 $('bRetry').addEventListener('click', () => { if (S.phase !== 'menu') begin(true); });
 $('bMenu').addEventListener('click', openMenu);
 $('bSafe').addEventListener('click', toggleSafe);
-$('menuList').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) chooseMech(Number(b.dataset.i)); });
+$('menuList').addEventListener('click', e => {
+  if (e.target.closest('button[data-job]')){ selectJob(1); return; }
+  const b = e.target.closest('button[data-i]'); if (b) menuConfirm(Number(b.dataset.i));
+});
 syncSafe();
 
 // ===== 設定シート =====

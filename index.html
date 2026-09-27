@@ -93,6 +93,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .abw.x .round,.abw.y .round{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), #5b2a86;border-color:#3a1660}
 .round small{font-size:8px;line-height:1;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#ffe7f2}
 .round.ready{border-color:var(--gold)}
+.round.combo{border-color:#fff6b0;animation:comboGlow .5s steps(2) infinite alternate}
+@keyframes comboGlow{from{box-shadow:0 0 0 3px #ffd84a,0 0 10px 3px #ffd84a}to{box-shadow:0 0 0 1px #ffd84a,0 0 4px 1px #ffd84a}}
 .round.press{transform:translateY(2px);box-shadow:inset 4px 4px 0 rgba(0,0,0,.35)}
 .ss{display:flex;justify-content:center;gap:26px;margin-top:8px}
 .ssw{display:flex;flex-direction:column;align-items:center;gap:3px;transform:rotate(-25deg)}
@@ -208,6 +210,8 @@ const BUFFS = {
   bh:      { name:'桃園結義', dur:20, dmg:1.05, color:'#ffb84a' },
   wf:      { name:'ワイルドファイア', dur:10, dmg:1.1, color:'#ff6a3a' },
   soil:    { name:'野戦治療の陣', dur:18, mit:true, color:'#58e07a' },
+  cu:      { name:'集合的無意識', dur:5, mit:true, color:'#5ad8ff' },
+  div:     { name:'ディヴィネーション', dur:20, dmg:1.06, color:'#ffd84a' },
   exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
 };
 // step：コンボの段（1→2→3の順に押すとフル威力、順番を外すと low の威力）
@@ -215,19 +219,28 @@ const JOBS = {
   // タンク：B と Y はオーケストラでの役割で変わる（ホーリー役＝挑発・無敵／フレア役＝シャーク・重いバフ）
   pld: { name:'ナイト', role:'tank', melee:true, slots:['MT'],
          a:{ name:'ロイヤルアソリティ', pot:460 },
+         atk:{ a:{ name:'ファストブレード', pot:220, step:1 }, b:{ name:'ライオットブレード', pot:330, step:2, low:150 },
+               y:{ name:'ロイヤルアソリティ', pot:460, step:3, low:200 }, x:{ name:'エクスピアシオン', cd:30, pot:450 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'インビンシブル', cd:420, buff:'invuln' },
          heavy:{ name:'ガーディアン', cd:120, buff:'guardian' } },
   drk: { name:'暗黒騎士', role:'tank', melee:true, slots:['ST'],
          a:{ name:'ソウルイーター', pot:480 },
+         atk:{ a:{ name:'ハードスラッシュ', pot:300, step:1 }, b:{ name:'サイフォンストライク', pot:380, step:2, low:160 },
+               y:{ name:'ソウルイーター', pot:480, step:3, low:180 }, x:{ name:'エッジ・オブ・シャドウ', cd:15, pot:460 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'リビングデッド', cd:300, buff:'living' },
          heavy:{ name:'シャドウヴィジル', cd:120, buff:'vigil' } },
-  mnk: { name:'モンク', role:'melee', melee:true, slots:['D1','D2'],
+  mnk: { name:'モンク', role:'melee', melee:true, slots:['D1'],
          a:{ name:'連撃', pot:220, step:1 },
          b:{ name:'正拳突き', pot:320, step:2, low:150 },
          y:{ name:'崩拳', pot:420, step:3, low:180 },
          x:{ name:'陰陽闘気斬', cd:10, pot:340 } },
+  rpr: { name:'リーパー', role:'melee', melee:true, slots:['D2'],
+         a:{ name:'スライス', pot:320, step:1 },
+         b:{ name:'ワクシングスライス', pot:400, step:2, low:160 },
+         y:{ name:'インファーナルスライス', pot:500, step:3, low:180 },
+         x:{ name:'ブラッドストーカー', cd:10, pot:440 } },
   mch: { name:'機工士', role:'ranged', melee:false, slots:['D3'],
          a:{ name:'ヒートスプリットショット', pot:220, step:1 },
          b:{ name:'ヒートスラッグショット', pot:320, step:2, low:160 },
@@ -238,13 +251,18 @@ const JOBS = {
          b:{ name:'迅速魔', cd:40, instant:1 },
          x:{ name:'ゼノグロシー', cd:30, gcd:true, pot:880 },
          y:{ name:'三連魔', cd:60, instant:3 } },
-  sch: { name:'学者', role:'healer', melee:false, slots:['H1','H2'],
+  ast: { name:'占星術師', role:'healer', melee:false, slots:['H1'],
+         a:{ name:'マレフィガ', pot:270, cast:1.5 },
+         b:{ name:'ロード・オブ・クラウン', cd:60, pot:400 },
+         x:{ name:'集合的無意識', cd:60, buff:'cu' },
+         y:{ name:'ディヴィネーション', cd:120, buff:'div' } },
+  sch: { name:'学者', role:'healer', melee:false, slots:['H2'],
          a:{ name:'気炎法', pot:310, cast:1.5 },
          b:{ name:'エナジードレイン', cd:10, pot:100 },
          x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };
-const JOB_ORDER = ['pld', 'drk', 'mnk', 'mch', 'blm', 'sch'];
+const JOB_ORDER = ['pld', 'drk', 'mnk', 'rpr', 'mch', 'blm', 'ast', 'sch'];
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
 const KEYS = ['a', 'b', 'x', 'y'];
 // GCD を使うボタン（A・コンボの段・GCD技）か
@@ -282,12 +300,13 @@ const opt = {
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
-const tankRole = () => mech().id === 'orch' && (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
+const tankRole = () => mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
 const jobCache = {};
 const job = () => {
   const j = JOBS[opt.job]; if (j.role !== 'tank') return j;
   const key = opt.job + tankRole();
-  return jobCache[key] ||= tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
+  // オーケストラ以外はバフ・ヘイト管理なし：A→B→Y のコンボと X の攻撃アビリティ
+  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
 };
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
@@ -619,6 +638,8 @@ function corner(cx, cz, sx, sz, L, c){
 
 // 自キャラ：ジョブアイコン（タンク=青、DPS=赤の枠付きタイル）
 const ICON = {
+  rpr: ['.xxxxx...','x.....xx.','.......x.','......x..','.....x...','....x....','...x.....','..x......','.x.......'],
+  ast: ['....x....','....x....','..xxxxx..','.xxxxxxx.','..xxxxx..','....x....','....x....','.........','.........'],
   drk: ['......xxx','.....xxx.','....xxx..','...xxx...','x.xxx....','.xxx.....','..x......','.x.x.....','x........'],
   pld: ['.........','......xx.','.....xxx.','..x.xxx..','...xxx...','...xx....','..x..x...','.x.......','.........'],
   mnk: ['.........','..xxxx...','.xxxxxx..','.xxxxxxx.','.xxxxxxx.','..xxxxxx.','...xxxx..','...xx....','.........'],
@@ -1412,9 +1433,10 @@ function statusIcon({ color, icon }){
   return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 }
 const buffIcon = c => `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${c}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
-function setBtn(el, key, name, p, ready){
+function setBtn(el, key, name, p, ready, combo = false){
   el.style.setProperty('--p', p.toFixed(3));
   el.classList.toggle('ready', ready);
+  el.classList.toggle('combo', combo);
   const b = el.firstElementChild, sm = el.lastElementChild;
   if (b.textContent !== key) b.textContent = key;
   if (sm.textContent !== name) sm.textContent = name;
@@ -1427,7 +1449,8 @@ function drawButtons(){
     if (isGcd(j, k) && !ab.gcd){
       // コンボは「次に押す段」だけ金枠
       const next = !ab.step || ab.step === 1 ? A.combo === 0 || !ab.step : A.combo === ab.step - 1;
-      setBtn(BTN[k], k.toUpperCase(), ab.name, gcdP, run && gcdP === 0 && !A.cast && (!ab.step || next));
+      // 1段目を打ったあとは、次の段のボタンを点滅させる
+      setBtn(BTN[k], k.toUpperCase(), ab.name, gcdP, run && gcdP === 0 && !A.cast && (!ab.step || next), run && !!ab.step && A.combo > 0 && next);
       return;
     }
     const left = run ? Math.max(0, A.cds[k] - S.t) : 0;

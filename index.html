@@ -283,6 +283,17 @@ const JOBS = {
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };
 const JOB_ORDER = ['pld', 'drk', 'mnk', 'rpr', 'mch', 'blm', 'ast', 'sch'];
+// 目標DPS（絶の実戦での目安）。理想どおり回すとこの値に届くよう、威力1あたりのダメージをジョブごとに決める
+const TARGET_DPS = { pld:19000, drk:20000, mnk:31000, rpr:31000, mch:27000, blm:32000, ast:15000, sch:14500 };
+const CRIT_AVG = 1.125; // クリ率25%・1.5倍の期待値
+// 理想の毎秒威力：GCD（コンボは平均）＋ダメージのあるアビリティ／リキャスト付きGCD技の上乗せ
+function idealPps(j){
+  const steps = KEYS.filter(k => j[k].step), aPot = steps.length ? steps.reduce((s, k) => s + j[k].pot, 0) / steps.length : j.a.pot;
+  let pps = aPot / GCD;
+  KEYS.forEach(k => { const ab = j[k]; if (!ab.pot || ab.step || k === 'a') return; pps += ab.gcd ? (ab.pot - aPot) / ab.cd : ab.pot / ab.cd; });
+  return pps;
+}
+const dmgPerPot = () => TARGET_DPS[opt.job] / (idealPps(job()) * CRIT_AVG);
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
 const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true }; // ニュートラルセクト中に1回だけ
 const KEYS = ['a', 'b', 'x', 'y'];
@@ -1368,16 +1379,16 @@ const held = { a:false, b:false, x:false, y:false };
 // ===== ヒーラーのときだけ：自分のHP =====
 // ギミック中に全員が必ず受ける攻撃（軽減表の1発ぶん）を受ける。HP 205,000。ほかの人の軽減は一律20%とみなす
 // 自分の軽減は1つ10%（掛け算）。バリアが先に受ける。0になったらミス
-const HP = { on:false, hp:100, shield:0 };
+const HP = { on:false, hp:100, shield:0, taken:0, prevented:0, absorbed:0, healed:0 };
 const MAX_HP = 205000, PARTY_MIT = .8, MIT_PCT = .1;
 function hpReset(){
-  HP.on = job().role === 'healer'; HP.hp = 100; HP.shield = 0;
+  HP.on = job().role === 'healer'; HP.hp = 100; HP.shield = 0; HP.taken = HP.prevented = HP.absorbed = HP.healed = 0;
   $('hp').hidden = !HP.on;
 }
 function onBuff(id){
   if (!HP.on || S.phase !== 'run' && S.phase !== 'count') return;
   const b = BUFFS[id], ns = hasBuff('ns');
-  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); popup('+' + Math.round(HP.hp - before), 'healnum'); }
+  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); HP.healed += HP.hp - before; popup('+' + Math.round((HP.hp - before) * MAX_HP / 100).toLocaleString('en-US'), 'healnum'); }
   if (b.shield) HP.shield = Math.max(HP.shield, b.shield);
   if (id === 'helios' && ns) HP.shield = Math.max(HP.shield, 25); // ニュートラルセクト中のヘリオスはバリアも付く
 }
@@ -1385,15 +1396,17 @@ function onBuff(id){
 function healerHit(raw){
   if (!HP.on || S.phase !== 'run') return;
   const mits = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].mit).length;
-  let dmg = raw / MAX_HP * 100 * PARTY_MIT * Math.pow(1 - MIT_PCT, mits);
+  const base = raw / MAX_HP * 100 * PARTY_MIT;
+  let dmg = base * Math.pow(1 - MIT_PCT, mits);
   const absorbed = Math.min(HP.shield, dmg); HP.shield -= absorbed; dmg -= absorbed;
+  HP.taken += base; HP.prevented += base - (dmg + absorbed); HP.absorbed += absorbed;
   HP.hp -= dmg;
   popup('-' + Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum');
   if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
 }
 function hpTick(dt){
   if (!HP.on) return;
-  Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen) HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); });
+  Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); HP.healed += HP.hp - before; } });
   if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
 }
 function hpDraw(){
@@ -1428,7 +1441,7 @@ function popup(text, cls, name){
 function dealDamage(pot, name){
   const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);
   const crit = Math.random() < .25;
-  const dmg = Math.round(pot * 58 * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
+  const dmg = Math.round(pot * dmgPerPot() * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
   A.dmg += dmg; A.bossFlash = performance.now();
   popup(dmg.toLocaleString('en-US') + (crit ? '!' : ''), crit ? 'crit' : '', name);
   crit ? sfx.crit() : sfx.hit();
@@ -1729,22 +1742,23 @@ function buildResult(){
   const ok = S.hits === 0;
   return `<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'HIT ' + S.hits}</div>` +
     rankHtml() +
-    `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
+    `<div class="sub">${job().name}　DPS ${Math.round(fightDps()).toLocaleString('en-US')}（目標 ${TARGET_DPS[opt.job].toLocaleString('en-US')}）</div>` +
+    (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
     `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
     [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
     `<div class="sub blink">START：リトライ　≡：ギミック選択</div>`;
 }
-// ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾したら D
+// ランク：目標DPSに対する割合。ヒーラーは被弾するギミックでは「回復・軽減の割合」と半々。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
+const fightDps = () => A.dmg / Math.max(1, S.inst.end);
+// 受けたダメージ（ほかの人の軽減込み）のうち、自分の軽減・バリア・回復で埋めた割合
+const healRatio = () => HP.taken ? Math.min(1, (HP.prevented + HP.absorbed + HP.healed) / HP.taken) : 1;
 function rankHtml(){
-  const j = job(), end = S.inst.end, avg = 58 * 1.125; // クリ率25%・1.5倍の期待値
-  const steps = KEYS.filter(k => j[k].step), aPot = steps.length ? steps.reduce((s, k) => s + j[k].pot, 0) / steps.length : j.a.pot;
-  const og = KEYS.find(k => !isGcd(j, k) && j[k].pot);
-  const max = (Math.floor(end / GCD) + 1) * aPot * avg + (og ? (Math.floor(end / j[og].cd) + 1) * j[og].pot * avg : 0);
-  const ratio = A.dmg / max;
-  const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => ratio >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
+  const dps = Math.min(1.2, fightDps() / TARGET_DPS[opt.job]);
+  const score = HP.on && HP.taken ? (dps + healRatio()) / 2 : dps;
+  const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => score >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];
-  return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">理論値の ${Math.round(ratio * 100)}%</div>`;
+  return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">スコア ${Math.round(score * 100)}%</div>`;
 }
 function applyTitle(){
   $('mechName').textContent = mech().name;

@@ -163,6 +163,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <label class="opt"><span>マーカー</span>
       <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
     <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
+    <label class="opt"><span>BGM</span><input type="checkbox" id="oBgm" checked></label>
     <h3>混沌の終末</h3>
     <label class="opt"><span>最初の方向</span>
       <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
@@ -255,7 +256,7 @@ const store = {
 };
 const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
-  spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true),
+  spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true),
   safe: store.get('safe', false), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
   debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {})
 };
@@ -275,7 +276,7 @@ const pick = a => a[Math.random() * a.length | 0];
 // ===== 効果音（8bit矩形波） =====
 const sfx = {
   ac:null,
-  unlock(){ if (!opt.sound) return; try { this.ac ||= new (window.AudioContext || window.webkitAudioContext)(); if (this.ac.state === 'suspended') this.ac.resume(); } catch {} },
+  unlock(){ if (!opt.sound && !opt.bgm) return; try { this.ac ||= new (window.AudioContext || window.webkitAudioContext)(); if (this.ac.state === 'suspended') this.ac.resume(); } catch {} },
   tone(freq, dur, type = 'square', vol = .06, slide = 0){
     if (!opt.sound || !this.ac) return;
     const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
@@ -295,6 +296,127 @@ const sfx = {
   clear(){ [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, .12), i * 110)); },
   fail(){ [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, .16), i * 150)); }
 };
+
+// ===== BGM（オリジナル曲。妖星乱舞っぽい「オルガン＋バロック風の短調」を目指した8bit） =====
+// 1ステップ＝16分音符。イントロ（オルガン和音）→ 本編A（分散和音）→ 本編B（メロディ）→ 本編Aへループ
+const bgm = (() => {
+  const BPM = 148, STEP = 60 / BPM / 4, VOL = .32;
+  const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
+  const song = [];   // { s:ステップ, ch:'lead'|'arp'|'bass'|'organ'|'kick'|'snare'|'hat', n:MIDI, l:長さ }
+  const add = (s, ch, n, l) => song.push({ s, ch, n:n && N(n), l });
+  // イントロ：オルガン和音（4小節）
+  const INTRO = [['D3','D4','F4','A4'], ['Bb2','Bb3','D4','F4'], ['G2','G3','Bb3','D4'], ['A2','A3','C#4','E4']];
+  INTRO.forEach((c, b) => c.forEach(n => add(b * 16, 'organ', n, 16)));
+  ['A4','Bb4','G4','E4'].forEach((n, b) => add(b * 16, 'lead', n, 16));
+  const MAIN0 = 64;
+  // 本編のコード（8小節）：Dm C Bb A Gm Dm/F E7 A7 — 下降するベース
+  const CH = [['D4','F4','A4'], ['C4','E4','G4'], ['Bb3','D4','F4'], ['A3','C#4','E4'], ['G3','Bb3','D4'], ['F3','A3','D4'], ['E3','G#3','D4'], ['A3','C#4','G4']];
+  const BASS = ['D2','C2','Bb1','A1','G1','F1','E1','A1'];
+  const mainBars = (base, melody) => {
+    CH.forEach((c, b) => {
+      const s0 = base + b * 16;
+      // ベース：8分で オクターブ上下
+      for (let i = 0; i < 8; i++) add(s0 + i * 2, 'bass', BASS[b].replace(/\d/, d => String(+d + (i % 2))), 2);
+      // 分散和音（16分）：上って下りる
+      const up = [c[0], c[1], c[2], c[0].replace(/\d/, d => String(+d + 1))];
+      const pat = [...up, ...up.slice().reverse(), ...up, ...up.slice().reverse()];
+      pat.forEach((n, i) => add(s0 + i, melody ? 'arp' : 'lead', n, 1));
+      // ドラム
+      [0, 8].forEach(i => add(s0 + i, 'kick'));
+      [4, 12].forEach(i => add(s0 + i, 'snare'));
+      for (let i = 2; i < 16; i += 4) add(s0 + i, 'hat');
+    });
+    if (!melody) return;
+    // 本編B：メロディ（[音, 長さ]、小節ごと）
+    const MEL = [
+      [['A5',4],['G5',2],['F5',2],['E5',2],['F5',2],['D5',4]],
+      [['E5',4],['G5',4],['C6',6],['Bb5',2]],
+      [['A5',4],['Bb5',2],['A5',2],['G5',4],['F5',4]],
+      [['E5',8],['C#5',4],['E5',4]],
+      [['D5',4],['G5',4],['Bb5',4],['A5',2],['G5',2]],
+      [['F5',4],['A5',4],['D6',8]],
+      [['B5',4],['G#5',4],['E5',4],['D5',4]],
+      [['C#5',4],['E5',4],['G5',4],['A5',4]],
+    ];
+    MEL.forEach((bar, b) => { let s1 = base + b * 16; bar.forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; }); });
+  };
+  mainBars(MAIN0, false);
+  mainBars(MAIN0 + 128, true);
+  const TOTAL = MAIN0 + 256;
+  const byStep = Array.from({ length:TOTAL }, () => []);
+  song.forEach(e => byStep[e.s].push(e));
+
+  let master = null, pulse = null, noise = null, timer = null, next = 0, step = 0;
+  const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function setup(ac){
+    if (master) return;
+    master = ac.createGain(); master.gain.value = VOL; master.connect(ac.destination);
+    // 25%パルス波（ファミコンっぽい音）
+    const K = 32, re = new Float32Array(K), im = new Float32Array(K);
+    for (let k = 1; k < K; k++) re[k] = 2 / (k * Math.PI) * Math.sin(k * Math.PI * .25);
+    pulse = ac.createPeriodicWave(re, im);
+    noise = ac.createBuffer(1, ac.sampleRate * .3, ac.sampleRate);
+    const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function voice(ac, t, type, freq, dur, vol){
+    const o = ac.createOscillator(), g = ac.createGain();
+    if (type === 'pulse') o.setPeriodicWave(pulse); else o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .005);
+    g.gain.setValueAtTime(vol, t + Math.max(.01, dur - .03)); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + .02);
+  }
+  function drum(ac, t, kind){
+    if (kind === 'kick'){
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + .12);
+      g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.001, t + .15);
+      o.connect(g).connect(master); o.start(t); o.stop(t + .16); return;
+    }
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noise; f.type = 'highpass'; f.frequency.value = kind === 'hat' ? 7000 : 1500;
+    const len = kind === 'hat' ? .04 : .12;
+    g.gain.setValueAtTime(kind === 'hat' ? .08 : .22, t); g.gain.exponentialRampToValueAtTime(.001, t + len);
+    src.connect(f).connect(g).connect(master); src.start(t); src.stop(t + len + .01);
+  }
+  function play(ac, e, t){
+    const dur = (e.l || 1) * STEP;
+    switch (e.ch){
+      case 'organ': voice(ac, t, 'pulse', hz(e.n), dur, .07); voice(ac, t, 'square', hz(e.n) * 1.003, dur, .03); break; // 少しずらして重ねてオルガン風に
+      case 'lead':  voice(ac, t, 'pulse', hz(e.n), dur * .95, .09); break;
+      case 'arp':   voice(ac, t, 'pulse', hz(e.n), dur * .8, .035); break;
+      case 'bass':  voice(ac, t, 'triangle', hz(e.n), dur * .9, .22); break;
+      default:      drum(ac, t, e.ch);
+    }
+  }
+  function tick(){
+    const ac = sfx.ac; if (!ac) return;
+    while (next < ac.currentTime + .15){
+      byStep[step].forEach(e => play(ac, e, next));
+      next += STEP; step++;
+      if (step >= TOTAL) step = MAIN0; // イントロは最初だけ
+    }
+  }
+  return {
+    start(){
+      if (!opt.bgm) return;
+      sfx.unlock(); const ac = sfx.ac; if (!ac || timer) return;
+      setup(ac);
+      master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(VOL, ac.currentTime);
+      step = 0; next = ac.currentTime + .05;
+      timer = setInterval(tick, 25); tick();
+    },
+    stop(fade = .6){
+      if (!timer) return;
+      clearInterval(timer); timer = null;
+      const ac = sfx.ac; if (!ac || !master) return;
+      master.gain.cancelScheduledValues(ac.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ac.currentTime);
+      master.gain.linearRampToValueAtTime(0, ac.currentTime + fade);
+      // 予約済みの音はフェードで消える。次の再生は新しい音量で始める
+    },
+  };
+})();
 
 // ===== ドット描画 =====
 function rect(x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
@@ -1124,11 +1246,13 @@ function begin(same){
   S.inst = m.create(S.problem.data);
   S.t = -COUNTDOWN; S.phase = 'count'; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
+  bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true;
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
+  bgm.stop();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null;
   S.cursor = Math.max(0, MECHS.indexOf(mech()));
   renderMenu(); $('menu').hidden = false; lastMsg = ''; setMsg('');
@@ -1239,7 +1363,7 @@ function frame(now){
     if (S.phase === 'run'){
       S.inst.tick(S.t);
       actTick(dt);
-      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); S.hits ? sfx.fail() : sfx.clear(); }
+      if (S.t > S.inst.end){ S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
   draw(); updateHud(); drawButtons();
@@ -1336,6 +1460,8 @@ $('menuList').addEventListener('click', e => {
 syncSafe();
 
 // ===== 設定シート =====
+const oBgm = $('oBgm'); oBgm.checked = opt.bgm;
+oBgm.addEventListener('change', () => { opt.bgm = oBgm.checked; store.set('bgm', opt.bgm); if (!opt.bgm) bgm.stop(.2); else if (S.phase === 'run' || S.phase === 'count') bgm.start(); });
 const oFirst = $('oFirst'), oSpeed = $('oSpeed'), oPath = $('oPath'), oSpots = $('oSpots'), oMarker = $('oMarker'), oSound = $('oSound'), oDebuff = $('oDebuff'), oDouble = $('oDouble');
 oFirst.value = opt.first; oSpeed.value = opt.speed; oPath.checked = opt.path; oSpots.checked = opt.spots; oMarker.value = opt.marker; oSound.checked = opt.sound;
 oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;

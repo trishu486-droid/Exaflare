@@ -228,6 +228,8 @@ const BUFFS = {
   soil:    { name:'野戦治療の陣', dur:15, mit:true, regen:1.5, color:'#58e07a' },
   cu:      { name:'運命の輪', dur:15, mit:true, regen:2, color:'#5ad8ff' },
   helios:  { name:'コンジャンクション・ヘリオス', dur:15, heal:25, regen:2, color:'#ffd84a' },
+  ns:      { name:'ニュートラルセクト', dur:20, color:'#ffe070' },
+  sun:     { name:'サンサイン', dur:15, mit:true, color:'#ffb84a' },
   galv:    { name:'鼓舞', dur:30, heal:20, shield:25, color:'#8ae05a' },
   div:     { name:'ディヴィネーション', dur:20, dmg:1.06, color:'#ffd84a' },
   exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
@@ -273,7 +275,7 @@ const JOBS = {
          a:{ name:'マレフィガ', pot:270, cast:1.5 },
          b:{ name:'コンジャンクション・ヘリオス', gcd:true, cd:0, cast:1.5, buff:'helios' },
          x:{ name:'運命の輪', cd:60, buff:'cu' },
-         y:{ name:'ディヴィネーション', cd:120, buff:'div' } },
+         y:{ name:'ニュートラルセクト', cd:120, buff:'ns' } },
   sch: { name:'学者', role:'healer', melee:false, slots:['H2'],
          a:{ name:'気炎法', pot:310, cast:1.5 },
          b:{ name:'士気高揚の策', gcd:true, cd:0, cast:2.0, buff:'galv' },
@@ -282,6 +284,7 @@ const JOBS = {
 };
 const JOB_ORDER = ['pld', 'drk', 'mnk', 'rpr', 'mch', 'blm', 'ast', 'sch'];
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
+const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true }; // ニュートラルセクト中に1回だけ
 const KEYS = ['a', 'b', 'x', 'y'];
 // GCD を使うボタン（A・コンボの段・GCD技）か
 const isGcd = (j, k) => k === 'a' || !!j[k].step || !!j[k].gcd;
@@ -321,7 +324,10 @@ if (!JOBS[opt.job]) opt.job = 'pld';
 const tankRole = () => mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
 const jobCache = {};
 const job = () => {
-  const j = JOBS[opt.job]; if (j.role !== 'tank') return j;
+  const j = JOBS[opt.job];
+  // 占星：ニュートラルセクト中は Y がサンサインに変わる（1回だけ）
+  if (opt.job === 'ast'){ let sun = false; try { sun = hasBuff('ns') && !A.sunUsed; } catch {} return sun ? (jobCache.astSun ||= { ...j, y:SUNSIGN }) : j; }
+  if (j.role !== 'tank') return j;
   const key = opt.job + tankRole();
   // オーケストラ以外はバフ・ヘイト管理なし：A→B→Y のコンボと X の攻撃アビリティ
   return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
@@ -876,6 +882,7 @@ const FLOOD = (() => {
           ticks.forEach(tk => {
             if (tk.done || t < tk.hit) return;
             tk.done = true; sfx.splash();
+            healerHit(75000); // カオティックフラッド（頭割り）
             if (inTick(tk, S.player.x, S.player.z)) hurt('フラッドに被弾', '');
           });
         },
@@ -968,7 +975,10 @@ const CELES = (() => {
             done[s] = true; flash[s] = t; sfx.boom();
             const { x, z } = S.player;
             const inTower = p.active[s].find(i => (x - TOWERS[i].x) ** 2 + (z - TOWERS[i].z) ** 2 <= SOAK * SOAK);
-            if (inTower != null) debuffs.push({ el:TOWERS[inTower].el, from:t, until:t + DEBUFF_LEN });
+            if (inTower != null){
+              debuffs.push({ el:TOWERS[inTower].el, from:t, until:t + DEBUFF_LEN });
+              healerHit(s === 0 ? [147500, 162000, 180000][TOWERS[inTower].el] : 180000); // 塔のダメージ（ファイガ／サンダガ／ブリザガ）
+            }
             if (!inTarget(s, x, z)){ towerMiss[s] = true; hurt(inTower == null ? '塔に入っていない' : '担当と違う塔'); }
             if (!ccSafe(s, x, z)) hurt(`${CC[p.cc[s]].name}に被弾`); // 塔ミスとは別に数える
           }
@@ -1047,7 +1057,7 @@ const MISS = (() => {
     },
     create(d){
       const gone = [], warn = [], oranges = [];
-      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false }));
+      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false, raid:[202967, 243000, 243000, 243000][r], bond:[243000, 300000, 243000, 243000][r] }));
       const spots = d.route.map(k => INNER[k]);
       let inVoid = false;
       return {
@@ -1066,9 +1076,9 @@ const MISS = (() => {
         tick(t){
           const { x, z } = S.player;
           rounds.forEach(r => {
-            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.blip(180, .12); }
+            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.blip(180, .12); healerHit(r.bond); } // ミッシング・ボンド（頭割り）
             if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：穴の予兆＋自分に一番近いマーカーにオレンジ
-              r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08);
+              r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08); healerHit(r.raid); // ミッシング（全体攻撃）
               const m = MARKS.reduce((b, q) => (q[0] - x) ** 2 + (q[1] - z) ** 2 < (b[0] - x) ** 2 + (b[1] - z) ** 2 ? q : b);
               oranges.push({ x:m[0], z:m[1], hitAt:r.at + VANISH, done:false });
             }
@@ -1355,54 +1365,45 @@ const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
 const held = { a:false, b:false, x:false, y:false };
 // ===== ヒーラーのときだけ：自分のHP =====
-// 全体攻撃が定期的に来る（3回に1回は強攻撃）。回復・リジェネ・バリア・軽減で耐える。0になったらミス
-const HP = { on:false, hp:100, shield:0, events:[] };
-const RAID = 38, RAID_HEAVY = 68, MIT_PCT = .1;
+// ギミック中に全員が必ず受ける攻撃（軽減表の1発ぶん）を受ける。HP 205,000。ほかの人の軽減は一律20%とみなす
+// 自分の軽減は1つ10%（掛け算）。バリアが先に受ける。0になったらミス
+const HP = { on:false, hp:100, shield:0 };
+const MAX_HP = 205000, PARTY_MIT = .8, MIT_PCT = .1;
 function hpReset(){
-  HP.on = job().role === 'healer'; HP.hp = 100; HP.shield = 0; HP.events = [];
+  HP.on = job().role === 'healer'; HP.hp = 100; HP.shield = 0;
   $('hp').hidden = !HP.on;
-  if (!HP.on) return;
-  for (let t = 4, i = 0; t < S.inst.end - .5; t += 7.5, i++) HP.events.push({ t, heavy:i % 3 === 2, done:false });
 }
 function onBuff(id){
   if (!HP.on || S.phase !== 'run' && S.phase !== 'count') return;
-  const b = BUFFS[id];
-  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal); popup('+' + Math.round(HP.hp - before), 'healnum'); }
+  const b = BUFFS[id], ns = hasBuff('ns');
+  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); popup('+' + Math.round(HP.hp - before), 'healnum'); }
   if (b.shield) HP.shield = Math.max(HP.shield, b.shield);
+  if (id === 'helios' && ns) HP.shield = Math.max(HP.shield, 25); // ニュートラルセクト中のヘリオスはバリアも付く
+}
+// ギミックから呼ぶ：全員が受ける攻撃
+function healerHit(raw){
+  if (!HP.on || S.phase !== 'run') return;
+  const mits = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].mit).length;
+  let dmg = raw / MAX_HP * 100 * PARTY_MIT * Math.pow(1 - MIT_PCT, mits);
+  const absorbed = Math.min(HP.shield, dmg); HP.shield -= absorbed; dmg -= absorbed;
+  HP.hp -= dmg;
+  popup('-' + Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum');
+  if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
 }
 function hpTick(dt){
   if (!HP.on) return;
-  // リジェネ
   Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen) HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); });
-  if (HP.shield > 0 && !hasBuff('galv')) HP.shield = 0;
-  HP.events.forEach(e => {
-    if (e.done || S.t < e.t) return;
-    e.done = true;
-    // 軽減は1つにつき10%（掛け算）。バリアが先に受ける
-    const mits = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].mit).length;
-    let dmg = (e.heavy ? RAID_HEAVY : RAID) * Math.pow(1 - MIT_PCT, mits);
-    const absorbed = Math.min(HP.shield, dmg); HP.shield -= absorbed; dmg -= absorbed;
-    if (HP.shield <= 0 && A.buffs.galv) A.buffs.galv = 0;
-    HP.hp -= dmg; sfx.boom();
-    popup('-' + Math.round(dmg + absorbed), 'hurtnum');
-    if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
-  });
+  if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
 }
 function hpDraw(){
   if (!HP.on) return;
-  $('hpNum').textContent = `HP ${Math.max(0, Math.round(HP.hp))}`;
+  $('hpNum').textContent = `HP ${Math.max(0, Math.round(HP.hp * MAX_HP / 100)).toLocaleString('en-US')}`;
   $('hpFill').style.width = Math.max(0, HP.hp) + '%';
   $('hpShield').style.width = Math.min(100, HP.shield) + '%';
   $('hp').classList.toggle('low', HP.hp < 35);
 }
-// 次の全体攻撃までの残り（3秒前から表示）
-function hpWarn(){
-  if (!HP.on || S.phase !== 'run') return null;
-  const e = HP.events.find(e => !e.done && e.t - S.t <= 3);
-  return e ? `全体攻撃${e.heavy ? '（強）' : ''} ${(e.t - S.t).toFixed(1)}` : null;
-}
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null });
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -1) > S.t;
@@ -1439,6 +1440,8 @@ function pressKey(k){
   sfx.unlock();
   if (!active()) return;
   const ab = job()[k];
+  // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
+  if (ab.sunsign){ if (S.phase !== 'run') return; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
   if (isGcd(job(), k)){
     if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; } // GCD技：覚えておいて次のGCDで
     if (!A.cast && S.t >= A.readyAt - QUEUE) A.queued = k;
@@ -1557,7 +1560,13 @@ const BUFF_ART = {
   div:{ shape:'house', pal:{ n:'#2a1a5a', y:'#ffd84a', w:'#fffbe0', p:'#5a3a9a' }, px:[
     'nnnnnnnnnnnn','nnnnnynnnnnn','nnnnnynnnnnn','nnynnynnynnn','nnnywwwynnnn','yyyywwwyyyyn','nnnywwwynnnn',
     'nnynnynnynnn','nnnnnynnnnnn','nnnnnynnnnnn','nnnnnnnnnnnn','pppppppppppp','pppppppppppp','pppppppppppp'] },
-  helios:{ shape:'house', pal:{ y:'#e8b840', w:'#fff4c0', o:'#a07020', k:'#3a2a40' }, px:[
+  helios:{ shape:'house', pal:{ y:'#e8b840', w:'#fff4c0', o:'#a07020' }, px:[
+    'yyyyywwyyyyy','ywyyywwyyywy','yywyywwyywyy','yyywwwwwwyyy','yyywwwwwwyyy','wwwwwwwwwwww','yyywwwwwwyyy',
+    'yyywwwwwwyyy','yywyywwyywyy','ywyyywwyyywy','yyyyywwyyyyy','oyyyyyyyyyyo','oooyyyyyyooo','oooooooooooo'] },
+  ns:{ shape:'house', pal:{ b:'#3a3a9a', p:'#8a5ae8', y:'#ffe070', w:'#fffbe0' }, px:[
+    'bbbbbbbbbbbb','bbbbbybbbbbb','bbbbbybbbbbb','bpbbywybbpbb','bbpywwwypbbb','byyywwwyyyyb','bbpywwwypbbb',
+    'bpbbywybbpbb','bbbbbybbbbbb','bbbbbybbbbbb','pppppppppppp','bbbbbbbbbbbb','bbbbbbbbbbbb','bbbbbbbbbbbb'] },
+  sun:{ shape:'house', pal:{ y:'#e8b840', w:'#fff4c0', o:'#a07020', k:'#3a2a40' }, px:[
     'yyyyywwyyyyy','yywyywwyywyy','yyywwwwwwyyy','ywwwwwwwwwwy','yyywwwwwwyyy','yywyykkyywyy','yyyyykkyyyyy',
     'yyyykkkkyyyy','yyykkkkkkyyy','yyyykkkkyyyy','yyyykyykyyyy','oyyyyyyyyyyo','oooyyyyyyooo','oooooooooooo'] },
   galv:{ shape:'house', pal:{ g:'#3a7a2a', l:'#8ae05a', y:'#e8ff9a', w:'#ffffff', d:'#1a4a1a' }, px:[
@@ -1616,11 +1625,10 @@ function drawButtons(){
       setBtn(BTN[k], k.toUpperCase(), ab.name, gcdP, run && gcdP === 0 && !A.cast && (!ab.step || next), run && !!ab.step && A.combo > 0 && next);
       return;
     }
-    const left = run ? Math.max(0, A.cds[k] - S.t) : 0;
+    const left = run && !ab.sunsign ? Math.max(0, A.cds[k] - S.t) : 0;
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)));
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
-  const warn = hpWarn(); if (warn) st.unshift(warn);
   hpDraw();
   const icons = st.filter(x => x && x.art);
   const bufs = icons.map(x => `<i title="${x.name}">${buffIcon(x.art)}<b>${x.sec}</b></i>`).join('')

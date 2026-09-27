@@ -1411,6 +1411,13 @@ const OMAKE = [
   ['mCdvBgQg5ZE', '第11話', '野菜室はラビリンス'], ['u-olmWNYtMY', '第12話', 'プディングウェイ'], ['bf2SGdZpFbo', '第13話', ''], ['d7PK6f5CX14', '第14話', ''],
 ];
 const OMAKE_CHANNEL = 'https://www.youtube.com/@syaruuu';
+// スマホのボタンは押した瞬間（pointerdown）だとブラウザが別タブを開かせてくれないので、指を離したとき（pointerup）に開く
+let omakePending = false;
+function openOmake(i){
+  const w = window.open(i < OMAKE.length ? `https://www.youtube.com/watch?v=${OMAKE[i][0]}` : OMAKE_CHANNEL, '_blank');
+  if (w) w.opener = null;
+  else $('menu').querySelector('.note').textContent = '開けませんでした。一覧を直接タップしてください';
+}
 // =====================================================================
 // 隠しステージ：P5 通し（ターゲット可能 → ミッシング・ゼロの詠唱まで）
 // 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0。開始はターゲット可能になる 33 秒）。練習用の5ギミックを実際の時刻に並べ、
@@ -1991,7 +1998,7 @@ function menuConfirm(i = S.cursor){
     if (needOrchN()) openOrchN(); else begin();
     return;
   }
-  if (S.menu === 'omake'){ window.open(i < OMAKE.length ? `https://www.youtube.com/watch?v=${OMAKE[i][0]}` : OMAKE_CHANNEL, '_blank', 'noopener'); return; }
+  if (S.menu === 'omake'){ openOmake(i); return; }
   const L = menuMechs();
   if (S.menu === 'mech' && i === L.length){ S.menu = 'omake'; S.cursor = 0; renderMenu(); return; }
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
@@ -2198,9 +2205,10 @@ function holdButton(el, fn, onUp){
 }
 KEYS.forEach(k => holdButton(BTN[k], () => {
   if (k === 'y' && infoTarget()){ openInfo(infoTarget()); return; }
+  if (S.phase === 'menu' && S.menu === 'omake' && k === 'a'){ omakePending = true; return; }
   if (S.phase === 'menu'){ if (k === 'a'){ if (!kin('a')) menuConfirm(); } else if (k === 'b'){ if (!kin('b')) menuBack(); } return; }
   held[k] = true; pressKey(k);
-}, () => { held[k] = false; }));
+}, () => { held[k] = false; if (k === 'a' && omakePending){ omakePending = false; if (S.phase === 'menu' && S.menu === 'omake') menuConfirm(); } }));
 $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bMenu').addEventListener('click', openMenu);

@@ -297,24 +297,43 @@ const sfx = {
   fail(){ [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, .16), i * 150)); }
 };
 
-// ===== BGM（オリジナル曲。速いけれど厳かな、トッカータ風パイプオルガンの8bit） =====
-// 1ステップ＝16分音符。イントロ（4小節）→ 本編（8小節）→ 本編＋聖歌隊（8小節）→ 本編へループ
-// 踊れる要素（ハイハット・裏拍・跳ねるベース・規則的な「ドン・タン」）は入れず、
-// 激しさは 16分のツーバス・同音連打の低音・3+3+2 の変則的な強打で出す
+// ===== BGM（オリジナル曲。ラスボス終盤風：テンポ130・7/8拍子の混在・聖歌風の急な減速） =====
+// 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14）とテンポを持つ
+// 構成：イントロ(4/4×2) → A 7/8リフ(×8) → B 4/4旋律(×8) → C 聖歌風 BPM66(×4) → A に戻ってループ
 const bgm = (() => {
-  const BPM = 168, STEP = 60 / BPM / 4, VOL = .5;
+  const VOL = .5;
   const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
-  const song = [];   // { s:ステップ, ch, n:MIDI, l:長さ }
+  const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s, ch, n, l) => song.push({ s, ch, n:n && N(n), l });
   const up8 = n => n.replace(/\d/, d => String(+d + 1));
-  // イントロ：鐘とティンパニ、オルガンの和音がゆっくり立ち上がる
-  const INTRO = [['D2','D3','A3','D4','F4'], ['Bb1','Bb2','F3','Bb3','D4'], ['G1','G2','D3','G3','Bb3'], ['A1','A2','E3','A3','C#4']];
-  INTRO.forEach((c, b) => { c.forEach(n => add(b * 16, 'organ', n, 16)); add(b * 16, 'timp', 'D2'); if (b % 2 === 0) add(b * 16, 'bell', 'A5'); });
-  const MAIN0 = 64;
-  // 本編：Dm B♭ E°(減和音) A7 / Gm E♭(ナポリ) A Dm — 暗く重い進行
-  const BASS = ['D2','Bb1','E2','A1','G1','Eb2','A1','D2'];
-  const CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['E4','G4','Bb4'], ['C#4','E4','A4'], ['G3','Bb3','D4'], ['Eb4','G4','Bb4'], ['C#4','E4','A4'], ['D4','F4','A4']];
-  const MEL = [
+  const dn8 = n => n.replace(/\d/, d => String(+d - 1));
+  let cur = 0;
+  const bar = (len, bpm, fn) => { const s0 = cur; for (let i = 0; i < len; i++) stepDur.push(60 / bpm / 4); cur += len; fn(s0); };
+
+  // --- イントロ（4/4、130）：オルガンの一撃とティンパニのロール ---
+  bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5'); });
+  bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); for (let i = 8; i < 16; i++) add(s0 + i, 'timp', 'A1'); });
+
+  // --- A：7/8 のリフ（2+2+3 に刻む）---
+  const LOOP = cur;
+  const A_CH = [['D4','F4','A4'], ['D4','F4','A4'], ['Bb3','D4','F4'], ['A3','C#4','E4'], ['G3','Bb3','D4'], ['G3','Bb3','D4'], ['Eb4','G4','Bb4'], ['A3','C#4','E4']];
+  const A_BASS = ['D2','D2','Bb1','A1','G1','G1','Eb2','A1'];
+  A_CH.forEach((c, b) => bar(14, 130, s0 => {
+    const groups = [0, 4, 8];                          // 2+2+3（16分で 4+4+6）
+    if (b % 4 === 0) add(s0, 'crash');
+    for (let i = 0; i < 14; i++) add(s0 + i, 'bass', A_BASS[b], 1);
+    add(s0, 'pedal', A_BASS[b], 14);
+    groups.forEach((g, gi) => { c.forEach(n => add(s0 + g, 'stab', n, 2)); add(s0 + g, 'kick'); add(s0 + g, gi ? 'snare' : 'timp', gi ? undefined : A_BASS[b].replace(/\d/, '2')); });
+    for (let i = 10; i < 14; i++) add(s0 + i, 'kick');  // 3拍目のかたまりはツーバスで押し込む
+    // リフ：各かたまりの頭に最低音、あとは和音の音を行き来
+    const riff = [c[0], c[2], c[1], c[2],  c[0], c[2], c[1], c[2],  c[0], c[1], c[2], up8(c[0]), c[2], c[1]];
+    riff.forEach((n, i) => add(s0 + i, 'toc', n, 1));
+  }));
+
+  // --- B：4/4 の旋律（Dm B♭ E° A7 / Gm E♭ A Dm）---
+  const B_CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['E4','G4','Bb4'], ['C#4','E4','A4'], ['G3','Bb3','D4'], ['Eb4','G4','Bb4'], ['C#4','E4','A4'], ['D4','F4','A4']];
+  const B_BASS = ['D2','Bb1','E2','A1','G1','Eb2','A1','D2'];
+  const B_MEL = [
     [['A4',8],['D5',4],['F5',4]],
     [['F5',8],['D5',4],['Bb4',4]],
     [['E5',6],['G5',2],['Bb5',8]],
@@ -324,32 +343,28 @@ const bgm = (() => {
     [['C#6',4],['A5',4],['E5',4],['C#5',4]],
     [['D5',16]],
   ];
-  const section = (base, choir) => {
-    for (let b = 0; b < 8; b++){
-      const s0 = base + b * 16, c = CH[b];
-      // 低音：同じ音を16分で刻む（跳ねない）＋ 伸ばしのペダル
-      for (let i = 0; i < 16; i++) add(s0 + i, 'bass', BASS[b], 1);
-      add(s0, 'pedal', BASS[b], 16);
-      // 和音：1小節伸ばす
-      c.forEach(n => add(s0, 'organ', n, 16));
-      // ツーバス（16分連打）と、3+3+2 の位置の強打（オルガンの和音・スネア・ティンパニを同時に）
-      for (let i = 0; i < 16; i++) add(s0 + i, 'kick');
-      [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); });
-      if (b % 2 === 0) add(s0, 'crash');
-      // トッカータ風の16分音型：最低音を軸に上の音へ行き来する（途切れず回り続ける）
-      [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let r = 0; r < 4; r++) add(s0 + r * 4 + i, 'toc', n, 1); });
-      // ティンパニは1拍目。4小節ごとの終わりはロール
-      [0, 6, 12].forEach(i => add(s0 + i, 'timp', BASS[b].replace(/\d/, '2')));
-      if (b % 4 === 3) for (let i = 12; i < 16; i++) add(s0 + i, 'timp', 'A1');
-      if (b % 4 === 0) add(s0, 'bell', up8(c[0]).replace(/\d/, '6'));
-      // 聖歌隊（2周目）：旋律の1オクターブ下を柔らかく重ねる
-      if (choir){ let s1 = s0; MEL[b].forEach(([n, l]) => { add(s1, 'choir', n.replace(/\d/, d => String(+d - 1)), l); s1 += l; }); }
-    }
-    MEL.forEach((bar, b) => { let s1 = base + b * 16; bar.forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; }); });
-  };
-  section(MAIN0, false);
-  section(MAIN0 + 128, true);
-  const TOTAL = MAIN0 + 256;
+  B_CH.forEach((c, b) => bar(16, 130, s0 => {
+    if (b % 2 === 0) add(s0, 'crash');
+    for (let i = 0; i < 16; i++){ add(s0 + i, 'bass', B_BASS[b], 1); add(s0 + i, 'kick'); }
+    add(s0, 'pedal', B_BASS[b], 16);
+    c.forEach(n => add(s0, 'organ', n, 16));
+    [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); add(s0 + i, 'timp', B_BASS[b].replace(/\d/, '2')); });
+    [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let r = 0; r < 4; r++) add(s0 + r * 4 + i, 'toc', n, 1); });
+    let s1 = s0; B_MEL[b].forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; });
+  }));
+
+  // --- C：聖歌風（テンポ66に急減速）。聖歌隊・オルガン・鐘だけ ---
+  const C_CH = [['D3','F3','A3','D4'], ['Bb2','D3','F3','Bb3'], ['G2','Bb2','D3','G3'], ['A2','C#3','E3','A3']];
+  const C_MEL = [[['F4',8],['A4',8]], [['Bb4',8],['D5',8]], [['D5',8],['C5',4],['Bb4',4]], [['A4',16]]];
+  C_CH.forEach((c, b) => bar(16, 66, s0 => {
+    c.forEach(n => add(s0, 'organ', n, 16));
+    add(s0, 'pedal', dn8(c[0]), 16);
+    add(s0, 'bell', up8(up8(c[0])));
+    let s1 = s0; C_MEL[b].forEach(([n, l]) => { add(s1, 'choir', n, l); add(s1, 'choir', up8(n), l); s1 += l; });
+    if (b === 3) for (let i = 8; i < 16; i++) add(s0 + i, 'timp', 'A1');   // ロールで元のテンポへ戻る
+  }));
+
+  const TOTAL = cur;
   const byStep = Array.from({ length:TOTAL }, () => []);
   song.forEach(e => byStep[e.s].push(e));
 
@@ -401,7 +416,7 @@ const bgm = (() => {
     });
   }
   function play(ac, e, t){
-    const dur = (e.l || 1) * STEP, f = e.n && hz(e.n);
+    const dur = (e.l || 1) * stepDur[e.s], f = e.n && hz(e.n);
     switch (e.ch){
       // パイプオルガン：25%パルス＋1オクターブ下の矩形＋三角波を重ね、ゆっくり立ち上げる
       case 'organ': voice(ac, t, 'pulse', f, dur, .03, .02); voice(ac, t, 'square', f / 2, dur, .012, .03); voice(ac, t, 'triangle', f * 1.002, dur, .025, .02); break;
@@ -420,8 +435,8 @@ const bgm = (() => {
     const ac = sfx.ac; if (!ac) return;
     while (next < ac.currentTime + .15){
       byStep[step].forEach(e => play(ac, e, next));
-      next += STEP; step++;
-      if (step >= TOTAL) step = MAIN0; // イントロは最初だけ
+      next += stepDur[step]; step++;
+      if (step >= TOTAL) step = LOOP; // イントロは最初だけ
     }
   }
   return {

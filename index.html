@@ -512,23 +512,22 @@ const bgm = makePlayer(.5, ({ add, bar, up8, dn8, fill, pos }) => {
   return LOOP;
 });
 
-// ===== メニューBGM（オリジナル曲。FFのメニュー画面っぽい、ハープの分散和音＋フルート） =====
-// ニ長調・6/8（1小節＝16分×12）。D A/C# Bm F#m/A G D/F# Em A の下降ベース（1周 約19秒）
+// ===== メニューBGM（オリジナル曲。FFのメニュー画面っぽい、ハープが上り下りする分散和音） =====
+// 4/4・16分音符のハープが2オクターブ上がって下がる。和音は D Bm G A / D F#m G A を2小節ずつ（1周 約44秒）
 const menuBgm = makePlayer(.4, ({ add, bar, up8 }) => {
-  const CH = [['D3','A3','D4','F#4'], ['C#3','A3','C#4','E4'], ['B2','F#3','B3','D4'], ['A2','F#3','A3','C#4'],
-              ['G2','D3','G3','B3'], ['F#2','D3','F#3','A3'], ['E2','B2','E3','G3'], ['A2','E3','A3','C#4']];
-  const MEL = [[['F#5',6],['E5',6]], [['E5',6],['A4',6]], [['D5',6],['C#5',3],['B4',3]], [['C#5',12]],
-               [['B4',6],['D5',6]], [['A5',6],['F#5',6]], [['G5',4],['F#5',4],['E5',4]], [['E5',12]]];
-  CH.forEach((c, b) => bar(12, 76, s0 => {
-    add(s0, 'pedal', c[0].replace(/\d/, d => String(+d - 1)), 12);
-    // ハープ：8分で 根音→5度→オクターブ→3度（上）→オクターブ→5度
-    [c[0], c[1], c[2], up8(c[3]), c[2], c[1]].forEach((n, i) => add(s0 + i * 2, 'harp', n, 2));
-    c.slice(1).forEach(n => add(s0, 'pad', n, 12));
-    let s1 = s0; MEL[b].forEach(([n, l]) => { add(s1, 'flute', n, l); s1 += l; });
-    if (b === 0) add(s0, 'bell', 'D6');
-  }));
+  const CH = [['D3','F#3','A3','C#4'], ['B2','D3','F#3','A3'], ['G2','B2','D3','F#3'], ['A2','C#3','E3','G3'],
+              ['D3','F#3','A3','D4'],  ['F#2','A2','C#3','E3'], ['G2','B2','D3','E3'],  ['A2','C#3','E3','A3']];
+  const MEL = [['F#5',16], ['D5',16], ['B4',8,'D5',8], ['C#5',16], ['A5',16], ['C#5',8,'E5',8], ['D5',12,'E5',4], ['C#5',16]];
+  CH.forEach((c, b) => {
+    // 上り8音（2オクターブ）＋下り8音を2拍ずつ繰り返す＝1小節で上って下りる
+    const upNotes = [...c, ...c.map(up8)], seq = [...upNotes, ...[...upNotes].reverse()];
+    bar(16, 88, s0 => { seq.forEach((n, i) => add(s0 + i, 'harp', up8(n), 1)); add(s0, 'pedal', c[0].replace(/\d/, d => String(+d - 1)), 16); c.slice(1, 3).forEach(n => add(s0, 'pad', up8(n), 16)); if (b === 0) add(s0, 'bell', 'A5'); });
+    bar(16, 88, s0 => { seq.forEach((n, i) => add(s0 + i, 'harp', up8(n), 1)); add(s0, 'pedal', c[0].replace(/\d/, d => String(+d - 1)), 16); c.slice(1, 3).forEach(n => add(s0, 'pad', up8(n), 16));
+      const m = MEL[b]; let s1 = s0; for (let i = 0; i < m.length; i += 2){ add(s1, 'flute', m[i], m[i + 1]); s1 += m[i + 1]; } });
+  });
   return 0;
 });
+
 
 
 // ===== ドット描画 =====

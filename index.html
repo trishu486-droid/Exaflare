@@ -97,8 +97,11 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .abw.x .round,.abw.y .round{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), #5b2a86;border-color:#3a1660}
 .round small{font-size:8px;line-height:1;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#ffe7f2}
 .round.ready{border-color:var(--gold)}
-.round.combo{border-color:#fff6b0;animation:comboGlow .5s steps(2) infinite alternate}
-@keyframes comboGlow{from{box-shadow:0 0 0 3px #ffd84a,0 0 10px 3px #ffd84a}to{box-shadow:0 0 0 1px #ffd84a,0 0 4px 1px #ffd84a}}
+.round{position:relative}
+/* コンボの次の段：実機と同じく黄色い点線で囲み、点線が流れる */
+.round.combo{border-color:#ffd84a}
+.round.combo::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:3px dashed #ffd84a;pointer-events:none;animation:comboSpin 1.6s linear infinite;filter:drop-shadow(0 0 2px #000)}
+@keyframes comboSpin{to{transform:rotate(360deg)}}
 .round.press{transform:translateY(2px);box-shadow:inset 4px 4px 0 rgba(0,0,0,.35)}
 .ss{display:flex;justify-content:center;gap:26px;margin-top:8px}
 .ssw{display:flex;flex-direction:column;align-items:center;gap:3px;transform:rotate(-25deg)}

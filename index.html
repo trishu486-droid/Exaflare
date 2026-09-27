@@ -103,7 +103,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
   background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}
 .abw.x .round,.abw.y .round{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), #5b2a86;border-color:#3a1660}
-.round small{font-size:8px;line-height:1;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#ffe7f2}
+.round small{font-size:8px;line-height:1.05;max-width:48px;max-height:2.1em;overflow:hidden;white-space:normal;word-break:break-all;text-align:center;color:#ffe7f2}
+.round.longname small{font-size:7px;max-height:3.2em}
 .round.ready{border-color:var(--gold)}
 .round{position:relative}
 /* コンボの次の段：実機と同じく黄色い点線で囲み、点線が流れる */
@@ -239,7 +240,7 @@ const JOBS = {
   // タンク：B と Y はオーケストラでの役割で変わる（ホーリー役＝挑発・無敵／フレア役＝シャーク・重いバフ）
   pld: { name:'ナイト', role:'tank', melee:true, slots:['MT'],
          a:{ name:'ロイヤルアソリティ', pot:460 },
-         atk:{ a:{ name:'ファストブレード', pot:220, step:1 }, b:{ name:'ライオットブレード', pot:330, step:2, low:150 },
+         atk:{ a:{ name:'ファストブレード', pot:220, step:1 }, b:{ name:'ライオットソード', pot:330, step:2, low:150 },
                y:{ name:'ロイヤルアソリティ', pot:460, step:3, low:200 }, x:{ name:'エクスピアシオン', cd:30, pot:450 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'インビンシブル', cd:420, buff:'invuln' },
@@ -259,7 +260,7 @@ const JOBS = {
   rpr: { name:'リーパー', role:'melee', melee:true, slots:['D2'],
          a:{ name:'スライス', pot:320, step:1 },
          b:{ name:'ワクシングスライス', pot:400, step:2, low:160 },
-         y:{ name:'インファーナルスライス', pot:500, step:3, low:180 },
+         y:{ name:'インファナルスライス', pot:500, step:3, low:180 },
          x:{ name:'ブラッドストーカー', cd:10, pot:440 } },
   mch: { name:'機工士', role:'ranged', melee:false, slots:['D3'],
          a:{ name:'ヒートスプリットショット', pot:220, step:1 },
@@ -277,7 +278,7 @@ const JOBS = {
          x:{ name:'運命の輪', cd:60, buff:'cu' },
          y:{ name:'ニュートラルセクト', cd:120, buff:'ns' } },
   sch: { name:'学者', role:'healer', melee:false, slots:['H2'],
-         a:{ name:'気炎法', pot:310, cast:1.5 },
+         a:{ name:'極炎法', pot:310, cast:1.5 },
          b:{ name:'士気高揚の策', gcd:true, cd:0, cast:2.0, buff:'galv' },
          x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
@@ -1420,7 +1421,7 @@ function actReset(){
   Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false });
   fxEl.innerHTML = '';
 }
-const hasBuff = id => (A.buffs[id] ?? -1) > S.t;
+const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
 const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
@@ -1619,7 +1620,15 @@ const buffIcon = id => {
   }));
   return `<svg viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 };
+// ボタンに出す略称（攻略記事・ブログ・掲示板で使われているのを確認できたものだけ）
+const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピアシオン':'エクスピ', 'インビンシブル':'インビン', 'ランパート':'ランパ',
+  'リビングデッド':'リビデ', 'シャドウヴィジル':'ヴィジル', 'ゼノグロシー':'ゼノ', 'ニュートラルセクト':'ニューセク',
+  '士気高揚の策':'士気', '野戦治療の陣':'陣', '疾風怒濤の計':'疾風',
+  'ヒートスプリットショット':'スプリット', 'ヒートスラッグショット':'スラッグ', 'ヒートクリーンショット':'クリーン',
+  'ワクシングスライス':'ワクシング', 'インファナルスライス':'インファナル' };
 function setBtn(el, key, name, p, ready, combo = false){
+  name = SHORT[name] || name;
+  el.classList.toggle('longname', name.length > 10);
   el.style.setProperty('--p', p.toFixed(3));
   el.classList.toggle('ready', ready);
   el.classList.toggle('combo', combo);

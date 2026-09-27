@@ -393,7 +393,7 @@ const job = () => {
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
 
 // ===== 状態 =====
-const S = { phase:'menu', t:-COUNTDOWN, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };
+const S = { phase:'menu', t:-COUNTDOWN, t0:0, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };
 const keys = new Set();
 const stickVec = { x:0, z:0 };
 
@@ -1412,8 +1412,8 @@ const OMAKE = [
 ];
 const OMAKE_CHANNEL = 'https://www.youtube.com/@syaruuu';
 // =====================================================================
-// 隠しステージ：P5 通し（どきどきアルテマ → ミッシング・ゼロの詠唱まで）
-// 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0）。練習用の5ギミックを実際の時刻に並べ、
+// 隠しステージ：P5 通し（ターゲット可能 → ミッシング・ゼロの詠唱まで）
+// 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0。開始はターゲット可能になる 33 秒）。練習用の5ギミックを実際の時刻に並べ、
 // 間に 連続アルテマ・魔撃（AA）・終末の渦 を入れる
 // AA：ヘイト1位・ヒーラー1人・DPS1人に頭割り（被魔法ダメージ増加つき。2つ受けると即死）
 //   タンク＝A（ボスの北）、ヒーラー＝4（南西）、DPS＝3（南東）で受ける
@@ -1423,7 +1423,6 @@ const RUN = (() => {
   const TARGETABLE = 33;
   const HOME = { T:{ x:0, z:-10 }, H:{ x:-7.5, z:7.5 }, D:{ x:7.5, z:7.5 } };
   const AA_R = { T:3, H:4, D:4 }, AA_COL = { T:'#5a8aff', H:'#58e07a', D:'#ff5a6a' }, AA_WARN = 3;
-  const UPSURGE = { at:2, dmg:180000 };
   const REPEAT = [{ cast:34.2, hits:[39.3, 40.1, 40.8, 41.6], dmg:74358 }, { cast:118.1, hits:[123.2, 124.0, 124.7, 125.5], dmg:108000 }];
   const FELL = [
     { at:[44.2, 47.4, 50.5], dmg:[55769, 61965, 68850] },
@@ -1466,7 +1465,7 @@ const RUN = (() => {
         start:{ ...home },
         intro:`あなたは ${me}　最後まで被弾なしで`,
         end: segs[5].end,
-        casts:[{ name:'どきどきアルテマ', start:0, len:UPSURGE.at },
+        casts:[
           ...REPEAT.map(r => ({ name:'連続アルテマ', start:r.cast, len:4 })),
           { name:'終末の渦', start:ENTROPY.cast, len:ENTROPY.len },
           ...segs.flatMap(s => s.inst.casts.map(c => ({ ...c, start:c.start + s.at })))],
@@ -1474,6 +1473,8 @@ const RUN = (() => {
           const k = Math.max(0, Math.min(1, (t - (exa.at - 1)) / 1, (exa.end + 1 - t) / 1));
           return 24 + 12 * k;
         },
+        // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 5 カウントで始める
+        t0:TARGETABLE, countdown:5,
         targetable: t => t >= TARGETABLE,
         activeTime: end => Math.max(1, end - TARGETABLE),
         tankRole(t){
@@ -1487,15 +1488,13 @@ const RUN = (() => {
         },
         progress(t){
           const s = seg(t);
-          return `P5 ${fmt(t)}` + (s ? ' ' + s.inst.progress(t - s.at) : '');
+          return `P5 ${fmt(t - TARGETABLE)}` + (s ? ' ' + s.inst.progress(t - s.at) : '');
         },
         status(t){
           const s = seg(t), out = s?.inst.status ? [...s.inst.status(t - s.at)] : [];
-          if (t < TARGETABLE) out.unshift('ボスはターゲット不可');
           return out;
         },
         tick(t){
-          if (!fired.up && t >= UPSURGE.at){ fired.up = true; sfx.boom(); healerHit(UPSURGE.dmg); }
           hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.blip(220, .1); healerHit(h.dmg); } });
           aa.forEach(a => {
             if (a.done || t < a.t) return;
@@ -1910,7 +1909,7 @@ function drawButtons(){
 function begin(){
   const m = mech();
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
-  S.t = -COUNTDOWN; S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
+  S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
   hpReset();
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
@@ -2034,7 +2033,7 @@ function updateHud(){
   hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') hHit.textContent = '';
   if (S.phase === 'menu') setMsg('');
-  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
+  else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(S.t0 - S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
   else if (S.phase === 'done') setMsg(S.resultHtml);
   else setMsg('');
 }
@@ -2098,8 +2097,8 @@ function frame(now){
     const before = S.t;
     S.t += dt;
     if (S.phase === 'count'){
-      if (Math.ceil(-before) !== Math.ceil(-S.t) && S.t < 0) sfx.blip(660, .08);
-      if (S.t >= 0){ S.phase = 'run'; sfx.blip(990, .15); }
+      if (Math.ceil(S.t0 - before) !== Math.ceil(S.t0 - S.t) && S.t < S.t0) sfx.blip(660, .08);
+      if (S.t >= S.t0){ S.phase = 'run'; sfx.blip(990, .15); }
     }
     if (S.phase === 'run'){
       S.inst.tick(S.t);
@@ -2325,10 +2324,10 @@ const INFO = {
     tip:'立ち位置ガイドON（設定）で、次に行く場所が黄色の番号で出る。',
   },
   p5: {
-    flow:'ギミック選択で ↑↑↓↓←→←→BA で解放。どきどきアルテマからミッシング・ゼロの詠唱まで、約3分45秒を通しで遊ぶ。',
+    flow:'ギミック選択で ↑↑↓↓←→←→BA で解放。ボスがターゲット可能になるところ（5カウント）からミッシング・ゼロの詠唱まで、約3分10秒を通しで遊ぶ。',
     what:[
       '練習用の5つのギミックが、実戦と同じ時刻で順番に来る。間には<b>連続アルテマ</b>（全体4連）、<b>魔撃（AA）</b>、<b>終末の渦</b>（散開）が入る。',
-      '流れ：どきどきアルテマ → （ターゲット不可 約30秒）→ 連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',
+      '流れ：（開幕のどきどきアルテマとターゲット不可の時間は省略）連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',
       'AAはヘイト1位・ヒーラー1人・DPS1人への頭割り。被魔法ダメージ増加が付くので、<b>2つ受けると即死</b>。',
     ],
     why:'ギミック単体の練習と違って、ギミックの合間に「AAの位置へ戻る」動きが要る。オーケストラ直後のAAはタンクの受け方が変わる。',
@@ -2346,7 +2345,7 @@ const INFO = {
       ['AAに入った（ホーリー役が1人で受ける）', 'オーケストラ後のAAにフレア役も入ってしまった。'],
       ['終末の渦が重なった', '散開位置がずれて、ほかの人の位置に近すぎた。'],
     ],
-    tip:'ターゲット不可の間は攻撃できない（DPSはターゲット可能になってからの時間で計算）。ほかの失敗の意味は、各ギミックの解説を見てください。',
+    tip:'ほかの失敗の意味は、各ギミックの解説を見てください。',
   },
 };
 function openInfo(id){

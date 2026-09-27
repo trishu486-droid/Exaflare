@@ -200,6 +200,9 @@ const BUFFS = {
   invuln:  { name:'インビンシブル', dur:10, mit:true, invuln:true, color:'#ffd84a' },
   rampart: { name:'ランパート', dur:20, mit:true, color:'#5ab0ff' },
   sheltron:{ name:'シェルトロン', dur:8, mit:true, color:'#8ad0ff' },
+  guardian:{ name:'ガーディアン', dur:15, mit:true, heavy:true, color:'#8ad0ff' },
+  living:  { name:'リビングデッド', dur:10, mit:true, invuln:true, color:'#c05aff' },
+  vigil:   { name:'シャドウヴィジル', dur:15, mit:true, heavy:true, color:'#b08aff' },
   riddle:  { name:'紅蓮の極意', dur:20, dmg:1.15, color:'#ff8a3a' },
   bh:      { name:'桃園結義', dur:20, dmg:1.05, color:'#ffb84a' },
   wf:      { name:'ワイルドファイア', dur:10, dmg:1.1, color:'#ff6a3a' },
@@ -208,11 +211,17 @@ const BUFFS = {
 };
 // step：コンボの段（1→2→3の順に押すとフル威力、順番を外すと low の威力）
 const JOBS = {
-  pld: { name:'ナイト', role:'tank', melee:true, slots:['MT','ST'],
+  // タンク：B と Y はオーケストラでの役割で変わる（ホーリー役＝挑発・無敵／フレア役＝シャーク・重いバフ）
+  pld: { name:'ナイト', role:'tank', melee:true, slots:['MT'],
          a:{ name:'ロイヤルアソリティ', pot:460 },
-         b:{ name:'インビンシブル', cd:420, buff:'invuln' },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
-         y:{ name:'シェルトロン', cd:15, buff:'sheltron' } },
+         invuln:{ name:'インビンシブル', cd:420, buff:'invuln' },
+         heavy:{ name:'ガーディアン', cd:120, buff:'guardian' } },
+  drk: { name:'暗黒騎士', role:'tank', melee:true, slots:['ST'],
+         a:{ name:'ソウルイーター', pot:480 },
+         x:{ name:'ランパート', cd:90, buff:'rampart' },
+         invuln:{ name:'リビングデッド', cd:300, buff:'living' },
+         heavy:{ name:'シャドウヴィジル', cd:120, buff:'vigil' } },
   mnk: { name:'モンク', role:'melee', melee:true, slots:['D1','D2'],
          a:{ name:'連撃', pot:220, step:1 },
          b:{ name:'正拳突き', pot:320, step:2, low:150 },
@@ -234,7 +243,8 @@ const JOBS = {
          x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };
-const JOB_ORDER = ['pld', 'mnk', 'mch', 'blm', 'sch'];
+const JOB_ORDER = ['pld', 'drk', 'mnk', 'mch', 'blm', 'sch'];
+const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
 const KEYS = ['a', 'b', 'x', 'y'];
 // GCD を使うボタン（A・コンボの段・GCD技）か
 const isGcd = (j, k) => k === 'a' || !!j[k].step || !!j[k].gcd;
@@ -267,12 +277,19 @@ const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true),
   safe: store.get('safe', false), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
-  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {})
+  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {}), orch: store.get('orch', 1)
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
-const job = () => JOBS[opt.job];
+// オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
+const tankRole = () => mech().id === 'orch' && (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
+const jobCache = {};
+const job = () => {
+  const j = JOBS[opt.job]; if (j.role !== 'tank') return j;
+  const key = opt.job + tankRole();
+  return jobCache[key] ||= tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
+};
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
-const mySlot = () => { const sl = job().slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
+const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
 
 // ===== 状態 =====
 const S = { phase:'menu', t:-COUNTDOWN, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };
@@ -601,6 +618,7 @@ function corner(cx, cz, sx, sz, L, c){
 
 // 自キャラ：ジョブアイコン（タンク=青、DPS=赤の枠付きタイル）
 const ICON = {
+  drk: ['......xxx','.....xxx.','....xxx..','...xxx...','x.xxx....','.xxx.....','..x......','.x.x.....','x........'],
   pld: ['.........','......xx.','.....xxx.','..x.xxx..','...xxx...','...xx....','..x..x...','.x.......','.........'],
   mnk: ['.........','..xxxx...','.xxxxxx..','.xxxxxxx.','.xxxxxxx.','..xxxxxx.','...xxxx..','...xx....','.........'],
   mch: ['.........','.........','.xxxxxxx.','.xxxxxxx.','.xx.x....','.xx......','.xx......','.........','.........'],
@@ -613,7 +631,7 @@ function drawIcon(X, Z, hurt){
   rect(X - 5, Z - 5, 11, 11, '#ffffff');
   rect(X - 4, Z - 4, 9, 9, bg);
   ICON[opt.job].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') rect(X - 4 + i, Z - 4 + j, 1, 1, fg); }));
-  if (hasBuff('invuln')) ring(X, Z, 8, '#ffd84a');
+  if (hasInvuln()) ring(X, Z, 8, '#ffd84a');
   else if (hasMit()) ring(X, Z, 8, '#5ab0ff');
 }
 
@@ -1052,12 +1070,15 @@ const ORCH = (() => {
   const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
   const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
   return {
-    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ 1回目', view:24, start:{ x:0, z:8 }, slots:true,
+    id:'orch', name:'オーケストラβ', sub:'狂気のオーケストラ', view:24, start:{ x:0, z:8 }, slots:true,
     gen(){
-      return { me:mySlot(), targets:shuffle([...NON_TANK]).slice(0, 3) };
+      return { me:mySlot(), n:job().role === 'tank' ? opt.orch : 1, targets:shuffle([...NON_TANK]).slice(0, 3) };
     },
     create(p){
       const all = ['MT','ST', ...NON_TANK];
+      // タンクの役割：F＝フレア役（最初ヘイト1位 → 重いバフ＋シャークで北へ）、H＝ホーリー役（挑発して頭割り → ボス前で無敵）
+      const F = p.n === 1 ? 'MT' : 'ST', H = F === 'MT' ? 'ST' : 'MT';
+      const PROVOKE_AT = W1 + .6; // 味方タンクが挑発する時刻
       // 2回目の誘導役：1回目で当たらなかった3人を、散開位置の西から順に 西・南・東 へ
       const baiters = NON_TANK.filter(k => !p.targets.includes(k)).sort((a, b) => SPREAD[a].x - SPREAD[b].x);
       const phaseSpot = (k, ph) => {
@@ -1067,8 +1088,8 @@ const ORCH = (() => {
           const bi = baiters.indexOf(k);
           return bi >= 0 ? BAIT[bi] : outward(SPREAD[k], 14);
         }
-        if (k === 'MT') return FLARE_SPOT;   // ヘイト1位＝フレア
-        if (k === 'ST') return STACK;        // ヘイト2位＝ホーリー（ボス前で無敵）
+        if (k === F) return FLARE_SPOT;      // フレア役は北端へ
+        if (k === H) return STACK;           // ホーリー役はボス前で無敵
         return SOUTH[k];
       };
       // 自分の目安（ガイド表示・安置表示）は着弾のたびに次へ
@@ -1090,16 +1111,22 @@ const ORCH = (() => {
       const fx = []; // { at, kind, x, z, r }
       const vuln = p.targets.includes(p.me);
       const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
+      // ヘイト1位：ホーリー役が挑発するまではフレア役。自分がフレア役でシャークを早く使うとホーリー役に移る
+      const hateTop = t => {
+        const prov = p.me === H ? A.provoke : (t >= PROVOKE_AT ? PROVOKE_AT : null);
+        const shirk = p.me === F ? A.shirk : null;
+        return (prov !== null && prov <= t) || (shirk !== null && shirk <= t) ? H : F;
+      };
       return {
         start: { ...SPREAD[p.me] },
-        intro: `あなたは ${p.me}`,
+        intro: roleOf(p.me) === 'T' ? `${p.n}回目　あなたは ${p.me}（${p.me === F ? 'フレア役' : 'ホーリー役'}）` : `あなたは ${p.me}`,
         end: FINAL + .9,
         casts: [{ name:'狂気のオーケストラ', start:0, len:CAST_END }],
-        progress: t => t < W1 ? '1回目' : t < W2 ? '2回目' : t < FINAL ? 'フレア/ホーリー' : '終了',
+        progress: t => (roleOf(p.me) === 'T' ? `${p.n}回目 ` : '') + (t < W1 ? '散開' : t < W2 ? '頭割り' : t < FINAL ? 'フレア/ホーリー' : '終了'),
         status(t){
           const s = [`担当 ${p.me}`];
           if (t >= W1 && vuln) s.push('被魔法ダメージ増加');
-          if (t >= W1 - .3 && t < FINAL && (p.me === 'MT' || p.me === 'ST')) s.push(`${p.me === 'MT' ? 'フレア' : 'ホーリー'} ${Math.ceil(FINAL - t)}`);
+          if (t >= W1 - .3 && t < FINAL && roleOf(p.me) === 'T') s.push(`${p.me === F ? 'フレア' : 'ホーリー'} ${Math.ceil(FINAL - t)}`);
           return s;
         },
         tick(t){
@@ -1119,33 +1146,40 @@ const ORCH = (() => {
             if (vuln && all.filter(k => k !== p.me && !p.targets.includes(k)).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーに味方を巻き込んだ');
             if (roleOf(p.me) !== 'T' && ['MT','ST'].some(k => dist(me, pos(k)) <= TB_R)) hurt('タンク強攻撃に巻き込まれた');
             if (roleOf(p.me) === 'T' && !hasMit()) hurt('軽減なしで強攻撃');
+            // デバフはヘイト順：フレア役が1位のままでないと入れ替わる
+            if (roleOf(p.me) === 'T' && hateTop(t) !== F) hurt(p.me === H ? '挑発が早い' : 'シャークが早い');
           }
           if (!fired.w2 && t >= W2){
             fired.w2 = true; sfx.boom();
             // ボスに近い3人（自分も含めて判定）
             w2targets = [...all].sort((a, b) => Math.hypot(pos(a).x, pos(a).z) - Math.hypot(pos(b).x, pos(b).z)).slice(0, 3);
             w2targets.forEach(k => fx.push({ at:t, kind:'holy', ...pos(k), r:HOLY_R }));
-            fx.push({ at:t, kind:'stack', ...pos('MT'), r:STACK_R });
+            fx.push({ at:t, kind:'stack', ...pos(H), r:STACK_R });
             const mine = w2targets.includes(p.me);
             if (roleOf(p.me) === 'T'){
               if (mine) hurt('タゲサに入った');
+              if (p.me === H && hateTop(t) !== H) hurt('挑発していない');
               if (dist(me, pos(p.me === 'MT' ? 'ST' : 'MT')) > STACK_R) hurt('頭割りに入れていない');
               else if (!hasMit()) hurt('軽減なしで頭割り');
             } else {
               if (mine && vuln) hurt('ホーリーを2回受けた');
               if (!mine && !vuln) hurt('近い3人に入れなかった');
               if (w2targets.filter(k => k !== p.me).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーが重なった');
-              if (dist(me, pos('MT')) <= STACK_R) hurt('タンク頭割りに入った');
+              if (dist(me, pos(H)) <= STACK_R) hurt('タンク頭割りに入った');
             }
           }
           if (!fired.fin && t >= FINAL){
             fired.fin = true; sfx.boom();
-            fx.push({ at:t, kind:'flare', ...pos('MT'), r:FLARE_R });
-            fx.push({ at:t, kind:'tb', ...pos('ST'), r:TB_R });
-            if (p.me === 'MT'){ if (all.some(k => k !== 'MT' && dist(pos('MT'), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ'); }
-            else if (dist(me, pos('MT')) <= FLARE_R) hurt('フレアに巻き込まれた');
-            if (p.me === 'ST' && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
-            if (p.me === 'ST' && !hasBuff('invuln')) hurt('インビンシブルなしでホーリー');
+            fx.push({ at:t, kind:'flare', ...pos(F), r:FLARE_R });
+            fx.push({ at:t, kind:'tb', ...pos(H), r:TB_R });
+            if (p.me === F){
+              if (all.some(k => k !== F && dist(pos(F), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ');
+              if (!hasHeavy()) hurt('重いバフなしでフレア');
+              if (A.shirk === null) hurt('シャークしていない');
+            }
+            else if (dist(me, pos(F)) <= FLARE_R) hurt('フレアに巻き込まれた');
+            if (p.me === H && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
+            if (p.me === H && !hasInvuln()) hurt('無敵なしでホーリー');
           }
         },
         safeActive: () => true,
@@ -1159,8 +1193,8 @@ const ORCH = (() => {
             ['MT','ST'].forEach(k => { const q = pos(k); thickRing(px(q.x), px(q.z), Math.round(TB_R * PPY), blink ? P.hurt : '#ff9a9a', 2); });
           }
           // 2回目の頭割り予兆（MTに）、フレア/ホーリーの予兆
-          if (t >= W1 + .5 && t < W2){ const q = pos('MT'); ring(px(q.x), px(q.z), Math.round(STACK_R * PPY), blink ? P.hurt : P.white); }
-          if (t >= W2 + .3 && t < FINAL){ const q = pos('MT'); ring(px(q.x), px(q.z), Math.round(FLARE_R * PPY), blink ? '#ff9a3a' : P.white); }
+          if (t >= W1 + .5 && t < W2){ const q = pos(hateTop(t)); ring(px(q.x), px(q.z), Math.round(STACK_R * PPY), blink ? P.hurt : P.white); }
+          if (t >= W2 + .3 && t < FINAL){ const q = pos(F); ring(px(q.x), px(q.z), Math.round(FLARE_R * PPY), blink ? '#ff9a3a' : P.white); }
           // 着弾
           fx.forEach(f => {
             const dt = t - f.at; if (dt < 0 || dt > .6) return;
@@ -1216,11 +1250,13 @@ const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
 const held = { a:false, b:false, x:false, y:false };
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9 });
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -1) > S.t;
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
+const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
+const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 
@@ -1260,6 +1296,7 @@ function pressKey(k){
   if (ab.pot && !inRange()){ fail(); return; }
   A.cds[k] = S.t + ab.cd;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); }
+  else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
   else if (ab.instant){ A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
   else dealDamage(ab.pot);
 }
@@ -1383,25 +1420,45 @@ function renderMenu(){
     $('menuList').innerHTML = job().slots.map((sl, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${sl}</span><small>${mech().name}</small></button>`).join('');
     return;
   }
+  if (S.menu === 'orchn'){
+    head.textContent = `${job().name}（${mySlot()}）`;
+    note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
+    $('menuList').innerHTML = [1, 2].map((n, i) => {
+      const flare = (mySlot() === 'MT') === (n === 1);
+      return `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${n}回目</span><small>${flare ? 'フレア役（シャーク）' : 'ホーリー役（挑発・無敵）'}</small></button>`;
+    }).join('');
+    return;
+  }
   head.textContent = 'ギミック選択';
   note.textContent = '十字で選んでA／STARTで開始';
   $('menuList').innerHTML = jobRow + MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small></button>`).join('');
 }
-function menuCount(){ return S.menu === 'slot' ? job().slots.length : MECHS.length; }
+function menuCount(){ return S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+// タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
+const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
+function openOrchN(){ S.menu = 'orchn'; S.cursor = opt.orch - 1; renderMenu(); }
 function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
   if (S.menu === 'slot'){
-    opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle(); begin();
+    opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle();
+    if (needOrchN()) openOrchN(); else begin();
     return;
   }
+  if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
   opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle();
   if (MECHS[i].slots && job().slots.length > 1){
-    S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu(); sfx.unlock(); sfx.ok();
+    S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu();
     return;
   }
+  if (needOrchN()){ openOrchN(); return; }
   begin();
 }
-function menuBack(){ if (S.menu === 'slot'){ S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu(); sfx.unlock(); sfx.back(); } }
+function menuBack(){
+  if (S.menu === 'mech') return;
+  if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
+  else { S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); }
+  renderMenu(); sfx.unlock(); sfx.back();
+}
 function moveCursor(d){ S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
 
 // ===== HUD / メッセージ =====
@@ -1442,13 +1499,13 @@ function rankHtml(){
 }
 function applyTitle(){
   $('mechName').textContent = mech().name;
-  $('jobName').textContent = job().name + (job().slots.length > 1 && mech().slots ? ` ${mySlot()}` : '');
+  $('jobName').textContent = job().name + (job().slots.length > 1 && mech().slots ? ` ${mySlot()}` : '') + (needOrchN() ? ` ${opt.orch}回目` : '');
 }
 function selectJob(d = 1){
   if (S.phase === 'count' || S.phase === 'run') return;
   opt.job = JOB_ORDER[(JOB_ORDER.indexOf(opt.job) + d + JOB_ORDER.length) % JOB_ORDER.length];
   store.set('job', opt.job); applyTitle(); lastMsg = '';
-  if (S.phase === 'menu'){ if (S.menu === 'slot') menuBack(); renderMenu(); }
+  if (S.phase === 'menu'){ if (S.menu !== 'mech') menuBack(); renderMenu(); }
   sfx.unlock(); sfx.blip(520, .05);
 }
 

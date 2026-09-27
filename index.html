@@ -297,60 +297,52 @@ const sfx = {
   fail(){ [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, .16), i * 150)); }
 };
 
-// ===== BGM（オリジナル曲。ラスボス戦の終盤っぽい「速いロック＋オルガン」の8bit） =====
-// 1ステップ＝16分音符。イントロ（2小節）→ サビ（8小節）→ サビ＋対旋律（8小節）→ サビへループ
+// ===== BGM（オリジナル曲。厳かなパイプオルガン風の8bit） =====
+// 1ステップ＝16分音符。イントロ（4小節）→ 本編（8小節）→ 本編＋聖歌隊（8小節）→ 本編へループ
 const bgm = (() => {
-  const BPM = 176, STEP = 60 / BPM / 4, VOL = .32;
+  const BPM = 96, STEP = 60 / BPM / 4, VOL = .5;
   const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [];   // { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s, ch, n, l) => song.push({ s, ch, n:n && N(n), l });
   const up8 = n => n.replace(/\d/, d => String(+d + 1));
-  // イントロ：オルガンの一撃 → スネアの連打で突入
-  [['D3','A3','D4','F4','A4']].forEach(c => c.forEach(n => add(0, 'organ', n, 14)));
-  add(0, 'crash'); add(0, 'kick');
-  for (let i = 16; i < 32; i++) if (i < 24 ? i % 2 === 0 : true) add(i, 'snare');
-  add(28, 'kick'); add(30, 'kick');
-  const MAIN0 = 32;
-  // サビのコード（8小節）：Dm B♭ C A / Dm B♭ Gm A
-  const CH = [['D4','F4','A4'], ['Bb3','D4','F4'], ['C4','E4','G4'], ['A3','C#4','E4'], ['D4','F4','A4'], ['Bb3','D4','F4'], ['G3','Bb3','D4'], ['A3','C#4','E4']];
-  const ROOT = ['D2','Bb1','C2','A1','D2','Bb1','G1','A1'];
-  // 主旋律（オリジナル。[音, 長さ]、小節ごと）
-  const MEL = [
-    [['D5',6],['E5',2],['F5',4],['A5',4]],
-    [['Bb5',8],['A5',4],['G5',4]],
-    [['G5',6],['F5',2],['E5',4],['C5',4]],
-    [['C#5',4],['E5',4],['A5',8]],
-    [['D6',6],['C6',2],['A5',4],['F5',4]],
-    [['F5',4],['G5',2],['A5',2],['Bb5',4],['D6',4]],
-    [['D6',4],['C6',4],['Bb5',4],['G5',4]],
-    [['A5',8],['E5',1],['F5',1],['G5',1],['A5',1],['Bb5',1],['C#6',1],['D6',1],['E6',1]],
+  // イントロ：鐘とティンパニ、オルガンの和音がゆっくり立ち上がる
+  const INTRO = [['D2','D3','A3','D4','F4'], ['Bb1','Bb2','F3','Bb3','D4'], ['G1','G2','D3','G3','Bb3'], ['A1','A2','E3','A3','C#4']];
+  INTRO.forEach((c, b) => { c.forEach(n => add(b * 16, 'organ', n, 16)); add(b * 16, 'timp', 'D2'); if (b % 2 === 0) add(b * 16, 'bell', 'A5'); });
+  const MAIN0 = 64;
+  // 本編：半音ずつ下がる低音の上に和音
+  const BASS = [['D2',16], ['C#2',16], ['C2',16], ['B1',16], ['Bb1',16], ['A1',16], ['G1',8, 'A1',8], ['D2',16]];
+  const CH = [
+    [['D3','F3','A3']], [['C#3','E3','A3']], [['C3','F3','A3']], [['B2','D3','G3']],
+    [['Bb2','D3','G3']], [['A2','C#3','E3','G3']], [['G2','Bb2','D3'], ['A2','C#3','E3']], [['D3','F3','A3','D4']],
   ];
-  const chorus = (base, counter) => {
-    CH.forEach((c, b) => {
-      const s0 = base + b * 16, r = ROOT[b];
-      if (b === 0) add(s0, 'crash');
-      // ベース：8分で刻み、2・4拍目の裏はギャロップ（16分×2）
-      for (let i = 0; i < 16; i += 2){
-        const n = i % 4 === 2 ? up8(r) : r;
-        if (i === 6 || i === 14){ add(s0 + i, 'bass', n, 1); add(s0 + i + 1, 'bass', n, 1); }
-        else add(s0 + i, 'bass', n, 2);
-      }
-      // オルガン：裏拍で和音を叩く
-      [2, 6, 10, 14].forEach(i => c.forEach(n => add(s0 + i, 'stab', n, 1)));
-      // ドラム：スネアは2・4拍、ハイハット8分、キックは連打多め
-      [0, 3, 8, 10, 11].forEach(i => add(s0 + i, 'kick'));
-      [4, 12].forEach(i => add(s0 + i, 'snare'));
-      for (let i = 0; i < 16; i += 2) add(s0 + i, 'hat');
-      // 対旋律（2周目）：16分の分散和音を上で鳴らす
-      if (counter){
-        const u = [up8(c[0]), up8(c[1]), up8(c[2]), up8(up8(c[0]))];
-        [...u, ...u.slice().reverse(), ...u, ...u.slice().reverse()].forEach((n, i) => add(s0 + i, 'arp', n, 1));
-      }
-    });
+  const MEL = [
+    [['A4',8],['D5',8]],
+    [['E5',12],['C#5',4]],
+    [['F5',8],['E5',4],['D5',4]],
+    [['D5',8],['B4',8]],
+    [['Bb4',8],['D5',4],['G5',4]],
+    [['G5',4],['F5',4],['E5',8]],
+    [['D5',4],['Bb4',4],['C#5',8]],
+    [['D5',16]],
+  ];
+  const section = (base, choir) => {
+    for (let b = 0; b < 8; b++){
+      const s0 = base + b * 16;
+      // 低音（オルガンのペダル）
+      const bs = BASS[b]; add(s0, 'pedal', bs[0], bs[1]); if (bs[2]) add(s0 + bs[1], 'pedal', bs[2], bs[3]);
+      // 和音（小節の中で1つか2つ）
+      const cs = CH[b], len = 16 / cs.length;
+      cs.forEach((c, i) => c.forEach(n => add(s0 + i * len, 'organ', n, len)));
+      // ティンパニは1拍目、鐘は2小節ごと
+      add(s0, 'timp', bs[0].replace(/\d/, '2'));
+      if (b % 2 === 0) add(s0, 'bell', up8(up8(cs[0][0])));
+      // 聖歌隊（2周目）：旋律の1オクターブ上を柔らかく
+      if (choir){ let s1 = s0; MEL[b].forEach(([n, l]) => { add(s1, 'choir', up8(n), l); s1 += l; }); }
+    }
     MEL.forEach((bar, b) => { let s1 = base + b * 16; bar.forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; }); });
   };
-  chorus(MAIN0, false);
-  chorus(MAIN0 + 128, true);
+  section(MAIN0, false);
+  section(MAIN0 + 128, true);
   const TOTAL = MAIN0 + 256;
   const byStep = Array.from({ length:TOTAL }, () => []);
   song.forEach(e => byStep[e.s].push(e));
@@ -360,43 +352,46 @@ const bgm = (() => {
   function setup(ac){
     if (master) return;
     master = ac.createGain(); master.gain.value = VOL; master.connect(ac.destination);
-    // 25%パルス波（ファミコンっぽい音）
     const K = 32, re = new Float32Array(K), im = new Float32Array(K);
     for (let k = 1; k < K; k++) re[k] = 2 / (k * Math.PI) * Math.sin(k * Math.PI * .25);
     pulse = ac.createPeriodicWave(re, im);
     noise = ac.createBuffer(1, ac.sampleRate * .3, ac.sampleRate);
     const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
-  function voice(ac, t, type, freq, dur, vol){
+  // att：立ち上がり（オルガンはゆっくり）
+  function voice(ac, t, type, freq, dur, vol, att = .005){
     const o = ac.createOscillator(), g = ac.createGain();
     if (type === 'pulse') o.setPeriodicWave(pulse); else o.type = type;
     o.frequency.setValueAtTime(freq, t);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .005);
-    g.gain.setValueAtTime(vol, t + Math.max(.01, dur - .03)); g.gain.linearRampToValueAtTime(0, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + att);
+    g.gain.setValueAtTime(vol, t + Math.max(att + .01, dur - .12)); g.gain.linearRampToValueAtTime(0, t + dur);
     o.connect(g).connect(master); o.start(t); o.stop(t + dur + .02);
   }
-  function drum(ac, t, kind){
-    if (kind === 'kick'){
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + .12);
-      g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.001, t + .15);
-      o.connect(g).connect(master); o.start(t); o.stop(t + .16); return;
+  function hit(ac, t, kind, freq){
+    const o = ac.createOscillator(), g = ac.createGain();
+    if (kind === 'timp'){ // ティンパニ：低い三角波が少し下がりながら減衰
+      o.type = 'triangle'; o.frequency.setValueAtTime(freq * 1.2, t); o.frequency.exponentialRampToValueAtTime(freq, t + .15);
+      g.gain.setValueAtTime(.45, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.2);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 1.25); return;
     }
-    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-    src.buffer = noise; f.type = 'highpass'; f.frequency.value = kind === 'hat' ? 7000 : kind === 'crash' ? 4000 : 1500;
-    const len = kind === 'hat' ? .04 : kind === 'crash' ? .28 : .12;
-    g.gain.setValueAtTime(kind === 'hat' ? .07 : kind === 'crash' ? .12 : .22, t); g.gain.exponentialRampToValueAtTime(.001, t + len);
-    src.connect(f).connect(g).connect(master); src.start(t); src.stop(t + len + .01);
+    // 鐘：高い正弦波＋倍音が長く残る
+    [1, 2.76, 5.4].forEach((m, i) => {
+      const oo = ac.createOscillator(), gg = ac.createGain();
+      oo.type = 'sine'; oo.frequency.setValueAtTime(freq * m, t);
+      gg.gain.setValueAtTime([.1, .04, .02][i], t); gg.gain.exponentialRampToValueAtTime(.0005, t + [2.4, 1.2, .6][i]);
+      oo.connect(gg).connect(master); oo.start(t); oo.stop(t + 2.5);
+    });
   }
   function play(ac, e, t){
-    const dur = (e.l || 1) * STEP;
+    const dur = (e.l || 1) * STEP, f = e.n && hz(e.n);
     switch (e.ch){
-      case 'organ': voice(ac, t, 'pulse', hz(e.n), dur, .07); voice(ac, t, 'square', hz(e.n) * 1.003, dur, .03); break; // 少しずらして重ねてオルガン風に
-      case 'lead':  voice(ac, t, 'pulse', hz(e.n), dur * .95, .085); voice(ac, t, 'square', hz(e.n) * 2.004, dur * .9, .012); break;
-      case 'stab':  voice(ac, t, 'pulse', hz(e.n), dur * .7, .03); break;
-      case 'arp':   voice(ac, t, 'pulse', hz(e.n), dur * .8, .035); break;
-      case 'bass':  voice(ac, t, 'triangle', hz(e.n), dur * .9, .22); break;
-      default:      drum(ac, t, e.ch);
+      // パイプオルガン：25%パルス＋1オクターブ下の矩形＋三角波を重ね、ゆっくり立ち上げる
+      case 'organ': voice(ac, t, 'pulse', f, dur, .035, .09); voice(ac, t, 'square', f / 2, dur, .012, .12); voice(ac, t, 'triangle', f * 1.002, dur, .03, .09); break;
+      case 'pedal': voice(ac, t, 'triangle', f, dur, .2, .06); voice(ac, t, 'pulse', f * 2, dur, .02, .1); break;
+      case 'lead':  voice(ac, t, 'square', f, dur * .97, .05, .06); voice(ac, t, 'pulse', f * 1.004, dur * .97, .03, .08); break;
+      case 'choir': voice(ac, t, 'triangle', f, dur, .06, .25); voice(ac, t, 'triangle', f * 1.006, dur, .04, .3); break;
+      case 'timp':  hit(ac, t, 'timp', f); break;
+      case 'bell':  hit(ac, t, 'bell', f); break;
     }
   }
   function tick(){

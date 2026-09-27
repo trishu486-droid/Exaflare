@@ -640,25 +640,25 @@ function corner(cx, cz, sx, sz, L, c){
   rect(sx > 0 ? cx - 1 : cx, Math.min(cz, cz - sz * (L - 1)), 2, L, c);
 }
 
-// 自キャラ：ジョブアイコン（タンク=青、DPS=赤の枠付きタイル）
+// 自キャラ：ジョブアイコン（ロール色の角丸タイル＋金のジョブマーク。実機のジョブアイコンを 9×9 に寄せたドット絵）
 const ICON = {
-  rpr: ['.xxxxx...','x.....xx.','.......x.','......x..','.....x...','....x....','...x.....','..x......','.x.......'],
-  ast: ['....x....','....x....','..xxxxx..','.xxxxxxx.','..xxxxx..','....x....','....x....','.........','.........'],
-  drk: ['......xxx','.....xxx.','....xxx..','...xxx...','x.xxx....','.xxx.....','..x......','.x.x.....','x........'],
-  pld: ['.........','......xx.','.....xxx.','..x.xxx..','...xxx...','...xx....','..x..x...','.x.......','.........'],
-  mnk: ['.........','..xxxx...','.xxxxxx..','.xxxxxxx.','.xxxxxxx.','..xxxxxx.','...xxxx..','...xx....','.........'],
-  mch: ['.........','.........','.xxxxxxx.','.xxxxxxx.','.xx.x....','.xx......','.xx......','.........','.........'],
-  blm: ['.....x...','....xx...','...xxx...','...xxxx..','..xxxxx..','..xxxxxx.','xxxxxxxxx','.........','.........'],
-  sch: ['.........','.xxx.xxx.','.x.x.x.x.','.xxx.xxx.','.x.x.x.x.','.xxx.xxx.','.xxxxxxx.','.........','.........'],
+  pld: ['.xxxxxxx.','.x..x..x.','.x.xxx.x.','.x..x..x.','.x..x..x.','..x.x.x..','..x...x..','...x.x...','....x....'],
+  drk: ['....x....','....x....','.x.xxx.x.','..xxxxx..','xxxx.xxxx','..xxxxx..','.x.x.x.x.','...x.x...','....x....'],
+  mnk: ['......xx.','.....xx..','....xx..x','...xx..xx','..xx..xx.','.xx..xx..','xx..xx...','...xx....','..xx.....'],
+  rpr: ['.....xxx.','...xx...x','..x......','.x...xx..','.x..x..x.','.x...xx.x','..x.....x','...xxxxx.','.........'],
+  mch: ['x........','.xx......','..xxx....','...xxxx..','....x.xx.','.....xx.x','......x.x','.....xxx.','.........'],
+  blm: ['......x.x','.....x.x.','..xxxx.x.','.x...xx..','x..x..x..','x.x.x.x..','x..x..x..','.x...x...','..xxx....'],
+  ast: ['.....x...','..xxxxxx.','..x....x.','..x.xxxx.','..x.x....','xxx.x....','.x..x....','x..xx....','.........'],
+  sch: ['.........','.xx...xx.','x..x.x..x','x..x.x..x','x..xxx..x','x...x...x','.x.x.x.x.','..x...x..','.........'],
 };
-const ROLE_COLOR = { tank:'#3a6ad8', healer:'#3aa84e', melee:'#d8404e', ranged:'#d8404e', caster:'#d8404e' };
+const ROLE_COLOR = { tank:'#2a4aa0', healer:'#2a7a3a', melee:'#9a2a3a', ranged:'#9a2a3a', caster:'#9a2a3a' };
 function drawIcon(X, Z, hurt){
-  const bg = hurt ? '#ff2a3a' : ROLE_COLOR[job().role], fg = hurt ? '#ffe066' : '#ffffff';
-  rect(X - 5, Z - 5, 11, 11, '#ffffff');
-  rect(X - 4, Z - 4, 9, 9, bg);
+  const bg = hurt ? '#ff2a3a' : ROLE_COLOR[job().role], fg = hurt ? '#ffffff' : '#f0d080', rim = hurt ? '#ffe066' : '#d8b060';
+  rect(X - 5, Z - 6, 11, 13, rim); rect(X - 6, Z - 5, 13, 11, rim);   // 金の縁（角を丸める）
+  rect(X - 4, Z - 5, 9, 11, bg); rect(X - 5, Z - 4, 11, 9, bg);
   ICON[opt.job].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') rect(X - 4 + i, Z - 4 + j, 1, 1, fg); }));
-  if (hasInvuln()) ring(X, Z, 8, '#ffd84a');
-  else if (hasMit()) ring(X, Z, 8, '#5ab0ff');
+  if (hasInvuln()) ring(X, Z, 9, '#ffd84a');
+  else if (hasMit()) ring(X, Z, 9, '#5ab0ff');
 }
 
 function drawField(){

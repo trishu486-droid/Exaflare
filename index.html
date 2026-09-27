@@ -95,6 +95,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .menu .omake{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;max-height:228px;overflow-y:auto;scrollbar-width:none}
 .menu .omake::-webkit-scrollbar{display:none}
 .menu button.extra{border-style:dashed}
+.menu button.secret{border-color:#b05aff;background:#1e1030}
+.menu .head.blink{animation:blink .3s steps(2,start) infinite}
 .menu .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(84%,360px)}
 .menu .jobgrid button{width:100%}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center}
@@ -376,7 +378,7 @@ const opt = {
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
-const tankRole = () => mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
+const tankRole = () => mech().id === 'p5' ? (S.inst?.tankRole?.(S.t) ?? 'atk') : mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
 const jobCache = {};
 const job = () => {
   const j = JOBS[opt.job];
@@ -1231,7 +1233,8 @@ const ORCH = (() => {
   };
   const NON_TANK = ['D1','D2','D3','D4','H1','H2'];
   const STACK = { x:0, z:-8.5 };                         // 2回目：タンクの頭割り（タゲサの外）
-  const BAIT = [{ x:-4.5, z:0 }, { x:0, z:4.5 }, { x:4.5, z:0 }]; // 2回目：タゲサ内の西・南・東
+  const BAIT = [{ x:-6, z:0 }, { x:0, z:6 }, { x:6, z:0 }]; // 2回目：タゲサ内の西・南・東（隣どうしの円範囲が重ならない距離）
+  const TOL = 1.5; // 目安の位置からのずれの許容（これ以上ずれると円範囲が重なりうる）
   const FLARE_SPOT = { x:0, z:-18.5 };
   const SOUTH = { H1:{ x:-6.5, z:14.5 }, H2:{ x:-9, z:13 }, D1:{ x:3.5, z:16 }, D2:{ x:6, z:14.5 }, D3:{ x:1.5, z:13.5 }, D4:{ x:8.5, z:12.5 } };
   const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
@@ -1239,7 +1242,7 @@ const ORCH = (() => {
   const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
   const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
   return {
-    id:'orch', name:'狂気のオーケストラ', sub:'1回目・2回目', view:24, start:{ x:0, z:8 }, slots:true,
+    id:'orch', name:'狂気のオーケストラ', sub:'1回目・2回目', view:24, start:{ x:0, z:8 }, slots:true, SPREAD, NON_TANK,
     gen(){
       return { me:mySlot(), n:job().role === 'tank' ? opt.orch : 1, targets:shuffle([...NON_TANK]).slice(0, 3) };
     },
@@ -1281,9 +1284,11 @@ const ORCH = (() => {
       const vuln = p.targets.includes(p.me);
       const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
       // ヘイト1位：ホーリー役が挑発するまではフレア役。自分がフレア役でシャークを早く使うとホーリー役に移る
+      // P5 通しでは t0（このギミックの開始時刻）を引いて、ギミック内の時刻に直す
+      const T0 = p.t0 || 0, rel = v => v == null ? null : v - T0;
       const hateTop = t => {
-        const prov = p.me === H ? A.provoke : (t >= PROVOKE_AT ? PROVOKE_AT : null);
-        const shirk = p.me === F ? A.shirk : null;
+        const prov = p.me === H ? rel(A.provoke) : (t >= PROVOKE_AT ? PROVOKE_AT : null);
+        const shirk = p.me === F ? rel(A.shirk) : null;
         return (prov !== null && prov <= t) || (shirk !== null && shirk <= t) ? H : F;
       };
       return {
@@ -1353,8 +1358,8 @@ const ORCH = (() => {
           }
         },
         safeActive: () => true,
-        safe(x, z, t){ return dist({ x, z }, spotAt(p.me, t)) <= 1.8; },
-        guide(t){ const g = spotAt(p.me, t); ring(px(g.x), px(g.z), Math.round(1.8 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+        safe(x, z, t){ return dist({ x, z }, spotAt(p.me, t)) <= TOL; },
+        guide(t){ const g = spotAt(p.me, t); ring(px(g.x), px(g.z), Math.round(TOL * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
         draw(t){
           const blink = (Math.floor(performance.now() / 160) & 1) === 0;
           // 1回目の予兆：ランダム3人に青い輪、MT/STに赤い輪
@@ -1406,7 +1411,164 @@ const OMAKE = [
   ['mCdvBgQg5ZE', '第11話', '野菜室はラビリンス'], ['u-olmWNYtMY', '第12話', 'プディングウェイ'], ['bf2SGdZpFbo', '第13話', ''], ['d7PK6f5CX14', '第14話', ''],
 ];
 const OMAKE_CHANNEL = 'https://www.youtube.com/@syaruuu';
-const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
+// =====================================================================
+// 隠しステージ：P5 通し（どきどきアルテマ → ミッシング・ゼロの詠唱まで）
+// 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0）。練習用の5ギミックを実際の時刻に並べ、
+// 間に 連続アルテマ・魔撃（AA）・終末の渦 を入れる
+// AA：ヘイト1位・ヒーラー1人・DPS1人に頭割り（被魔法ダメージ増加つき。2つ受けると即死）
+//   タンク＝A（ボスの北）、ヒーラー＝4（南西）、DPS＝3（南東）で受ける
+//   オーケストラ直後の1発目のAAは、ヘイト1位（ホーリー役）がボス前で無敵のまま1人で受ける。2発目からはタンク2人で頭割り
+// =====================================================================
+const RUN = (() => {
+  const TARGETABLE = 33;
+  const HOME = { T:{ x:0, z:-10 }, H:{ x:-7.5, z:7.5 }, D:{ x:7.5, z:7.5 } };
+  const AA_R = { T:3, H:4, D:4 }, AA_COL = { T:'#5a8aff', H:'#58e07a', D:'#ff5a6a' }, AA_WARN = 3;
+  const UPSURGE = { at:2, dmg:180000 };
+  const REPEAT = [{ cast:34.2, hits:[39.3, 40.1, 40.8, 41.6], dmg:74358 }, { cast:118.1, hits:[123.2, 124.0, 124.7, 125.5], dmg:108000 }];
+  const FELL = [
+    { at:[44.2, 47.4, 50.5], dmg:[55769, 61965, 68850] },
+    { at:[83.2, 86.3], dmg:[81000, 90000], solo:1 },
+    { at:[128.1, 131.3], dmg:[81000, 81000] },
+    { at:[175.2, 178.3, 181.4], dmg:[68850, 81000, 81000], solo:2 },
+  ];
+  const ENTROPY = { cast:147.8, len:6, at:154.7, dmg:180000, r:4 }; // 混沌の終末の5回目あたりで詠唱開始
+  // [ギミック, 開始時刻, オーケストラの回, そのオーケストラのバフ・ヘイトが続く時刻]
+  const SEGS = [['flood', 52.55], ['orch', 66.0, 1, 87.6], ['celes', 87.62], ['exa', 132.8], ['orch', 158.0, 2, 182.7], ['miss', 182.7]];
+  const MK = id => MECHS.find(m => m.id === id);
+  const roleOf = slot => slot[0] === 'M' || slot[0] === 'S' ? 'T' : slot[0];
+  const fmt = t => { const s = Math.max(0, Math.floor(t)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
+  return {
+    id:'p5', name:'P5 通し', sub:'隠しステージ', view:24, start:HOME.T, slots:true,
+    gen(){
+      return SEGS.map(([id, at, n]) => id === 'orch' ? { me:mySlot(), n, targets:shuffle([...ORCH.NON_TANK]).slice(0, 3), t0:at } : MK(id).gen());
+    },
+    create(probs){
+      const me = mySlot(), role = roleOf(me), home = HOME[role];
+      const segs = SEGS.map(([id, at, n, keep], i) => ({ id, at, n, keep, inst:MK(id).create(probs[i]), begun:false }));
+      segs.forEach(s => s.end = s.at + s.inst.end);
+      const seg = t => segs.find(s => t >= s.at && t <= s.end);
+      const aa = FELL.flatMap(f => f.at.map((t, i) => ({ t, dmg:f.dmg[i], solo:i === 0 ? f.solo : 0, done:false })));
+      const hits = REPEAT.flatMap(r => r.hits.map(t => ({ t, dmg:r.dmg, done:false })));
+      const fired = { up:false, ent:false };
+      let entX = 0, entZ = 0;
+      const inK = k => Math.hypot(S.player.x - HOME[k].x, S.player.z - HOME[k].z) <= AA_R[k];
+      const exa = segs[3], orch2 = segs[4];
+      // ギミックの間の目安：AA の位置。混沌の終末の後は終末の渦の散開位置
+      const spreadAt = t => t >= exa.end && t < ENTROPY.at + .3;
+      // フレア役のタンクは、オーケストラ直後の1発目のAAの間だけ A の外（北）で待つ
+      const holyOf = n => n === 1 ? 'ST' : 'MT';
+      const stayOut = t => { const a = aa.find(q => !q.done); return role === 'T' && a && a.solo && a.t - t < 6 && me !== holyOf(a.solo); };
+      const spot = t => spreadAt(t) ? ORCH.SPREAD[me] : stayOut(t) ? { x:0, z:-16 } : home;
+      // ヘイト1位：オーケストラ1回目の後は ST、2回目の後は MT（ヘイトは戻さない）
+      const topOut = t => t < segs[1].at + 7 || t >= orch2.at + 7 ? 'MT' : 'ST';
+      const orchAt = t => segs.find(s => s.id === 'orch' && t >= s.at && t < s.keep);
+      return {
+        start:{ ...home },
+        intro:`あなたは ${me}　最後まで被弾なしで`,
+        end: segs[5].end,
+        casts:[{ name:'どきどきアルテマ', start:0, len:UPSURGE.at },
+          ...REPEAT.map(r => ({ name:'連続アルテマ', start:r.cast, len:4 })),
+          { name:'終末の渦', start:ENTROPY.cast, len:ENTROPY.len },
+          ...segs.flatMap(s => s.inst.casts.map(c => ({ ...c, start:c.start + s.at })))],
+        view: t => {
+          const k = Math.max(0, Math.min(1, (t - (exa.at - 1)) / 1, (exa.end + 1 - t) / 1));
+          return 24 + 12 * k;
+        },
+        targetable: t => t >= TARGETABLE,
+        activeTime: end => Math.max(1, end - TARGETABLE),
+        tankRole(t){
+          const o = orchAt(t); if (!o) return 'atk';
+          return (me === 'MT') === (o.n === 1) ? 'flare' : 'holy';
+        },
+        enmity(t){
+          const s = seg(t);
+          if (s?.inst.enmity) return s.inst.enmity(t - s.at);
+          return ['MT', 'ST'].map(k => ({ k, top:k === topOut(t), me:k === me }));
+        },
+        progress(t){
+          const s = seg(t);
+          return `P5 ${fmt(t)}` + (s ? ' ' + s.inst.progress(t - s.at) : '');
+        },
+        status(t){
+          const s = seg(t), out = s?.inst.status ? [...s.inst.status(t - s.at)] : [];
+          if (t < TARGETABLE) out.unshift('ボスはターゲット不可');
+          return out;
+        },
+        tick(t){
+          if (!fired.up && t >= UPSURGE.at){ fired.up = true; sfx.boom(); healerHit(UPSURGE.dmg); }
+          hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.blip(220, .1); healerHit(h.dmg); } });
+          aa.forEach(a => {
+            if (a.done || t < a.t) return;
+            a.done = true; sfx.boom();
+            if (role === 'T'){
+              if (a.solo){
+                const holy = holyOf(a.solo); // ホーリー役：スイッチしてヘイト1位になった方
+                if (me === holy){ if (!inK('T')) hurt('AAを受けていない'); else if (!hasInvuln()) hurt('無敵なしでAA'); }
+                else if (inK('T')) hurt('AAに入った（ホーリー役が1人で受ける）');
+              } else if (!inK('T')) hurt('AAの頭割りに入れていない');
+            } else {
+              if (!inK(role)) hurt('AAの頭割りに入れていない');
+              else if (['T', 'H', 'D'].some(k => k !== role && inK(k))) hurt('別のAAに入った');
+              healerHit(a.dmg);
+            }
+          });
+          if (!fired.ent && t >= ENTROPY.at){
+            fired.ent = true; sfx.boom(); entX = S.player.x; entZ = S.player.z;
+            const near = Object.entries(ORCH.SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
+            if (near) hurt('終末の渦が重なった');
+            healerHit(ENTROPY.dmg);
+          }
+          segs.forEach(s => {
+            if (t < s.at || s.done) return;
+            if (!s.begun){ s.begun = true; if (s.id === 'orch'){ A.provoke = A.shirk = null; } }
+            s.inst.tick(Math.min(t, s.end) - s.at);
+            if (t > s.end) s.done = true;
+          });
+        },
+        safeActive(t){ const s = seg(t); return s ? !!s.inst.safeActive?.(t - s.at) : true; },
+        safe(x, z, t){
+          const s = seg(t);
+          if (s) return s.inst.safe(x, z, t - s.at);
+          const g = spot(t); return Math.hypot(x - g.x, z - g.z) <= (spreadAt(t) || stayOut(t) ? 2 : AA_R[role] - .5);
+        },
+        guide(t){
+          const s = seg(t);
+          // 終末の渦の詠唱が始まったら、エクサを避けながら向かう散開位置も出しておく
+          if (s && t >= ENTROPY.cast && t < ENTROPY.at){ const q = ORCH.SPREAD[me]; ring(px(q.x), px(q.z), Math.round(2 * PPY), '#ff9a3a'); }
+          if (s) return s.inst.guide?.(t - s.at);
+          const g = spot(t); ring(px(g.x), px(g.z), Math.round(2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white);
+        },
+        drawFloor(t){ const s = seg(t); s?.inst.drawFloor?.(t - s.at); },
+        draw(t){
+          const s = seg(t); s?.inst.draw(t - s.at);
+          const blink = (Math.floor(performance.now() / 160) & 1) === 0;
+          // AA：着弾の3秒前から、A・4・3 に頭割りの輪と残り秒数
+          aa.forEach(a => {
+            const dt = a.t - t;
+            if (dt > 0 && dt <= AA_WARN){
+              ['T', 'H', 'D'].forEach(k => {
+                const q = HOME[k], R = Math.round(AA_R[k] * PPY);
+                alpha(.25, () => disc(px(q.x), px(q.z), R, AA_COL[k]));
+                thickRing(px(q.x), px(q.z), R, blink ? AA_COL[k] : P.white, 2);
+                glyph(String(Math.ceil(dt)), px(q.x), px(q.z) - R - 6, P.white);
+              });
+            } else if (dt <= 0 && dt > -.5){
+              ['T', 'H', 'D'].forEach(k => { const q = HOME[k]; alpha(.6 * (1 + dt / .5), () => disc(px(q.x), px(q.z), Math.round(AA_R[k] * PPY), AA_COL[k])); });
+            }
+          });
+          // 終末の渦：詠唱中は自分のまわりに散開の輪
+          if (t >= ENTROPY.cast && t < ENTROPY.at) ring(px(S.player.x), px(S.player.z), Math.round(ENTROPY.r * PPY), blink ? '#ff9a3a' : P.white);
+          const de = t - ENTROPY.at;
+          if (de >= 0 && de < .5) alpha(.6 * (1 - de / .5), () => disc(px(entX), px(entZ), Math.round(ENTROPY.r * PPY), '#ff9a3a'));
+        },
+      };
+    }
+  };
+})();
+// メニューに出すギミック（隠しステージは解放後だけ）
+const unlocked = () => store.get('p5', false);
+const menuMechs = () => unlocked() ? [...MECHS, RUN] : MECHS;
+const mech = () => [...MECHS, RUN].find(m => m.id === opt.mech) || EXA;
 
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
@@ -1425,7 +1587,8 @@ function drawPlayer(){
 }
 
 function draw(){
-  PPY = (W / 2) / mech().view;
+  const v = S.inst?.view ?? mech().view;
+  PPY = (W / 2) / (typeof v === 'function' ? v(S.t) : v);
   drawField();
   if (opt.spots && S.inst) S.inst.guide?.(S.t);
   drawBoss();
@@ -1436,7 +1599,7 @@ function draw(){
 
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
-            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
+            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{} };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
 const held = { a:false, b:false, x:false, y:false };
 // ===== ヒーラーのときだけ：自分のHP =====
@@ -1490,13 +1653,15 @@ function hpDraw(){
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false });
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{} });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
 const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
+// ボスがターゲット不可の間（P5 通しの開幕）は攻撃できない
+const canHit = () => S.inst?.targetable?.(S.t) ?? true;
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 
@@ -1536,7 +1701,7 @@ function pressKey(k){
   }
   if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
   if (A.cast){ A.q[k] = true; return; } // 詠唱中に押したら、詠唱が終わってから発動
-  if (ab.pot && !inRange()){ fail(); return; }
+  if (ab.pot && (!inRange() || !canHit())){ fail(); return; }
   A.cds[k] = S.t + ab.cd;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
   else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
@@ -1567,8 +1732,15 @@ function finishGcd(ab){
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
   else dealDamage(ab.pot, ab.name);
 }
+// タンク：P5 通しではオーケストラの前後で B・X・Y の技が入れ替わる。リキャストは技ごとに覚えておく
+function kitSwap(j){
+  if (A.kit === j) return;
+  if (A.kit) ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? 0; A.q[k] = false; });
+  A.kit = j; A.combo = 0;
+}
 function actTick(dt){
   const j = job(), a = j.a;
+  kitSwap(j);
   KEYS.forEach(k => {
     const ab = j[k];
     if (held[k] && !A.cast){
@@ -1589,11 +1761,11 @@ function actTick(dt){
   if (A.queued){
     const k = A.queued; A.queued = null;
     if (j[k].gcd && S.t < A.cds[k]) return;
-    if (!inRange()){ fail(); return; }
+    if (!inRange() || (!canHit() && !j[k].buff)){ fail(); return; }
     runGcd(k);
     return;
   }
-  if (S.t <= S.inst.end) A.loss += dt; // 撃てるのに撃っていない時間
+  if (S.t <= S.inst.end && canHit()) A.loss += dt; // 撃てるのに撃っていない時間
 }
 function drawActFx(){
   const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
@@ -1750,7 +1922,7 @@ function openMenu(){
   bgm.stop(); if (!titleOn) menuBgm.start();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null; applyTitle();
   HP.on = false; $('hp').hidden = true;
-  S.cursor = Math.max(0, MECHS.indexOf(mech()));
+  S.cursor = Math.max(0, menuMechs().indexOf(mech()));
   renderMenu(); $('menu').hidden = titleOn; lastMsg = ''; setMsg('');
 }
 // メニュー：ジョブの行（SELECT／左右で切り替え）＋ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
@@ -1790,11 +1962,12 @@ function renderMenu(){
   }
   head.textContent = `ギミック選択（${job().name}）`;
   note.textContent = 'A／STARTで開始　Y／iで解説';
-  $('menuList').innerHTML = MECHS.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('')
-    + `<button type="button" data-i="${MECHS.length}" class="extra ${S.cursor === MECHS.length ? 'cur' : ''}"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>`;
+  const L = menuMechs();
+  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('')
+    + `<button type="button" data-i="${L.length}" class="extra ${S.cursor === L.length ? 'cur' : ''}"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>`;
 }
-function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? MECHS.length + 1 : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
-const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < MECHS.length ? MECHS[S.cursor].id : null;
+function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length + 1 : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
 function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
 // タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
 const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
@@ -1803,7 +1976,7 @@ function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
   if (S.menu === 'job'){
     opt.job = JOB_ORDER[i]; store.set('job', opt.job); applyTitle();
-    S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); renderMenu();
+    S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); renderMenu();
     return;
   }
   if (S.menu === 'slot'){
@@ -1812,10 +1985,11 @@ function menuConfirm(i = S.cursor){
     return;
   }
   if (S.menu === 'omake'){ window.open(i < OMAKE.length ? `https://www.youtube.com/watch?v=${OMAKE[i][0]}` : OMAKE_CHANNEL, '_blank', 'noopener'); return; }
-  if (S.menu === 'mech' && i === MECHS.length){ S.menu = 'omake'; S.cursor = 0; renderMenu(); return; }
+  const L = menuMechs();
+  if (S.menu === 'mech' && i === L.length){ S.menu = 'omake'; S.cursor = 0; renderMenu(); return; }
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
-  opt.mech = MECHS[i].id; store.set('mech', opt.mech); applyTitle();
-  if (MECHS[i].slots && job().slots.length > 1){
+  opt.mech = L[i].id; store.set('mech', opt.mech); applyTitle();
+  if (L[i].slots && job().slots.length > 1){
     S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu();
     return;
   }
@@ -1825,12 +1999,29 @@ function menuConfirm(i = S.cursor){
 function menuBack(){
   if (S.menu === 'job') return;
   if (S.menu === 'mech'){ openJobs(); sfx.unlock(); sfx.back(); return; }
-  if (S.menu === 'omake'){ S.menu = 'mech'; S.cursor = MECHS.length; renderMenu(); sfx.unlock(); sfx.back(); return; }
+  if (S.menu === 'omake'){ S.menu = 'mech'; S.cursor = menuMechs().length; renderMenu(); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
-  else { S.menu = 'mech'; S.cursor = Math.max(0, MECHS.indexOf(mech())); }
+  else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }
-function moveCursor(d, horiz = false){ if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
+// 隠しコマンド：ギミック選択で ↑↑↓↓←→←→BA → P5 通し（一度入れたらメニューに残る）
+const KONAMI = ['u', 'u', 'd', 'd', 'l', 'r', 'l', 'r', 'b', 'a'];
+let kbuf = [];
+function kin(tok){
+  if (titleOn || S.phase !== 'menu' || S.menu !== 'mech'){ kbuf = []; return false; }
+  kbuf.push(tok); if (kbuf.length > KONAMI.length) kbuf.shift();
+  if (tok === 'b' && kbuf.slice(-9).join() === KONAMI.slice(0, 9).join()) return true; // B で戻らない
+  if (tok === 'a' && kbuf.join() === KONAMI.join()){ kbuf = []; unlockRun(); return true; }
+  return false;
+}
+function unlockRun(){
+  store.set('p5', true); sfx.unlock(); sfx.clear();
+  S.cursor = menuMechs().indexOf(RUN); renderMenu();
+  const head = $('menu').querySelector('.head'); head.textContent = '隠しステージ解放！'; head.classList.add('blink');
+  setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') menuConfirm(menuMechs().indexOf(RUN)); }, 1200);
+}
+function moveCursor(d, horiz = false){
+  if (!horiz) kin(d < 0 ? 'u' : 'd'); if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
@@ -1860,7 +2051,7 @@ function buildResult(){
 }
 // ランク：目標DPSに対する割合。ヒーラーは被弾するギミックでは「回復・軽減の割合」と半々。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
-const fightDps = () => A.dmg / Math.max(1, S.endT ?? S.inst.end);
+const fightDps = () => { const end = S.endT ?? S.inst.end; return A.dmg / Math.max(1, S.inst.activeTime ? S.inst.activeTime(end) : end); };
 // 受けたダメージ（ほかの人の軽減込み）のうち、自分の軽減・バリア・回復で埋めた割合
 const healRatio = () => HP.taken ? Math.min(1, (HP.prevented + HP.absorbed + HP.healed) / HP.taken) : 1;
 function rankHtml(){
@@ -1901,6 +2092,7 @@ function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   // メニューはスティックの上下でも選べる
   if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.z) > .7 && now > stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); stickRepeat = now + 280; }
+  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else kin(stickVec.x > 0 ? 'r' : 'l'); stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;
@@ -1934,10 +2126,10 @@ window.addEventListener('keydown', e => {
   if (S.phase === 'menu'){
     if (k === 'w' || k === 'arrowup'){ moveCursor(-1); e.preventDefault(); return; }
     if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
-    if (k === 'j' || k === '1' || k === 'enter'){ menuConfirm(); e.preventDefault(); return; }
-    if (k === 'k' || k === '2' || k === 'escape'){ menuBack(); return; }
-    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); e.preventDefault(); return; }
-    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); e.preventDefault(); return; }
+    if (k === 'j' || k === '1' || k === 'enter'){ if (!kin('a')) menuConfirm(); e.preventDefault(); return; }
+    if (k === 'k' || k === '2' || k === 'escape'){ if (!kin('b')) menuBack(); return; }
+    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); else kin('l'); e.preventDefault(); return; }
+    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); else kin('r'); e.preventDefault(); return; }
     if (k === 'shift'){ selectJob(1); e.preventDefault(); return; }
     return;
   }
@@ -1999,7 +2191,7 @@ function holdButton(el, fn, onUp){
 }
 KEYS.forEach(k => holdButton(BTN[k], () => {
   if (k === 'y' && infoTarget()){ openInfo(infoTarget()); return; }
-  if (S.phase === 'menu'){ if (k === 'a') menuConfirm(); else if (k === 'b') menuBack(); return; }
+  if (S.phase === 'menu'){ if (k === 'a'){ if (!kin('a')) menuConfirm(); } else if (k === 'b'){ if (!kin('b')) menuBack(); } return; }
   held[k] = true; pressKey(k);
 }, () => { held[k] = false; }));
 $('btnStart').addEventListener('click', pressStart);
@@ -2132,9 +2324,33 @@ const INFO = {
     ],
     tip:'立ち位置ガイドON（設定）で、次に行く場所が黄色の番号で出る。',
   },
+  p5: {
+    flow:'ギミック選択で ↑↑↓↓←→←→BA で解放。どきどきアルテマからミッシング・ゼロの詠唱まで、約3分45秒を通しで遊ぶ。',
+    what:[
+      '練習用の5つのギミックが、実戦と同じ時刻で順番に来る。間には<b>連続アルテマ</b>（全体4連）、<b>魔撃（AA）</b>、<b>終末の渦</b>（散開）が入る。',
+      '流れ：どきどきアルテマ → （ターゲット不可 約30秒）→ 連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',
+      'AAはヘイト1位・ヒーラー1人・DPS1人への頭割り。被魔法ダメージ増加が付くので、<b>2つ受けると即死</b>。',
+    ],
+    why:'ギミック単体の練習と違って、ギミックの合間に「AAの位置へ戻る」動きが要る。オーケストラ直後のAAはタンクの受け方が変わる。',
+    steps:[
+      ['AAはロールごとに決まった場所で受ける：<b>タンク＝A（ボスの北）</b>、<b>ヒーラー＝4（南西）</b>、<b>DPS＝3（南東）</b>。着弾3秒前から輪と残り秒数が出る。', 'p5-1', 'AAの予兆。青＝タンク（A）、緑＝ヒーラー（4）、赤＝DPS（3）。自分（DPS）は赤の輪の中'],
+      ['フラッドの前、スリースターズの後、混沌の終末の前は、この位置で待つ（ガイドの白丸）。', null],
+      ['オーケストラの後の1発目のAAは、スイッチしてヘイト1位になったホーリー役が、ボス前で<b>無敵を残したまま1人で</b>受ける。フレア役は入らず、2発目から戻って2人で頭割り。ヒーラー・DPSは南から自分のAAの側へ。', null],
+      ['混沌の終末は6回目を避け切ってから、オーケストラの散開位置へ（終末の渦）。', null],
+      ['タンクはオーケストラの間とその後のAAまで、B・X・Y が挑発／シャーク・ランパート・無敵／重いバフに変わる。それ以外は攻撃のコンボ。', null],
+    ],
+    miss:[
+      ['AAの頭割りに入れていない', '自分のロールの輪（A・4・3）の中にいなかった。'],
+      ['別のAAに入った', 'ほかのロールの輪にも入っていた。2つ受けると即死。'],
+      ['無敵なしでAA／AAを受けていない', 'オーケストラ後のAA（ホーリー役）。ボス前で無敵が残っているうちに受ける。'],
+      ['AAに入った（ホーリー役が1人で受ける）', 'オーケストラ後のAAにフレア役も入ってしまった。'],
+      ['終末の渦が重なった', '散開位置がずれて、ほかの人の位置に近すぎた。'],
+    ],
+    tip:'ターゲット不可の間は攻撃できない（DPSはターゲット可能になってからの時間で計算）。ほかの失敗の意味は、各ギミックの解説を見てください。',
+  },
 };
 function openInfo(id){
-  const m = MECHS.find(q => q.id === id), d = INFO[id]; if (!m || !d) return;
+  const m = [...MECHS, RUN].find(q => q.id === id), d = INFO[id]; if (!m || !d) return;
   const fig = (img, cap) => img ? `<figure><img src="img/guide/${img}.png" alt="${cap}" loading="lazy"><figcaption>${cap}</figcaption></figure>` : '';
   $('infoBody').innerHTML =
     `<h2 id="infoTitle">${m.name}<small>${m.sub}</small></h2>` +
@@ -2158,7 +2374,7 @@ $('info').addEventListener('click', e => {
   if (b.dataset.act === 'close') return closeInfo();
   $('info').hidden = true;
   if (S.phase !== 'menu') openMenu();
-  S.menu = 'mech'; menuConfirm(MECHS.findIndex(q => q.id === b.dataset.id));
+  S.menu = 'mech'; menuConfirm(menuMechs().findIndex(q => q.id === b.dataset.id));
 });
 
 // ===== 設定シート =====

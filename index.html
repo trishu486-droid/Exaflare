@@ -196,22 +196,23 @@ const BUFFS = {
   soil:    { name:'野戦治療の陣', dur:18, mit:true, color:'#58e07a' },
   exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
 };
+// step：コンボの段（1→2→3の順に押すとフル威力、順番を外すと low の威力）
 const JOBS = {
   pld: { name:'ナイト', role:'tank', melee:true, slots:['MT','ST'],
-         a:{ combo:[['ファストブレード', 220], ['ライオットブレード', 330], ['ロイヤルアソリティ', 460]] },
+         a:{ name:'ロイヤルアソリティ', pot:460 },
          b:{ name:'インビンシブル', cd:420, buff:'invuln' },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          y:{ name:'シェルトロン', cd:15, buff:'sheltron' } },
   mnk: { name:'モンク', role:'melee', melee:true, slots:['D1','D2'],
-         a:{ combo:[['連撃', 220], ['正拳突き', 320], ['崩拳', 420]] },
-         b:{ name:'陰陽闘気斬', cd:10, pot:340 },
-         x:{ name:'紅蓮の極意', cd:60, buff:'riddle' },
-         y:{ name:'桃園結義', cd:120, buff:'bh' } },
+         a:{ name:'連撃', pot:220, step:1 },
+         b:{ name:'正拳突き', pot:320, step:2, low:150 },
+         y:{ name:'崩拳', pot:420, step:3, low:180 },
+         x:{ name:'陰陽闘気斬', cd:10, pot:340 } },
   mch: { name:'機工士', role:'ranged', melee:false, slots:['D3'],
-         a:{ combo:[['ヒートスプリットショット', 220], ['ヒートスラッグショット', 320], ['ヒートクリーンショット', 440]] },
-         b:{ name:'チェックメイト', cd:10, pot:170 },
-         x:{ name:'ドリル', cd:20, gcd:true, pot:600 },
-         y:{ name:'ワイルドファイア', cd:120, buff:'wf' } },
+         a:{ name:'ヒートスプリットショット', pot:220, step:1 },
+         b:{ name:'ヒートスラッグショット', pot:320, step:2, low:160 },
+         y:{ name:'ヒートクリーンショット', pot:440, step:3, low:180 },
+         x:{ name:'チェックメイト', cd:10, pot:170 } },
   blm: { name:'黒魔道士', role:'caster', melee:false, slots:['D4'],
          a:{ name:'ファイジャ', pot:320, cast:2.0 },
          b:{ name:'迅速魔', cd:40, instant:1 },
@@ -224,7 +225,9 @@ const JOBS = {
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };
 const JOB_ORDER = ['pld', 'mnk', 'mch', 'blm', 'sch'];
-const KEYS = ['b', 'x', 'y'];
+const KEYS = ['a', 'b', 'x', 'y'];
+// GCD を使うボタン（A・コンボの段・GCD技）か
+const isGcd = (j, k) => k === 'a' || !!j[k].step || !!j[k].gcd;
 const GCD = 2.5, QUEUE = 0.5, MELEE = 3, SLIDECAST = 0.5;
 
 // ===== 画面（内部 288px。1y あたりのピクセル数はギミックごとに変える） =====
@@ -791,7 +794,7 @@ const MISS = (() => {
 // 味方7人は正しく動く（着弾ギリギリまで動かない）。自分の担当はジョブで決まる（ナイト MT/ST、モンク D1/D2、機工士 D3、黒 D4、学者 H1/H2）
 // =====================================================================
 const ORCH = (() => {
-  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = 6;
+  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = 30; // 味方は着弾直前に駆け込む（答えが見えないように）
   const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // β：詠唱の長さと予兆のタイミングは推定
   // 散開位置（攻略図から読み取り）
   const SPREAD = {
@@ -831,12 +834,12 @@ const ORCH = (() => {
       };
       // 自分の目安（ガイド表示・安置表示）は着弾のたびに次へ
       const spotAt = (k, t) => phaseSpot(k, t < W1 ? 0 : t < W2 ? 1 : 2);
-      // 味方：着弾の0.35秒前に着くように、ギリギリで歩き出す
+      // 味方：着弾の0.15秒前に着くように、直前で駆け込む
       const DEADLINE = [W1, W2, FINAL];
       const botGoal = (b, t) => {
         const ph = t < W1 ? 0 : t < W2 ? 1 : 2;
         if (ph < 2){
-          const nx = phaseSpot(b.k, ph + 1), leave = DEADLINE[ph + 1] - dist(b, nx) / BOT_SPEED - .35;
+          const nx = phaseSpot(b.k, ph + 1), leave = DEADLINE[ph + 1] - dist(b, nx) / BOT_SPEED - .15;
           if (t >= Math.max(leave, DEADLINE[ph] + .05)) return nx;
         }
         return phaseSpot(b.k, ph);
@@ -968,7 +971,7 @@ function draw(){
   drawActFx(); drawPlayer(); drawCast(); drawHurtFlash();
 }
 
-// ===== アクション（A=GCD / B・X・Y=アビリティ・バフ） =====
+// ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
             gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
@@ -981,7 +984,6 @@ const hasBuff = id => (A.buffs[id] ?? -1) > S.t;
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
-const nextA = () => { const a = job().a; return a.combo ? a.combo[A.combo][0] : a.name; };
 
 const fxEl = $('fx');
 function popup(text, cls){
@@ -1005,16 +1007,13 @@ function fail(){ A.failT = performance.now(); sfx.no(); }
 
 // 先行入力：リキャスト残り0.5秒から受け付ける（カウントダウン終了直前も可）
 const active = () => S.phase === 'run' || S.phase === 'count';
-function pressA(){
-  sfx.unlock();
-  if (active() && !A.cast && S.t >= A.readyAt - QUEUE && A.queued !== 'x') A.queued = 'a';
-}
 function pressKey(k){
   sfx.unlock();
   if (!active()) return;
   const ab = job()[k];
-  if (ab.gcd){ // GCD技（ドリル・ゼノグロシー）：覚えておいて次のGCDで割り込む。コンボは切れない
-    if (S.t >= A.cds[k] - QUEUE) A.q[k] = true;
+  if (isGcd(job(), k)){
+    if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; } // GCD技：覚えておいて次のGCDで
+    if (!A.cast && S.t >= A.readyAt - QUEUE) A.queued = k;
     return;
   }
   if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
@@ -1025,13 +1024,30 @@ function pressKey(k){
   else if (ab.instant){ A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
   else dealDamage(ab.pot);
 }
+function runGcd(k){
+  const j = job(), ab = j[k];
+  A.readyAt = S.t + GCD; A.gcds++;
+  if (ab.gcd){ A.cds[k] = S.t + ab.cd; dealDamage(ab.pot); return; }
+  if (ab.step){ // コンボ：前の段に続けて押すとフル威力
+    const ok = ab.step === 1 || A.combo === ab.step - 1;
+    dealDamage(ok ? ab.pot : ab.low);
+    A.combo = ok && ab.step < 3 ? ab.step : 0;
+    return;
+  }
+  if (!ab.cast){ dealDamage(ab.pot); return; }
+  if (A.instant > 0){ A.instant--; dealDamage(ab.pot); return; }
+  A.cast = { start:S.t, end:S.t + ab.cast };
+}
 function actTick(dt){
   const j = job(), a = j.a;
-  if (held.a) pressA();
   KEYS.forEach(k => {
-    if (held[k] && !A.cast && S.t >= A.cds[k] - (j[k].gcd ? QUEUE : 0) && (!j[k].pot || j[k].gcd || inRange())) pressKey(k);
-    if (!A.q[k] || A.cast) return;
-    if (j[k].gcd){ if (S.t >= A.cds[k] - QUEUE && S.t >= A.readyAt - QUEUE){ A.q[k] = false; A.queued = k; } }
+    const ab = j[k];
+    if (held[k] && !A.cast){
+      if (isGcd(j, k)) { if (!ab.gcd || S.t >= A.cds[k] - QUEUE) pressKey(k); }
+      else if (S.t >= A.cds[k] && (!ab.pot || inRange())) pressKey(k);
+    }
+    if (k === 'a' || !A.q[k] || A.cast) return;
+    if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE && S.t >= A.readyAt - QUEUE){ A.q[k] = false; A.queued = k; } }
     else if (S.t >= A.cds[k]){ A.q[k] = false; pressKey(k); }
   });
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
@@ -1043,13 +1059,9 @@ function actTick(dt){
   if (S.t < A.readyAt) return;
   if (A.queued){
     const k = A.queued; A.queued = null;
-    if (k !== 'a' && S.t < A.cds[k]) return;
+    if (j[k].gcd && S.t < A.cds[k]) return;
     if (!inRange()){ fail(); return; }
-    A.readyAt = S.t + GCD; A.gcds++;
-    if (k !== 'a'){ A.cds[k] = S.t + j[k].cd; dealDamage(j[k].pot); return; }
-    if (a.combo){ dealDamage(a.combo[A.combo][1]); A.combo = (A.combo + 1) % a.combo.length; return; }
-    if (A.instant > 0){ A.instant--; dealDamage(a.pot); return; }
-    A.cast = { start:S.t, end:S.t + a.cast };
+    runGcd(k);
     return;
   }
   if (S.t <= S.inst.end) A.loss += dt; // 撃てるのに撃っていない時間
@@ -1085,11 +1097,17 @@ function setBtn(el, key, name, p, ready){
 }
 function drawButtons(){
   const run = S.phase === 'run', j = job();
-  const pa = run ? Math.max(0, Math.min(1, (A.readyAt - S.t) / GCD)) : 0;
-  setBtn(BTN.a, 'A', nextA(), pa, run && pa === 0 && !A.cast);
+  const gcdP = run ? Math.max(0, Math.min(1, (A.readyAt - S.t) / GCD)) : 0;
   KEYS.forEach(k => {
-    const ab = j[k], left = run ? Math.max(0, A.cds[k] - S.t) : 0;
-    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, left / ab.cd, run && left === 0);
+    const ab = j[k];
+    if (isGcd(j, k) && !ab.gcd){
+      // コンボは「次に押す段」だけ金枠
+      const next = !ab.step || ab.step === 1 ? A.combo === 0 || !ab.step : A.combo === ab.step - 1;
+      setBtn(BTN[k], k.toUpperCase(), ab.name, gcdP, run && gcdP === 0 && !A.cast && (!ab.step || next));
+      return;
+    }
+    const left = run ? Math.max(0, A.cds[k] - S.t) : 0;
+    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(left / ab.cd, ab.gcd ? gcdP : 0), run && left === 0);
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
   if (run) Object.keys(A.buffs).forEach(id => { if (hasBuff(id)) st.push({ buff:BUFFS[id], text:`${BUFFS[id].name} ${Math.ceil(A.buffs[id] - S.t)}` }); });
@@ -1173,8 +1191,9 @@ function buildResult(){
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
 function rankHtml(){
   const j = job(), end = S.inst.end, avg = 58 * 1.125; // クリ率25%・1.5倍の期待値
-  const aPot = j.a.combo ? j.a.combo.reduce((s, c) => s + c[1], 0) / j.a.combo.length : j.a.pot;
-  const max = (Math.floor(end / GCD) + 1) * aPot * avg + (j.b.pot ? (Math.floor(end / j.b.cd) + 1) * j.b.pot * avg : 0);
+  const steps = KEYS.filter(k => j[k].step), aPot = steps.length ? steps.reduce((s, k) => s + j[k].pot, 0) / steps.length : j.a.pot;
+  const og = KEYS.find(k => !isGcd(j, k) && j[k].pot);
+  const max = (Math.floor(end / GCD) + 1) * aPot * avg + (og ? (Math.floor(end / j[og].cd) + 1) * j[og].pot * avg : 0);
   const ratio = A.dmg / max;
   const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => ratio >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];
@@ -1247,7 +1266,7 @@ window.addEventListener('keydown', e => {
   if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
   if (e.repeat) return;
   const bk = { j:'a', 1:'a', k:'b', 2:'b', u:'x', 3:'x', i:'y', 4:'y' }[k];
-  if (bk){ held[bk] = true; bk === 'a' ? pressA() : pressKey(bk); e.preventDefault(); }
+  if (bk){ held[bk] = true; pressKey(bk); e.preventDefault(); }
   else if (k === 'enter'){ pressStart(); e.preventDefault(); }
   else if (k === 'shift') selectJob();
   else if (k === ' '){ toggleSafe(); e.preventDefault(); }
@@ -1301,9 +1320,10 @@ function holdButton(el, fn, onUp){
   ['pointerup','pointercancel','pointerleave'].forEach(t => el.addEventListener(t, () => { el.classList.remove('press'); onUp?.(); }));
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-holdButton(BTN.a, () => { if (S.phase === 'menu') menuConfirm(); else { held.a = true; pressA(); } }, () => { held.a = false; });
-holdButton(BTN.b, () => { if (S.phase === 'menu') menuBack(); else { held.b = true; pressKey('b'); } }, () => { held.b = false; });
-KEYS.slice(1).forEach(k => holdButton(BTN[k], () => { if (S.phase !== 'menu'){ held[k] = true; pressKey(k); } }, () => { held[k] = false; }));
+KEYS.forEach(k => holdButton(BTN[k], () => {
+  if (S.phase === 'menu'){ if (k === 'a') menuConfirm(); else if (k === 'b') menuBack(); return; }
+  held[k] = true; pressKey(k);
+}, () => { held[k] = false; }));
 $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bRetry').addEventListener('click', () => { if (S.phase !== 'menu') begin(true); });

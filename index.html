@@ -1187,7 +1187,7 @@ const ORCH = (() => {
       const bots = all.filter(k => k !== p.me).map(k => ({ k, ...SPREAD[k] }));
       const pos = k => k === p.me ? S.player : bots.find(b => b.k === k);
       const fired = { w1:false, w2:false, fin:false };
-      let w2targets = [], lastT = 0;
+      let w2targets = [], lastT = 0, lastTop = null, topChangedAt = 0;
       const fx = []; // { at, kind, x, z, r }
       const vuln = p.targets.includes(p.me);
       const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
@@ -1289,6 +1289,17 @@ const ORCH = (() => {
           });
           // 2回目で狙われた人
           if (t >= W2 && t < W2 + .6) w2targets.forEach(k => { const q = pos(k); ring(px(q.x), px(q.z), Math.round(HOLY_R * PPY), P.white); });
+          // ヘイト順位：タンクの頭上に 1（赤）／2（グレー）の札。1位が入れ替わった瞬間は札が跳ねる
+          const top = hateTop(t);
+          if (top !== lastTop){ lastTop = top; topChangedAt = performance.now(); }
+          const hop = Math.max(0, 1 - (performance.now() - topChangedAt) / 450);
+          ['MT', 'ST'].forEach(k => {
+            const q = pos(k), first = k === top, X = px(q.x), Y = px(q.z) - 19 - (first ? Math.round(Math.sin(hop * Math.PI) * 4) : 0);
+            const col = first ? '#e8283a' : '#6a6a78';
+            rect(X - 4, Y - 1, 9, 9, '#101018'); rect(X - 3, Y, 7, 7, col);
+            glyph(first ? '1' : '2', X, Y + 3, '#ffffff');
+            rect(X - 2, Y + 8, 5, 1, '#101018'); rect(X - 2, Y + 7, 5, 1, col); rect(X - 1, Y + 8, 3, 1, col); rect(X, Y + 9, 1, 1, col);
+          });
         },
       };
     }

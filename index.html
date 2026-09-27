@@ -53,6 +53,10 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
 .buff span{display:flex;align-items:center;gap:5px}
 .buff svg{width:1.35em;height:1.35em;flex:none;box-shadow:0 0 0 2px #000}
+.buff .bufrow{display:flex;gap:6px}
+.buff .bufrow i{display:flex;flex-direction:column;align-items:center;font-style:normal;gap:2px}
+.buff .bufrow svg{width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);border-radius:3px}
+.buff .bufrow b{font-weight:400;color:#fff;font-size:.95em;line-height:1}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
 .msg .big{font-size:clamp(26px,9vw,42px);line-height:1.1}
 .msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
@@ -1432,7 +1436,34 @@ function statusIcon({ color, icon }){
   r += '<rect x="5.5" y="5.5" width="2.5" height="2.5" fill="#000"/><rect x="6" y="6" width="1.5" height=".5" fill="#ff4d5e"/><rect x="6.5" y="6.5" width=".5" height="1" fill="#ff4d5e"/>';
   return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 }
-const buffIcon = c => `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${c}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
+// バフのアイコン（実機アイコンの色と形を参考にした 12×12 のドット絵）。文字→色：. は背景
+const BUFF_ART = {
+  rampart:{ bg:'#6a1a1a', pal:{ w:'#f2f2f2', g:'#a8a8b8', d:'#5a5a6a', r:'#c83030' }, px:[
+    '............','..gggggggg..','.gwwwwwwwwg.','.gwgggggdwg.','.gwgrrrrdwg.','.gwgrrrrdwg.','.gwgggggdwg.','.gwgggggdwg.','..gwgggdwg..','...gwgdwg...','....gwwg....','.....gg.....'] },
+  invuln:{ bg:'#1a3a8a', pal:{ y:'#ffd84a', o:'#c88a1a', w:'#fffbe0' }, px:[
+    'w....yy....w','.w..yyyy..w.','..yyyyyyyy..','.yyooyyooyy.','.yyowwwwoyy.','.yyyywwyyyy.','.yyyywwyyyy.','..yyywwyyy..','...yywwyy...','....yyyy....','.w...yy...w.','w..........w'] },
+  guardian:{ bg:'#123a6a', pal:{ w:'#e8f0ff', s:'#9ab0d0', b:'#3a7ad8', y:'#ffd84a' }, px:[
+    '............','.sssssssss..','.swwwwwwws..','.swbbbbbws..','.swbyyybws..','.swbbybbws..','.swbbybbws..','..swbbbws...','...swbws....','....sws.....','.....s......','............'] },
+  living:{ bg:'#2a0a14', pal:{ w:'#e8e0d8', k:'#000000', r:'#c8203a' }, px:[
+    'r..........r','...wwwwww...','..wwwwwwww..','.wwwwwwwwww.','.wwkkwwkkww.','.wwkkwwkkww.','.wwwwkkwwww.','..wwwwwwww..','...wkwkwk...','...wwwwww...','r..........r','............'] },
+  vigil:{ bg:'#1a0a2a', pal:{ p:'#9a5ae8', l:'#d0a8ff', k:'#2a1a3a' }, px:[
+    '............','..pppppppp..','.plllllllp..','.plkkkkklp..','.plkppkklp..','.plkkpkklp..','.plkkkkklp..','..plkkklp...','...plklp....','....plp.....','.....p......','............'] },
+  soil:{ bg:'#2a3a1a', pal:{ g:'#58e07a', d:'#2a8a3a', w:'#e8ffe0' }, px:[
+    '............','.....ww.....','....wwww....','.....ww.....','............','..dddddddd..','.dggggggggd.','dggwggggwggd','dgggggggggd.','.dggggggggd.','..dddddddd..','............'] },
+  exped:{ bg:'#123a5a', pal:{ c:'#9ae0ff', w:'#ffffff', b:'#3a9ad8' }, px:[
+    '............','..bbbbbb....','.b......b...','......ccb...','..cccccc....','.c..........','.c...wwwww..','..ccc.....w.','.....ccc..w.','........cc..','..wwwwww....','............'] },
+  cu:{ bg:'#0a2a4a', pal:{ c:'#5ad8ff', w:'#ffffff', y:'#ffd84a' }, px:[
+    '............','....cccc....','..cc....cc..','.c........c.','.c...y....c.','c...yyy....c','c..yyyyy...c','c...yyy....c','c....y.....c','cccccccccccc','............','............'] },
+  div:{ bg:'#1a1a4a', pal:{ y:'#ffd84a', w:'#fffbe0', o:'#e89a2a' }, px:[
+    '.....y......','.....y......','.y...y...y..','..y..y..y...','...ywwwy....','yyyywwwyyyy.','...ywwwy....','..y..y..y...','.y...y...y..','.....y......','.....o......','............'] },
+};
+const buffIcon = id => {
+  const a = BUFF_ART[id];
+  if (!a) return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${BUFFS[id]?.color || '#888'}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
+  let r = `<rect width="12" height="12" fill="${a.bg}"/>`;
+  a.px.forEach((row, j) => [...row].forEach((ch, i) => { if (a.pal[ch]) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${a.pal[ch]}"/>`; }));
+  return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+};
 function setBtn(el, key, name, p, ready, combo = false){
   el.style.setProperty('--p', p.toFixed(3));
   el.classList.toggle('ready', ready);
@@ -1457,10 +1488,10 @@ function drawButtons(){
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(left / ab.cd, ab.gcd ? gcdP : 0), run && left === 0);
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
-  if (run) Object.keys(A.buffs).forEach(id => { if (hasBuff(id)) st.push({ buff:BUFFS[id], text:`${BUFFS[id].name} ${Math.ceil(A.buffs[id] - S.t)}` }); });
+  const bufs = run ? Object.keys(A.buffs).filter(hasBuff).map(id => `<i title="${BUFFS[id].name}">${buffIcon(id)}<b>${Math.ceil(A.buffs[id] - S.t)}</b></i>`).join('') : '';
   if (run && A.instant) st.push(A.instant > 1 ? `三連魔 ×${A.instant}` : '迅速魔');
-  const html = st.filter(Boolean).map(s => typeof s === 'string' ? `<span>${s}</span>`
-    : s.buff ? `<span>${buffIcon(s.buff.color)}${s.text}</span>` : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
+  const html = (bufs ? `<div class="bufrow">${bufs}</div>` : '') + st.filter(Boolean).map(s => typeof s === 'string' ? `<span>${s}</span>`
+    : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
   if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }
 

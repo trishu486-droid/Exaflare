@@ -1438,14 +1438,22 @@ function statusIcon({ color, icon }){
 }
 // バフのアイコン（実機アイコンの色と形を参考にした 12×12 のドット絵）。文字→色：. は背景
 const BUFF_ART = {
-  rampart:{ bg:'#6a1a1a', pal:{ w:'#f2f2f2', g:'#a8a8b8', d:'#5a5a6a', r:'#c83030' }, px:[
-    '............','..gggggggg..','.gwwwwwwwwg.','.gwgggggdwg.','.gwgrrrrdwg.','.gwgrrrrdwg.','.gwgggggdwg.','.gwgggggdwg.','..gwgggdwg..','...gwgdwg...','....gwwg....','.....gg.....'] },
+  // ランパート：青いレンガの城壁＋右上に炎の空（実機アイコン寄せ）
+  rampart:{ bg:'#10183a', pal:{ o:'#ff8a2a', r:'#c83a1a', y:'#ffd84a', b:'#3a5ad8', l:'#7a9aff', d:'#1a2a7a', k:'#0a0f24' }, px:[
+    '.........oorrrrr','........oooorrrr','.......ooooyoorr','.......oooyyyoor',
+    '.bb.bb.obb.bb.oo','.bb.bb.obb.bb.oo','.bbbbbbbbbbbbbb.','.lbdbbbdbbbdbbb.',
+    '.bbbdbbbbdbbbdb.','.lbdbyybdbbbdbb.','.bbbdyybbdbbbdb.','.lbdbbbdbbbdbbb.',
+    '.bbbdbbbbdbbbdb.','.lbdbbbdbbbdbbb.','.dddddddddddddd.','kkkkkkkkkkkkkkkk'] },
   invuln:{ bg:'#1a3a8a', pal:{ y:'#ffd84a', o:'#c88a1a', w:'#fffbe0' }, px:[
     'w....yy....w','.w..yyyy..w.','..yyyyyyyy..','.yyooyyooyy.','.yyowwwwoyy.','.yyyywwyyyy.','.yyyywwyyyy.','..yyywwyyy..','...yywwyy...','....yyyy....','.w...yy...w.','w..........w'] },
   guardian:{ bg:'#123a6a', pal:{ w:'#e8f0ff', s:'#9ab0d0', b:'#3a7ad8', y:'#ffd84a' }, px:[
     '............','.sssssssss..','.swwwwwwws..','.swbbbbbws..','.swbyyybws..','.swbbybbws..','.swbbybbws..','..swbbbws...','...swbws....','....sws.....','.....s......','............'] },
-  living:{ bg:'#2a0a14', pal:{ w:'#e8e0d8', k:'#000000', r:'#c8203a' }, px:[
-    'r..........r','...wwwwww...','..wwwwwwww..','.wwwwwwwwww.','.wwkkwwkkww.','.wwkkwwkkww.','.wwwwkkwwww.','..wwwwwwww..','...wkwkwk...','...wwwwww...','r..........r','............'] },
+  // リビングデッド：赤い背景に傾いた砂時計（実機アイコン寄せ）
+  living:{ bg:'#b8201a', pal:{ d:'#6a0808', x:'#e8503a', g:'#ffd070', G:'#8a5a2a', w:'#ffffff', c:'#9ad0ff', s:'#f0c060' }, px:[
+    'dddddddddddddddd','dx.....GggggG.xd','d.x...GggggG...d','d.....wccccw..xd',
+    'd....wcccccw...d','dx...wcsssw....d','d.....wssw.....d','d.....wsw....x.d',
+    'd....wcw.......d','d...wccw....x..d','d..wcsscw......d','d..wssssw...x..d',
+    'd.wsssssw......d','d.GggggG....x..d','dGggggG.....x..d','dddddddddddddddd'] },
   vigil:{ bg:'#1a0a2a', pal:{ p:'#9a5ae8', l:'#d0a8ff', k:'#2a1a3a' }, px:[
     '............','..pppppppp..','.plllllllp..','.plkkkkklp..','.plkppkklp..','.plkkpkklp..','.plkkkkklp..','..plkkklp...','...plklp....','....plp.....','.....p......','............'] },
   soil:{ bg:'#2a3a1a', pal:{ g:'#58e07a', d:'#2a8a3a', w:'#e8ffe0' }, px:[
@@ -1460,9 +1468,10 @@ const BUFF_ART = {
 const buffIcon = id => {
   const a = BUFF_ART[id];
   if (!a) return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${BUFFS[id]?.color || '#888'}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
-  let r = `<rect width="12" height="12" fill="${a.bg}"/>`;
+  const n = a.px.length;
+  let r = `<rect width="${n}" height="${n}" fill="${a.bg}"/>`;
   a.px.forEach((row, j) => [...row].forEach((ch, i) => { if (a.pal[ch]) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${a.pal[ch]}"/>`; }));
-  return `<svg viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+  return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 };
 function setBtn(el, key, name, p, ready, combo = false){
   el.style.setProperty('--p', p.toFixed(3));

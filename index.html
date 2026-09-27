@@ -1623,7 +1623,7 @@ function buildResult(){
     `<div class="sub">${job().name}　${A.dmg.toLocaleString('en-US')} DMG</div>` +
     `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
     [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
-    `<div class="sub blink">START：次の問題　≡：ギミック選択</div>`;
+    `<div class="sub blink">START：リトライ　≡：ギミック選択</div>`;
 }
 // ランク：理論上の最大ダメージ（開幕から全GCD・アビリティを撃ち切った場合の期待値）に対する割合。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];

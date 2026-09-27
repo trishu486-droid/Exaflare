@@ -29,15 +29,15 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:15px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;align-items:flex-start;
+body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--px);padding-inline:16px;padding-block:12px 16px;display:flex;justify-content:center;align-items:flex-start;
   -webkit-user-select:none;user-select:none;overscroll-behavior:none}
 
 .gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
 .top{display:flex;align-items:center;gap:6px}
-.top h1{margin:0;font:400 14px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
+.top h1{margin:0;font:400 16px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
 .top h1 b{color:var(--ab);font-weight:400}
 .top h1 span{color:var(--gb-ink)}
-.mini{font:13px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
+.mini{font:16px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
 .screen{position:relative;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
@@ -47,18 +47,18 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .cast{position:absolute;left:12%;right:12%;bottom:11%;pointer-events:none}
 .cast .bar{height:clamp(8px,2.2vw,12px);border:3px solid #ff9f2a;background:#3a2a55;box-shadow:0 0 0 2px #000}
 .cast .fill{height:100%;width:0;background:#fff}
-.cast .name{text-align:right;font-size:clamp(16px,5vw,24px);line-height:1.2;margin-top:2px}
-.hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:clamp(11px,3.2vw,15px);font-variant-numeric:tabular-nums}
+.cast .name{text-align:right;font-size:16px;line-height:1.2;margin-top:2px}
+.hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:16px;font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
 /* ヒーラーのときだけ：自分のHP（右上） */
-.hp{position:absolute;right:8px;top:6px;width:34%;pointer-events:none;font-size:clamp(11px,3.2vw,14px);text-align:right;font-variant-numeric:tabular-nums}
+.hp{position:absolute;right:8px;top:6px;width:34%;pointer-events:none;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
 .hp .hpbar{position:relative;height:clamp(7px,2vw,10px);margin-top:2px;background:#3a1a2a;box-shadow:0 0 0 2px #000;overflow:hidden}
 .hp .hpfill{position:absolute;left:0;top:0;bottom:0;width:100%;background:#58e07a}
 .hp .hpshield{position:absolute;top:0;height:40%;left:0;width:0;background:#ffe070}
 .hp.low .hpfill{background:#ff4d5e}
 .dmg.hurtnum{color:#ff6a6a}
 .dmg.healnum{color:#8af0a0}
-.buff{position:absolute;left:8px;top:6px;font-size:clamp(11px,3.2vw,14px);color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
+.buff{position:absolute;left:8px;top:6px;font-size:16px;color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
 .buff span{display:flex;align-items:center;gap:5px}
 .buff svg{width:1.35em;height:1.35em;flex:none;box-shadow:0 0 0 2px #000}
 .buff .bufrow{display:flex;gap:6px}
@@ -66,27 +66,29 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .buff .bufrow svg{width:clamp(22px,6.5vw,28px);height:clamp(26px,7.6vw,33px);box-shadow:none;filter:drop-shadow(0 1px 0 #000)}
 .buff .bufrow b{font-weight:400;color:#8af0a0;font-size:.95em;line-height:1;text-shadow:0 0 3px #0a4a1a,1px 1px 0 #000}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
-.msg .big{font-size:clamp(26px,9vw,42px);line-height:1.1}
-.msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
+.msg .big{font-size:32px;line-height:1.1}
+.msg .sub{font-size:16px;line-height:1.25;color:var(--ink);margin-top:2px}
+/* リザルト：暗い枠の中に出して、フィールドと重ならないように */
+.msg .result{background:rgba(10,8,24,.9);border:3px solid var(--edge);box-shadow:0 0 0 2px #000;padding:10px 12px 12px;white-space:normal;width:min(300px,82vw);box-sizing:border-box}
 .msg .blink{animation:blink 1s steps(2,start) infinite}
 @keyframes blink{to{visibility:hidden}}
 /* タイトル（PRESS START）：最初の操作で音を鳴らせるようにする */
 .title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,4vw,22px);background:rgba(0,0,0,.82);cursor:pointer;text-align:center}
-.title .logo{font-size:clamp(28px,10vw,52px);line-height:1.1;color:var(--gold)}
+.title .logo{font-size:48px;line-height:1.1;color:var(--gold)}
 .title .logo small{display:block;font-size:.42em;color:var(--ink);letter-spacing:.2em;margin-top:6px}
-.title .push{font-size:clamp(15px,5vw,22px);color:var(--ink);animation:blink 1s steps(2,start) infinite}
+.title .push{font-size:16px;color:var(--ink);animation:blink 1s steps(2,start) infinite}
 /* ギミック選択メニュー */
 .menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
-.menu .head{font-size:clamp(18px,6vw,28px);color:var(--gold)}
-.menu .note{font-size:clamp(11px,3.2vw,13px);color:var(--dim)}
-.menu button{width:min(78%,360px);font:clamp(14px,4.4vw,19px)/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:8px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
+.menu .head{font-size:16px;color:var(--gold)}
+.menu .note{font-size:16px;color:var(--dim)}
+.menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
 .menu button.cur::before{content:"▶";margin-right:4px}
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.dmg{position:absolute;transform:translate(-50%,0);font-size:clamp(13px,4vw,18px);color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
-.dmg.crit{color:var(--gold);font-size:clamp(16px,5vw,23px)}
-.dmg.miss{color:#ff4d5e;font-size:clamp(15px,4.6vw,21px);text-align:center;line-height:1.1;animation-duration:1.4s}
+.dmg{position:absolute;transform:translate(-50%,0);font-size:16px;color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
+.dmg.crit{color:var(--gold);font-size:16px}
+.dmg.miss{color:#ff4d5e;font-size:16px;text-align:center;line-height:1.1;animation-duration:1.4s}
 .dmg.miss small{display:block;font-size:.72em;color:#fff}
 .dmg .act{display:block;font-size:.6em;color:#e8e0ff;text-align:center}
 @keyframes dmg{0%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-28px}}
@@ -1351,7 +1353,7 @@ const mech = () => MECHS.find(m => m.id === opt.mech) || EXA;
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
 function drawCast(){
-  const c = (S.phase === 'run' || S.phase === 'done') && S.inst ? S.inst.casts.find(c => S.t >= c.start && S.t < c.start + c.len && S.t <= S.inst.end) : null;
+  const c = S.phase === 'run' && S.inst ? S.inst.casts.find(c => S.t >= c.start && S.t < c.start + c.len && S.t <= S.inst.end) : null;
   castEl.hidden = !c;
   if (!c) return;
   if (castName.textContent !== c.name) castName.textContent = c.name;
@@ -1742,7 +1744,8 @@ function updateHud(){
   const on = S.inst && (S.phase === 'run' || S.phase === 'done');
   hSet.textContent = on ? S.inst.progress(S.t) : '';
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
-  hDmg.textContent = `DMG ${A.dmg.toLocaleString('en-US')}`;
+  hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
+  if (S.phase === 'menu') hHit.textContent = '';
   if (S.phase === 'menu') setMsg('');
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(-S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
   else if (S.phase === 'done') setMsg(S.resultHtml);
@@ -1750,14 +1753,14 @@ function updateHud(){
 }
 // リザルトは終了した瞬間の内容で固定する（後から SELECT でジョブを変えても変わらない）
 function buildResult(){
-  const ok = S.hits === 0;
-  return `<div class="big" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</div>` +
-    rankHtml() +
-    `<div class="sub">${job().name}　DPS ${Math.round(fightDps()).toLocaleString('en-US')}（目標 ${TARGET_DPS[opt.job].toLocaleString('en-US')}）</div>` +
+  const ok = S.hits === 0, n = v => Math.round(v).toLocaleString('en-US');
+  return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rankHtml()}</div>` +
+    `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
+    `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(TARGET_DPS[opt.job])}</span></div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
-    `<div class="sub">GCD ${A.gcds}回 ／ GCDロス ${A.loss.toFixed(1)}秒</div>` +
-    [...misses].map(([r, n]) => `<div class="sub" style="color:var(--red)">${r} ×${n}</div>`).join('') +
-    `<div class="sub blink">START：リトライ　≡：ギミック選択</div>`;
+    `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +
+    [...misses].map(([r, c]) => `<div class="sub" style="color:var(--red)">${r} ×${c}</div>`).join('') +
+    `<div class="sub blink" style="margin-top:6px">START：リトライ　≡：選択</div></div>`;
 }
 // ランク：目標DPSに対する割合。ヒーラーは被弾するギミックでは「回復・軽減の割合」と半々。被弾したら D
 const RANKS = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
@@ -1769,7 +1772,8 @@ function rankHtml(){
   const score = HP.on && HP.taken ? (dps + healRatio()) / 2 : dps;
   const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => score >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];
-  return `<div class="big" style="color:${color}">RANK ${name}</div><div class="sub">スコア ${Math.round(score * 100)}%</div>`;
+  S.score = score;
+  return `<span style="color:${color}">RANK ${name}</span>`;
 }
 function applyTitle(){
   $('mechName').textContent = mech().name;

@@ -55,8 +55,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .buff svg{width:1.35em;height:1.35em;flex:none;box-shadow:0 0 0 2px #000}
 .buff .bufrow{display:flex;gap:6px}
 .buff .bufrow i{display:flex;flex-direction:column;align-items:center;font-style:normal;gap:2px}
-.buff .bufrow svg{width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);border-radius:3px}
-.buff .bufrow b{font-weight:400;color:#fff;font-size:.95em;line-height:1}
+.buff .bufrow svg{width:clamp(22px,6.5vw,28px);height:clamp(26px,7.6vw,33px);box-shadow:none;filter:drop-shadow(0 1px 0 #000)}
+.buff .bufrow b{font-weight:400;color:#8af0a0;font-size:.95em;line-height:1;text-shadow:0 0 3px #0a4a1a,1px 1px 0 #000}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
 .msg .big{font-size:clamp(26px,9vw,42px);line-height:1.1}
 .msg .sub{font-size:clamp(11px,3.2vw,14px);color:var(--ink);margin-top:6px}
@@ -207,7 +207,7 @@ const BUFFS = {
   invuln:  { name:'インビンシブル', dur:10, mit:true, invuln:true, color:'#ffd84a' },
   rampart: { name:'ランパート', dur:20, mit:true, color:'#5ab0ff' },
   sheltron:{ name:'シェルトロン', dur:8, mit:true, color:'#8ad0ff' },
-  guardian:{ name:'ガーディアン', dur:15, mit:true, heavy:true, color:'#8ad0ff' },
+  guardian:{ name:'エクストリームガード', dur:15, mit:true, heavy:true, color:'#8ad0ff' },
   living:  { name:'リビングデッド', dur:10, mit:true, invuln:true, color:'#c05aff' },
   vigil:   { name:'シャドウヴィジル', dur:15, mit:true, heavy:true, color:'#b08aff' },
   riddle:  { name:'紅蓮の極意', dur:20, dmg:1.15, color:'#ff8a3a' },
@@ -227,7 +227,7 @@ const JOBS = {
                y:{ name:'ロイヤルアソリティ', pot:460, step:3, low:200 }, x:{ name:'エクスピアシオン', cd:30, pot:450 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'インビンシブル', cd:420, buff:'invuln' },
-         heavy:{ name:'ガーディアン', cd:120, buff:'guardian' } },
+         heavy:{ name:'エクストリームガード', cd:120, buff:'guardian' } },
   drk: { name:'暗黒騎士', role:'tank', melee:true, slots:['ST'],
          a:{ name:'ソウルイーター', pot:480 },
          atk:{ a:{ name:'ハードスラッシュ', pot:300, step:1 }, b:{ name:'サイフォンストライク', pot:380, step:2, low:160 },
@@ -936,7 +936,7 @@ const CELES = (() => {
         casts,
         progress: t => `SET ${Math.max(0, setAt(t) + 1)}/3`,
         status(t){
-          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => ({ icon:EL[d.el], text:`${EL[d.el].name}耐性低下 ${Math.ceil(d.until - t)}` }));
+          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => ({ art:['fireDown', 'thunderDown', 'iceDown'][d.el], name:`${EL[d.el].name}耐性低下`, sec:Math.ceil(d.until - t) }));
           if (p.debuff < 0 && t >= DEBUFF_AT && t < DEBUFF_AT + 3) on.unshift('デバフなし');
           return on;
         },
@@ -1198,7 +1198,7 @@ const ORCH = (() => {
         status(t){
           const s = [`担当 ${p.me}`];
           if (t >= W1 && vuln) s.push('被魔法ダメージ増加');
-          if (t >= W1 - .3 && t < FINAL && roleOf(p.me) === 'T') s.push(`${p.me === F ? 'フレア' : 'ホーリー'} ${Math.ceil(FINAL - t)}`);
+          if (t >= W1 - .3 && t < FINAL && roleOf(p.me) === 'T') s.push({ art:p.me === F ? 'flare' : 'holy', name:p.me === F ? 'フレア' : 'ホーリー', sec:Math.ceil(FINAL - t) });
           return s;
         },
         tick(t){
@@ -1436,42 +1436,69 @@ function statusIcon({ color, icon }){
   r += '<rect x="5.5" y="5.5" width="2.5" height="2.5" fill="#000"/><rect x="6" y="6" width="1.5" height=".5" fill="#ff4d5e"/><rect x="6.5" y="6.5" width=".5" height="1" fill="#ff4d5e"/>';
   return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 }
-// バフのアイコン（実機アイコンの色と形を参考にした 12×12 のドット絵）。文字→色：. は背景
+// ステータスアイコン（実機のアイコンの色と絵柄を参考にした 12×14 のドット絵）
+// バフは屋根付きの家形（shape:'house'）、耐性低下は上にプラスの付いた赤い盾（形ごと手描き）。文字→色、. は透明
+const HOUSE = (i, j) => j >= 3 || Math.abs(i - 5.5) <= 2.5 + j * 1.5; // 緩い屋根の家形
 const BUFF_ART = {
-  // ランパート：青いレンガの城壁＋右上に炎の空（実機アイコン寄せ）
-  rampart:{ bg:'#10183a', pal:{ o:'#ff8a2a', r:'#c83a1a', y:'#ffd84a', b:'#3a5ad8', l:'#7a9aff', d:'#1a2a7a', k:'#0a0f24' }, px:[
-    '.........oorrrrr','........oooorrrr','.......ooooyoorr','.......oooyyyoor',
-    '.bb.bb.obb.bb.oo','.bb.bb.obb.bb.oo','.bbbbbbbbbbbbbb.','.lbdbbbdbbbdbbb.',
-    '.bbbdbbbbdbbbdb.','.lbdbyybdbbbdbb.','.bbbdyybbdbbbdb.','.lbdbbbdbbbdbbb.',
-    '.bbbdbbbbdbbbdb.','.lbdbbbdbbbdbbb.','.dddddddddddddd.','kkkkkkkkkkkkkkkk'] },
-  invuln:{ bg:'#1a3a8a', pal:{ y:'#ffd84a', o:'#c88a1a', w:'#fffbe0' }, px:[
-    'w....yy....w','.w..yyyy..w.','..yyyyyyyy..','.yyooyyooyy.','.yyowwwwoyy.','.yyyywwyyyy.','.yyyywwyyyy.','..yyywwyyy..','...yywwyy...','....yyyy....','.w...yy...w.','w..........w'] },
-  guardian:{ bg:'#123a6a', pal:{ w:'#e8f0ff', s:'#9ab0d0', b:'#3a7ad8', y:'#ffd84a' }, px:[
-    '............','.sssssssss..','.swwwwwwws..','.swbbbbbws..','.swbyyybws..','.swbbybbws..','.swbbybbws..','..swbbbws...','...swbws....','....sws.....','.....s......','............'] },
-  // リビングデッド：赤い背景に傾いた砂時計（実機アイコン寄せ）
-  living:{ bg:'#b8201a', pal:{ d:'#6a0808', x:'#e8503a', g:'#ffd070', G:'#8a5a2a', w:'#ffffff', c:'#9ad0ff', s:'#f0c060' }, px:[
-    'dddddddddddddddd','dx.....GggggG.xd','d.x...GggggG...d','d.....wccccw..xd',
-    'd....wcccccw...d','dx...wcsssw....d','d.....wssw.....d','d.....wsw....x.d',
-    'd....wcw.......d','d...wccw....x..d','d..wcsscw......d','d..wssssw...x..d',
-    'd.wsssssw......d','d.GggggG....x..d','dGggggG.....x..d','dddddddddddddddd'] },
-  vigil:{ bg:'#1a0a2a', pal:{ p:'#9a5ae8', l:'#d0a8ff', k:'#2a1a3a' }, px:[
-    '............','..pppppppp..','.plllllllp..','.plkkkkklp..','.plkppkklp..','.plkkpkklp..','.plkkkkklp..','..plkkklp...','...plklp....','....plp.....','.....p......','............'] },
-  soil:{ bg:'#2a3a1a', pal:{ g:'#58e07a', d:'#2a8a3a', w:'#e8ffe0' }, px:[
-    '............','.....ww.....','....wwww....','.....ww.....','............','..dddddddd..','.dggggggggd.','dggwggggwggd','dgggggggggd.','.dggggggggd.','..dddddddd..','............'] },
-  exped:{ bg:'#123a5a', pal:{ c:'#9ae0ff', w:'#ffffff', b:'#3a9ad8' }, px:[
-    '............','..bbbbbb....','.b......b...','......ccb...','..cccccc....','.c..........','.c...wwwww..','..ccc.....w.','.....ccc..w.','........cc..','..wwwwww....','............'] },
-  cu:{ bg:'#0a2a4a', pal:{ c:'#5ad8ff', w:'#ffffff', y:'#ffd84a' }, px:[
-    '............','....cccc....','..cc....cc..','.c........c.','.c...y....c.','c...yyy....c','c..yyyyy...c','c...yyy....c','c....y.....c','cccccccccccc','............','............'] },
-  div:{ bg:'#1a1a4a', pal:{ y:'#ffd84a', w:'#fffbe0', o:'#e89a2a' }, px:[
-    '.....y......','.....y......','.y...y...y..','..y..y..y...','...ywwwy....','yyyywwwyyyy.','...ywwwy....','..y..y..y...','.y...y...y..','.....y......','.....o......','............'] },
+  rampart:{ shape:'house', pal:{ n:'#1a2250', o:'#ff9a3a', r:'#d84a2a', y:'#ffe070', b:'#3a5ad8', l:'#6a8aff', d:'#1a2a7a' }, px:[
+    'nnnnnnooorrr','nnnnnooyyorr','nnnnnoyyyoor','bnbbnbbnbbno','bbbbbbbbbbbb','bldbbbdbbbdb','bbbdbbbbdbbb',
+    'bldbbyydbbdb','bbbdbyybbdbb','bldbbbdbbbdb','bbbdbbbbdbbb','bldbbbdbbbdb','dddddddddddd','dddddddddddd'] },
+  invuln:{ shape:'house', pal:{ y:'#f0c860', w:'#fff4d0', p:'#e8a0a0', r:'#c04a4a', o:'#c8902a' }, px:[
+    'yyyywwwwyyyy','yyywwwwwwyyy','yywwwppwwwyy','ywwwpppwwwwy','ywwpprpwwwwy','ywwwprrpwwwy','ywwwwprpwwwy',
+    'yywwwprrpwwy','yyywwwprpwyy','yyyywwwprpyy','yyyyywwwpryy','yyyyyywwwpyy','oyyyyyyywwyy','ooyyyyyyyyyy'] },
+  guardian:{ shape:'house', pal:{ b:'#1a4aa8', s:'#8a9ab8', w:'#e8eef8', k:'#2a3040', l:'#5ab0ff' }, px:[
+    'bbbbbbbbbbbb','bbbbbsssbbbb','bbbbswwwsbbb','bbbbswkwsbbb','bbbbsswssbbb','bbbbbsssbbbb','bbbsssssssbb',
+    'bbsswwwwwssb','bbswwwwwwwsb','bbswwwwwwwsb','llbswwwwwsbl','lllbsssssbll','llllllllllll','llllllllllll'] },
+  living:{ shape:'house', pal:{ r:'#c8281e', x:'#ff6a4a', G:'#8a5a2a', g:'#e8b870', w:'#ffffff', c:'#9ad0ff', s:'#f0c060' }, px:[
+    'rrrrrrrrrrrr','rrrrrrrGgGrr','rxrrrrGgGwrr','rrrrrrwccwrr','rrxrrwcccwrr','rrrrrwcsswrr','rrrrrrwswrrr',
+    'rrrrrwswrrxr','rrrrwcswrrrr','rrrwcsscwrrr','rrwssssswrxr','rGgGgGwwrrrr','GgGgGrrrrxrr','rrrrrrrrrrrr'] },
+  vigil:{ shape:'house', pal:{ p:'#5a2a8a', m:'#e85ad8', c:'#5ad8ff', d:'#2a1040' }, px:[
+    'pppppppppppp','ppmppppppmpp','pcpmppppmpcp','pcpcpmmpcpcp','pcpcpccpcpcp','pcpcpccpcpcp','pcpcpccpcpcp',
+    'pcpcpccpcpcp','pcmcpccpcmcp','pcpcmccmcpcp','mmmmmmmmmmmm','pppppppppppp','dddddddddddd','dddddddddddd'] },
+  soil:{ shape:'house', pal:{ l:'#e8f070', G:'#8aa820', y:'#c8d840', g:'#6a8a10' }, px:[
+    'llllllllllll','lGllGllGllGl','GlGGlGGlGGlG','llllllllllll','llGllGllGllG','lGlGGlGGlGGl','llllllllllll',
+    'lGllGllGllGl','GlGGlGGlGGlG','yyyyyyyyyyyy','yyGyyGyyGyyG','yGyGGyGGyGGy','gggggggggggg','gggggggggggg'] },
+  exped:{ shape:'house', pal:{ t:'#2a8a8a', b:'#6a4a2a', w:'#bff4ff', c:'#5ad8e8' }, px:[
+    'tttttttttttt','ttttttbbtttt','ttttttbbtttt','tttbbbbbbttt','ttbttbbtbttt','tttttbbttbtt','ttttbbbbtttt',
+    'tttbbttbbttt','wwbbwwwwbbww','twbwttttwbwt','ttwwtttwwttt','cccccccccccc','tttttttttttt','tttttttttttt'] },
+  cu:{ shape:'house', pal:{ n:'#1a2a6a', l:'#8ad0ff', y:'#ffe070', b:'#3a6ad8' }, px:[
+    'nnnnnnnnnnnn','nnnnllllnnnn','nnnllnnllnnn','nnllnnnnllnn','nllnnnynnlln','nlnnyyyyynln','nlnnnyyynnln',
+    'nlnnyynyynln','nlnnnnnnnnln','llllllllllll','bbbbbbbbbbbb','bbbbbbbbbbbb','bbbbbbbbbbbb','bbbbbbbbbbbb'] },
+  div:{ shape:'house', pal:{ n:'#2a1a5a', y:'#ffd84a', w:'#fffbe0', p:'#5a3a9a' }, px:[
+    'nnnnnnnnnnnn','nnnnnynnnnnn','nnnnnynnnnnn','nnynnynnynnn','nnnywwwynnnn','yyyywwwyyyyn','nnnywwwynnnn',
+    'nnynnynnynnn','nnnnnynnnnnn','nnnnnynnnnnn','nnnnnnnnnnnn','pppppppppppp','pppppppppppp','pppppppppppp'] },
+  // オーケストラ：フレア（橙の炎）とホーリー（水色の光）
+  flare:{ shape:'house', pal:{ r:'#c83a1a', o:'#ff8a2a', y:'#ffe070', w:'#fffbe0' }, px:[
+    'rrrrrrrrrrrr','rrrrroorrrrr','rrrrooorrrrr','rrrooyoorrrr','rrooyyyoorrr','rrooyyyyoorr','rooyywwyyoor',
+    'rooywwwwyoor','rooywwwwyoor','rrooywwyoorr','rrrooyyoorrr','rrrrooorrrrr','oooooooooooo','rrrrrrrrrrrr'] },
+  holy:{ shape:'house', pal:{ b:'#3a7ac8', l:'#9ad8ff', w:'#ffffff' }, px:[
+    'bbbbbbbbbbbb','bbbbblbbbbbb','bbbbblbbbbbb','blbbblbbblbb','bblblwlblbbb','bbbwwwwwbbbb','llwwwwwwwllb',
+    'bbbwwwwwbbbb','bblblwlblbbb','blbbblbbblbb','bbbbblbbbbbb','llllllllllll','bbbbbbbbbbbb','bbbbbbbbbbbb'] },
+  // 耐性低下（上にプラスの付いた赤い盾）
+  fireDown:{ pal:{ k:'#3a1010', w:'#d8d8d8', R:'#d8402a', o:'#ffb07a' }, px:[
+    '....kwwk....','..kkkwwkkk..','.kwwwwwwwwk.','.kkkkwwkkkk.','kRRRRRRRRRRk','kRoRRoRRoRRk','kRRoRoRoRRRk',
+    'kRRRooooRRRk','kRRooooooRRk','kRRRooooRRRk','.kRRRooRRRk.','..kRRRRRRk..','...kkRRkk...','.....kk.....'] },
+  iceDown:{ pal:{ k:'#3a1010', w:'#e8e8e8', R:'#d8402a', s:'#ffffff' }, px:[
+    '....kwwk....','..kkkwwkkk..','.kwwwwwwwwk.','.kkkkwwkkkk.','kRRRRsRRRRRk','kRRsRsRsRRRk','kRRRsssRRRRk',
+    'kRsssssssRRk','kRRRsssRRRRk','kRRsRsRsRRRk','.kRRRsRRRRk.','..kRRRRRRk..','...kkRRkk...','.....kk.....'] },
+  thunderDown:{ pal:{ k:'#3a1010', w:'#d8d8d8', R:'#d8402a', p:'#ff9ad8' }, px:[
+    '....kwwk....','..kkkwwkkk..','.kwwwwwwwwk.','.kkkkwwkkkk.','kRRRRRRRRRRk','kRpRRpRRpRRk','kRRpRRpRRpRk',
+    'kRpRRpRRpRRk','kRRpRRpRRpRk','kRpRRpRRpRRk','.kRRpRRpRRk.','..kRRRRRRk..','...kkRRkk...','.....kk.....'] },
 };
 const buffIcon = id => {
   const a = BUFF_ART[id];
-  if (!a) return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${BUFFS[id]?.color || '#888'}"/><rect x="3" y="1" width="2" height="6" fill="#fff"/><rect x="1" y="3" width="6" height="2" fill="#fff"/></svg>`;
-  const n = a.px.length;
-  let r = `<rect width="${n}" height="${n}" fill="${a.bg}"/>`;
-  a.px.forEach((row, j) => [...row].forEach((ch, i) => { if (a.pal[ch]) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${a.pal[ch]}"/>`; }));
-  return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+  if (!a) return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${BUFFS[id]?.color || '#888'}"/></svg>`;
+  const W = 12, H = 14, inside = (i, j) => i >= 0 && j >= 0 && i < W && j < H && HOUSE(i, j);
+  let r = '';
+  a.px.forEach((row, j) => [...row].forEach((ch, i) => {
+    let c = a.pal[ch];
+    if (a.shape === 'house'){
+      if (!inside(i, j)) return;
+      if (!inside(i - 1, j) || !inside(i + 1, j) || !inside(i, j - 1) || !inside(i, j + 1)) c = '#101018'; // 黒い縁
+    }
+    if (c) r += `<rect x="${i}" y="${j}" width="1" height="1" fill="${c}"/>`;
+  }));
+  return `<svg viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 };
 function setBtn(el, key, name, p, ready, combo = false){
   el.style.setProperty('--p', p.toFixed(3));
@@ -1497,9 +1524,11 @@ function drawButtons(){
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(left / ab.cd, ab.gcd ? gcdP : 0), run && left === 0);
   });
   const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
-  const bufs = run ? Object.keys(A.buffs).filter(hasBuff).map(id => `<i title="${BUFFS[id].name}">${buffIcon(id)}<b>${Math.ceil(A.buffs[id] - S.t)}</b></i>`).join('') : '';
+  const icons = st.filter(x => x && x.art);
+  const bufs = icons.map(x => `<i title="${x.name}">${buffIcon(x.art)}<b>${x.sec}</b></i>`).join('')
+    + (run ? Object.keys(A.buffs).filter(hasBuff).map(id => `<i title="${BUFFS[id].name}">${buffIcon(id)}<b>${Math.ceil(A.buffs[id] - S.t)}</b></i>`).join('') : '');
   if (run && A.instant) st.push(A.instant > 1 ? `三連魔 ×${A.instant}` : '迅速魔');
-  const html = (bufs ? `<div class="bufrow">${bufs}</div>` : '') + st.filter(Boolean).map(s => typeof s === 'string' ? `<span>${s}</span>`
+  const html = (bufs ? `<div class="bufrow">${bufs}</div>` : '') + st.filter(x => x && !x.art).map(s => typeof s === 'string' ? `<span>${s}</span>`
     : `<span>${statusIcon(s.icon)}${s.text}</span>`).join('');
   if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
 }

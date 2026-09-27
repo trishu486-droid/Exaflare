@@ -76,6 +76,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .dmg.crit{color:var(--gold);font-size:clamp(16px,5vw,23px)}
 .dmg.miss{color:#ff4d5e;font-size:clamp(15px,4.6vw,21px);text-align:center;line-height:1.1;animation-duration:1.4s}
 .dmg.miss small{display:block;font-size:.72em;color:#fff}
+.dmg .act{display:block;font-size:.6em;color:#e8e0ff;text-align:center}
 @keyframes dmg{0%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-28px}}
 
 /* ===== 操作部 ===== */
@@ -978,7 +979,7 @@ const CELES = (() => {
 // =====================================================================
 const MISS = (() => {
   const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
-  const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65;
+  const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, STACK_AT = 5.12, STACK_R = 6; // 頭割りは穴より少し早く着弾
   // 方角（北から時計回りの角度）→ 格子の位置
   const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
   const cell = d => d === 'MID' ? [0, 0] : [Math.round(Math.sin(DIRS.indexOf(d) * Math.PI / 4)), Math.round(-Math.cos(DIRS.indexOf(d) * Math.PI / 4))];
@@ -1006,9 +1007,19 @@ const MISS = (() => {
         end: ROUND_AT[3] + VANISH + 2.5,
         casts: [{ name:'ミッシング', start:0, len:4.1 }, ...ROUND_AT.slice(1).map(at => ({ name:'ミッシング', start:at - 2.5, len:2.5 })), { name:'ミッシング・ゼロ', start:ROUND_AT[3] + VANISH + .5, len:26 }],
         progress: t => `ROUND ${rounds.filter(r => t >= r.at).length}/4`,
+        // 頭割りと、穴・オレンジの着弾までの残り時間
+        status(t){
+          const r = rounds.find(r => t >= r.at && t < r.at + VANISH);
+          if (!r) return [];
+          const out = [];
+          if (t < r.at + STACK_AT) out.push(`頭割り ${(r.at + STACK_AT - t).toFixed(1)}`);
+          out.push(`穴・オレンジ着弾 ${(r.at + VANISH - t).toFixed(1)}`);
+          return out;
+        },
         tick(t){
           const { x, z } = S.player;
           rounds.forEach(r => {
+            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.blip(180, .12); }
             if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：穴の予兆＋自分に一番近いマーカーにオレンジ
               r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08);
               const m = MARKS.reduce((b, q) => (q[0] - x) ** 2 + (q[1] - z) ** 2 < (b[0] - x) ** 2 + (b[1] - z) ** 2 ? q : b);
@@ -1058,7 +1069,26 @@ const MISS = (() => {
             else if (t - o.hitAt < .5) alpha(.6 * (1 - (t - o.hitAt) / .5), () => disc(X, Z, OR, P.exaHi));
           });
         },
-        draw(){},
+        // 頭割りマーカー（自分に付く）：4方向から内向きの矢印＋残り秒数。着弾で光る
+        draw(t){
+          const X = px(S.player.x), Z = px(S.player.z), blink = (Math.floor(performance.now() / 160) & 1) === 0;
+          rounds.forEach(r => {
+            if (t >= r.at && t < r.at + STACK_AT){
+              const c = blink ? P.exaHi : P.exa, d = 10;
+              [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dz]) => {
+                // 先がプレイヤーを向いた「く」の字（2px 太さ）
+                for (let i = 0; i < 6; i++){
+                  const bx = X + dx * (d + i), bz = Z + dz * (d + i);
+                  rect(bx - dz * i - 1, bz - dx * i - 1, 2, 2, c); rect(bx + dz * i - 1, bz + dx * i - 1, 2, 2, c);
+                }
+              });
+              glyph(String(Math.ceil(r.at + STACK_AT - t)), X, Z - 22, P.white);
+            }
+            if (r.stacked && t - (r.at + STACK_AT) < .5){
+              alpha(.6 * (1 - (t - r.at - STACK_AT) / .5), () => disc(px(r.stackX), px(r.stackZ), Math.round(STACK_R * PPY), P.exaHi));
+            }
+          });
+        },
       };
     }
   };
@@ -1278,21 +1308,22 @@ function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <=
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 
 const fxEl = $('fx');
-function popup(text, cls){
+function popup(text, cls, name){
   const el = document.createElement('div');
   el.className = 'dmg outline ' + (cls || '');
   el.textContent = text;
+  if (name){ const n = document.createElement('span'); n.className = 'act'; n.textContent = name; el.prepend(n); }
   el.style.left = (50 + (Math.random() * 16 - 8)) + '%';
   el.style.top = (37 + Math.random() * 4) + '%';
   fxEl.appendChild(el);
   setTimeout(() => el.remove(), 950);
 }
-function dealDamage(pot){
+function dealDamage(pot, name){
   const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);
   const crit = Math.random() < .25;
   const dmg = Math.round(pot * 58 * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
   A.dmg += dmg; A.bossFlash = performance.now();
-  popup(dmg.toLocaleString('en-US') + (crit ? '!' : ''), crit ? 'crit' : '');
+  popup(dmg.toLocaleString('en-US') + (crit ? '!' : ''), crit ? 'crit' : '', name);
   crit ? sfx.crit() : sfx.hit();
 }
 function fail(){ A.failT = performance.now(); sfx.no(); }
@@ -1315,20 +1346,20 @@ function pressKey(k){
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); }
   else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
   else if (ab.instant){ A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
-  else dealDamage(ab.pot);
+  else dealDamage(ab.pot, ab.name);
 }
 function runGcd(k){
   const j = job(), ab = j[k];
   A.readyAt = S.t + GCD; A.gcds++;
-  if (ab.gcd){ A.cds[k] = S.t + ab.cd; dealDamage(ab.pot); return; }
+  if (ab.gcd){ A.cds[k] = S.t + ab.cd; dealDamage(ab.pot, ab.name); return; }
   if (ab.step){ // コンボ：前の段に続けて押すとフル威力
     const ok = ab.step === 1 || A.combo === ab.step - 1;
-    dealDamage(ok ? ab.pot : ab.low);
+    dealDamage(ok ? ab.pot : ab.low, ab.name);
     A.combo = ok && ab.step < 3 ? ab.step : 0;
     return;
   }
-  if (!ab.cast){ dealDamage(ab.pot); return; }
-  if (A.instant > 0){ A.instant--; dealDamage(ab.pot); return; }
+  if (!ab.cast){ dealDamage(ab.pot, ab.name); return; }
+  if (A.instant > 0){ A.instant--; dealDamage(ab.pot, ab.name); return; }
   A.cast = { start:S.t, end:S.t + ab.cast };
 }
 function actTick(dt){
@@ -1346,7 +1377,7 @@ function actTick(dt){
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
     if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
-    else if (S.t >= A.cast.end){ A.cast = null; dealDamage(a.pot); }
+    else if (S.t >= A.cast.end){ A.cast = null; dealDamage(a.pot, a.name); }
     return;
   }
   if (S.t < A.readyAt) return;

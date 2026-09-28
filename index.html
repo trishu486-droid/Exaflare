@@ -143,7 +143,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .pill:active{transform:translateY(1px)}
 .help{margin:0;text-align:center;color:var(--gb-dim);font-size:12px;line-height:1.9}
 .help kbd{font:12px var(--px);color:#e8e6f0;border:2px solid #1e1d24;padding:0 4px;background:var(--gb-dark)}
-.touch .help{display:none}
+.touch .help,.touch .pconly{display:none!important}
 
 /* ===== 設定 ===== */
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
@@ -154,6 +154,10 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .opt select,.opt input[type=range]{font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:3px 4px;accent-color:var(--gold);max-width:60%}
 .opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold)}
 .panel .note{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
+.keyopt{padding:2px 0}
+.keyopt>span:last-child{display:flex;gap:6px}
+.kbtn{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:64px;height:30px;cursor:pointer}
+.kbtn.wait{border-color:var(--gold);color:var(--gold)}
 .close{font:14px var(--px);color:var(--gold);background:var(--btn);border:3px solid var(--gold);height:44px;cursor:pointer}
 /* ===== 解説（i） ===== */
 .menu button .i{flex:none;align-self:center;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font:16px/1 var(--px);color:#101018;background:var(--gold);border:2px solid #000;margin-left:auto}
@@ -224,7 +228,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="ssw"><button class="pill" id="btnStart" type="button" aria-label="START：開始"></button><span>START</span></div>
   </div>
 
-  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>U</kbd> X　<kbd>I</kbd> Y　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安地表示　<kbd>Esc</kbd> ギミック選択</p>
+  <p class="help" id="keyHelp"></p>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -247,6 +251,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <select id="oDebuff"><option value="rand">ランダム</option><option value="0">ファイア</option><option value="1">サンダー</option><option value="2">ブリザド</option><option value="-1">なし</option></select></label>
     <label class="opt"><span>2本ある属性（デバフ持ち）</span>
       <select id="oDouble"><option value="first">時計回りで手前</option><option value="second">時計回りで奥</option></select></label>
+    <div class="pconly" style="display:contents">
+    <h3>キー割り当て（PC）</h3>
+    <p class="note">ボタンを押してから、使いたいキーを押す。BS／Delで空にする。1つの操作に2キーまで。</p>
+    <div id="keyOpts"></div>
+    <button class="close" id="keyReset" type="button" style="height:36px;font-size:13px">キー割り当てを初期設定に戻す</button>
+    </div>
     <p class="note">座標とタイミングは cactbot・Splatoon・AnoMech のゲームデータから算出。ミッシングはヤーン速報の脳死法（2の内側から時計回り）で練習する想定です。</p>
     <p class="note">非公式のファンメイド練習ツールです（非営利）。株式会社スクウェア・エニックスとは関係ありません。FINAL FANTASY XIV © SQUARE ENIX。BGMはオリジナル曲です。</p>
     <button class="close" id="bClose" type="button">とじる</button>
@@ -2148,42 +2158,85 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
-// ===== 入力：キーボード =====
-const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
+// ===== 入力：キーボード（キー割り当ては設定で変えられる。1つの操作に2キーまで） =====
+const KEY_ACTS = [['up', '上'], ['down', '下'], ['left', '左'], ['right', '右'], ['a', 'A'], ['b', 'B'], ['x', 'X'], ['y', 'Y'],
+  ['start', 'START'], ['select', 'SELECT'], ['safe', '安地表示'], ['menu', 'ギミック選択へ']];
+const KEY_DEFAULT = { up:['w', 'arrowup'], down:['s', 'arrowdown'], left:['a', 'arrowleft'], right:['d', 'arrowright'],
+  a:['j', '1'], b:['k', '2'], x:['u', '3'], y:['i', '4'], start:['enter'], select:['shift'], safe:[' '], menu:['escape'] };
+let keyBind = (() => { const v = store.get('keys', null); return v && typeof v === 'object' ? { ...KEY_DEFAULT, ...v } : { ...KEY_DEFAULT }; })();
+let keyOf = {};
+function rebuildKeys(){
+  keyOf = {};
+  Object.entries(keyBind).forEach(([act, ks]) => ks.forEach(k => { if (k && !keyOf[k]) keyOf[k] = act; }));
+  renderHelp();
+}
+const keyLabel = k => ({ ' ':'Space', arrowup:'↑', arrowdown:'↓', arrowleft:'←', arrowright:'→', escape:'Esc', enter:'Enter', shift:'Shift', control:'Ctrl', alt:'Alt', tab:'Tab', backspace:'BS' })[k] || (k.length === 1 ? k.toUpperCase() : k);
+const keysText = act => keyBind[act].filter(Boolean).map(keyLabel).join('/') || '－';
+function renderHelp(){
+  const kb = act => `<kbd>${keysText(act)}</kbd>`;
+  $('keyHelp').innerHTML = `${kb('up')} ${kb('left')} ${kb('down')} ${kb('right')} 移動　${kb('a')} A　${kb('b')} B　${kb('x')} X　${kb('y')} Y<br>${kb('start')} START　${kb('select')} SELECT　${kb('safe')} 安地表示　${kb('menu')} ギミック選択`;
+}
+const MOVE = { up:'w', down:'s', left:'a', right:'d' };
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSafe(); }
 function syncSafe(){ $('oSafe').checked = opt.safe; }
 function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
 window.addEventListener('keydown', e => {
-  if (!$('sheet').hidden) { if (e.key === 'Escape') closeSheet(); return; }
-  const k = e.key.toLowerCase();
-  if (!$('info').hidden){ if (k === 'escape' || k === 'k' || k === '2' || k === 'i' || k === '4') closeInfo(); return; }
-  // Y（I キー）：メニューではカーソルのギミック、リザルトではいまのギミックの解説
-  if ((k === 'i' || k === '4') && !e.repeat && infoTarget()){ openInfo(infoTarget()); e.preventDefault(); return; }
+  if (!$('sheet').hidden) { if (keyWait) return; if (e.key === 'Escape') closeSheet(); return; }
+  const act = keyOf[e.key.toLowerCase()];
+  if (!$('info').hidden){ if (act === 'menu' || act === 'b' || act === 'y' || e.key === 'Escape') closeInfo(); return; }
+  // Y：メニューではカーソルのギミック、リザルトではいまのギミックの解説
+  if (act === 'y' && !e.repeat && infoTarget()){ openInfo(infoTarget()); e.preventDefault(); return; }
+  if (!act) return;
   if (S.phase === 'menu'){
-    if (k === 'w' || k === 'arrowup'){ moveCursor(-1); e.preventDefault(); return; }
-    if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
-    if (k === 'j' || k === '1' || k === 'enter'){ if (!kin('a')) menuConfirm(); e.preventDefault(); return; }
-    if (k === 'k' || k === '2' || k === 'escape'){ if (!kin('b')) menuBack(); return; }
-    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech'){ kin('l'); flipPage(); } e.preventDefault(); return; }
-    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech'){ kin('r'); flipPage(); } e.preventDefault(); return; }
-    if (k === 'shift'){ selectJob(1); e.preventDefault(); return; }
+    e.preventDefault();
+    if (act === 'up') moveCursor(-1);
+    else if (act === 'down') moveCursor(1);
+    else if (act === 'a' || act === 'start'){ if (!kin('a')) menuConfirm(); }
+    else if (act === 'b' || act === 'menu'){ if (!kin('b')) menuBack(); }
+    else if (act === 'left'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech'){ kin('l'); flipPage(); } }
+    else if (act === 'right'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech'){ kin('r'); flipPage(); } }
+    else if (act === 'select') selectJob(1);
     return;
   }
-  if (KEYMAP[k]){ keys.add(KEYMAP[k]); e.preventDefault(); return; }
+  e.preventDefault();
+  if (MOVE[act]){ keys.add(MOVE[act]); return; }
   if (e.repeat) return;
-  const bk = { j:'a', 1:'a', k:'b', 2:'b', u:'x', 3:'x', i:'y', 4:'y' }[k];
-  if (bk){ held[bk] = true; pressKey(bk); e.preventDefault(); }
-  else if (k === 'enter'){ pressStart(); e.preventDefault(); }
-  else if (k === 'shift') selectJob();
-  else if (k === ' '){ toggleSafe(); e.preventDefault(); }
-  else if (k === 'escape') openMenu();
+  if (KEYS.includes(act)){ held[act] = true; pressKey(act); }
+  else if (act === 'start') pressStart();
+  else if (act === 'select') selectJob();
+  else if (act === 'safe') toggleSafe();
+  else if (act === 'menu') openMenu();
 });
 window.addEventListener('keyup', e => {
-  const k = e.key.toLowerCase();
-  if (KEYMAP[k]) keys.delete(KEYMAP[k]);
-  const bk = { j:'a', 1:'a', k:'b', 2:'b', u:'x', 3:'x', i:'y', 4:'y' }[k];
-  if (bk) held[bk] = false;
+  const act = keyOf[e.key.toLowerCase()];
+  if (MOVE[act]) keys.delete(MOVE[act]);
+  if (KEYS.includes(act)) held[act] = false;
 });
+// 設定：キー割り当て。ボタンを押してから、割り当てたいキーを押す（同じキーがほかにあればそちらから外す）
+let keyWait = null;
+function renderKeyOpts(){
+  $('keyOpts').innerHTML = KEY_ACTS.map(([act, name]) => `<div class="opt keyopt"><span>${name}</span><span>` +
+    [0, 1].map(i => { const k = keyBind[act][i]; const w = keyWait && keyWait.act === act && keyWait.i === i;
+      return `<button type="button" class="kbtn${w ? ' wait' : ''}" data-act="${act}" data-i="${i}">${w ? '押して…' : k ? keyLabel(k) : '－'}</button>`; }).join('') + `</span></div>`).join('');
+}
+$('keyOpts').addEventListener('click', e => {
+  const b = e.target.closest('.kbtn'); if (!b) return;
+  keyWait = keyWait && keyWait.act === b.dataset.act && keyWait.i === +b.dataset.i ? null : { act:b.dataset.act, i:+b.dataset.i };
+  renderKeyOpts();
+});
+window.addEventListener('keydown', e => {
+  if (!keyWait) return;
+  e.preventDefault(); e.stopPropagation();
+  const k = e.key.toLowerCase(), { act, i } = keyWait;
+  if (k === 'backspace' || k === 'delete'){ keyBind[act] = [...keyBind[act]]; keyBind[act][i] = ''; } // BS／Del で空に
+  else {
+    Object.keys(keyBind).forEach(a => { keyBind[a] = keyBind[a].map(x => x === k ? '' : x); });
+    keyBind[act] = [...keyBind[act]]; keyBind[act][i] = k;
+  }
+  keyWait = null; store.set('keys', keyBind); rebuildKeys(); renderKeyOpts();
+}, true);
+$('keyReset').addEventListener('click', () => { keyBind = { ...KEY_DEFAULT }; keyWait = null; store.set('keys', null); rebuildKeys(); renderKeyOpts(); });
+rebuildKeys(); renderKeyOpts();
 window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; held.a = held.b = held.x = held.y = false; });
 
 // ===== 入力：タッチ・マウス（スティックとボタンは同時に操作できる） =====

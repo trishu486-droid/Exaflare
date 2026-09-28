@@ -468,14 +468,16 @@ const sfx = {
 function makePlayer(VOL, build){
   const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
-  const add = (s, ch, n, l) => song.push({ s, ch, n:n && N(n), l });
+  const add = (s, ch, n, l) => song.push({ s, ch, n:n && (typeof n === 'number' ? n : N(n)), l });
   const up8 = n => n.replace(/\d/, d => String(+d + 1));
   const dn8 = n => n.replace(/\d/, d => String(+d - 1));
   let cur = 0;
   const bar = (len, bpm, fn) => { const s0 = cur; for (let i = 0; i < len; i++) stepDur.push(60 / bpm / 4); cur += len; fn(s0); };
   const fill = (s0, from, to) => { for (let i = from; i < to; i++) add(s0 + i, 'tom', ['A2','G2','E2','D2'][(i - from) % 4]); };
 
-  const LOOP = build({ add, bar, up8, dn8, fill, pos:() => cur });
+  // 和音の中で、n より下にある一番近い音（ハモリ用。MIDI番号で返す）
+  const below = (n, chord) => { const m = N(n); let best = m - 12; chord.forEach(c => { let x = N(c); while (x >= m - 2) x -= 12; while (x + 12 < m - 2) x += 12; if (x > best) best = x; }); return best; };
+  const LOOP = build({ add, bar, up8, dn8, fill, below, pos:() => cur });
 
   const TOTAL = cur;
   const byStep = Array.from({ length:TOTAL }, () => []);
@@ -532,11 +534,11 @@ function makePlayer(VOL, build){
       g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.001, t + .25);
       o.connect(g).connect(master); o.start(t); o.stop(t + .26); return;
     }
-    if (kind === 'snare' || kind === 'crash'){
+    if (kind === 'snare' || kind === 'crash' || kind === 'hat'){
       const src = ac.createBufferSource(), fl = ac.createBiquadFilter(), gn = ac.createGain();
-      src.buffer = noise; fl.type = 'highpass'; fl.frequency.value = kind === 'snare' ? 1200 : 3500;
-      const len = kind === 'snare' ? .18 : .45;
-      gn.gain.setValueAtTime(kind === 'snare' ? .5 : .3, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
+      src.buffer = noise; fl.type = 'highpass'; fl.frequency.value = kind === 'snare' ? 1200 : kind === 'hat' ? 7500 : 3500;
+      const len = kind === 'snare' ? .18 : kind === 'hat' ? .035 : .45;
+      gn.gain.setValueAtTime(kind === 'snare' ? .5 : kind === 'hat' ? .14 : .3, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
       src.connect(fl).connect(gn).connect(master); src.start(t); src.stop(t + len + .01);
       if (kind === 'snare'){ // 芯（胴鳴り）
         o.type = 'triangle'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(140, t + .05);
@@ -576,7 +578,12 @@ function makePlayer(VOL, build){
       case 'lead':  voice(ac, t, 'square', f, dur * .97, .09, .01, master, .012); voice(ac, t, 'sawtooth', f * 1.003, dur * .95, .035, .01, master, .012); voice(ac, t, 'pulse', f * 2, dur * .9, .025, .01); break;
       case 'choir': voice(ac, t, 'triangle', f, dur, .06, .25); voice(ac, t, 'triangle', f * 1.006, dur, .04, .3); break;
       case 'toc':   voice(ac, t, 'pulse', f, dur * .9, .045, .003); voice(ac, t, 'pulse', f / 2, dur * .9, .02, .003); break;
-      case 'kick': case 'snare': case 'crash': hit(ac, t, e.ch); break;
+      case 'kick': case 'snare': case 'crash': case 'hat': hit(ac, t, e.ch); break;
+      // 追加のパート：速い分散和音・弦のトレモロ・ハモリ・高音のきらめき
+      case 'arp':   voice(ac, t, 'pulse', f, dur * .6, .022, .002); break;
+      case 'str':   voice(ac, t, 'sawtooth', f, dur, .014, .08, master, .006); voice(ac, t, 'triangle', f * 1.004, dur, .02, .1); break;
+      case 'harm':  voice(ac, t, 'square', f, dur * .95, .04, .01, master, .01); voice(ac, t, 'triangle', f / 2, dur * .95, .03, .01); break;
+      case 'spark': voice(ac, t, 'pulse', f, dur * .4, .016, .002); break;
       case 'tom':   hit(ac, t, 'tom', f); break;
       case 'timp':  hit(ac, t, 'timp', f); break;
       case 'bell':  hit(ac, t, 'bell', f); break;
@@ -617,10 +624,16 @@ function makePlayer(VOL, build){
 // ===== 戦闘BGM（オリジナル曲。ラスボス終盤風：テンポ130・7/8拍子の混在・聖歌風の急な減速） =====
 // 構成：イントロ(4/4×2) → A 7/8リフ(×4) → B 4/4旋律(×6) → C 聖歌風 BPM66(×2) → A に戻る（1周 約25秒）
 // 激しさ：歪んだパワーコードの刻み・重いキック・タムのフィル・コンプレッサーで音圧を上げる
-const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, pos }) => {
+// 厚み：ハイハット16分・速い分散和音・弦・合唱・旋律のハモリ・対旋律・鐘を重ねる
+const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, below, pos }) => {
   // --- イントロ（4/4、130）---
-  bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5'); });
-  bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'gtr', 'A1', 8); for (let i = 8; i < 16; i++){ add(s0 + i, 'snare'); add(s0 + i, 'kick'); } });
+  bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5');
+    ['D4','F4','A4'].forEach(n => add(s0, 'str', n, 16)); add(s0, 'choir', 'D5', 16); add(s0, 'choir', 'A4', 16);
+    for (let i = 0; i < 16; i++){ add(s0 + i, 'arp', ['D5','F5','A5','D6'][i % 4], 1); if (i >= 8) add(s0 + i, 'timp', 'D2'); } });
+  bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'gtr', 'A1', 8); for (let i = 8; i < 16; i++){ add(s0 + i, 'snare'); add(s0 + i, 'kick'); }
+    ['C#4','E4','A4'].forEach(n => add(s0, 'str', n, 16)); add(s0, 'choir', 'E5', 16); add(s0, 'choir', 'C#5', 16);
+    for (let i = 0; i < 16; i++){ add(s0 + i, 'arp', ['A5','E5','C#5','A4'][i % 4], 1); add(s0 + i, 'hat'); }
+    ['A5','G5','F5','E5','D5','C#5','E5','A5'].forEach((n, i) => add(s0 + 8 + i, 'spark', up8(n), 1)); });
 
   // --- A：7/8 のリフ（2+2+3 に刻む）---
   const LOOP = pos();
@@ -633,6 +646,11 @@ const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, pos }) => {
     groups.forEach((g, gi) => { c.forEach(n => add(s0 + g, 'stab', n, 2)); add(s0 + g, gi ? 'snare' : 'timp', gi ? undefined : r.replace(/\d/, '2')); });
     const riff = [c[0], c[2], c[1], c[2],  c[0], c[2], c[1], c[2],  c[0], c[1], c[2], up8(c[0]), c[2], c[1]];
     riff.forEach((n, i) => add(s0 + i, 'toc', n, 1));
+    // 追加：ハイハットの16分、2オクターブ上の速い分散和音、弦の持続音、裏で動く対旋律、合唱
+    for (let i = 0; i < 14; i++){ add(s0 + i, 'hat'); add(s0 + i, 'arp', up8([c[0], c[1], c[2], up8(c[0])][i % 4]), 1); }
+    c.forEach(n => add(s0, 'str', up8(n), 14));
+    [[0, up8(c[2]), 4], [4, up8(c[1]), 4], [8, up8(c[0]), 6]].forEach(([i, n, l]) => add(s0 + i, 'harm', n, l));
+    add(s0, 'choir', up8(c[0]), 14);
     if (b === 3) fill(s0, 10, 14);
   }));
 
@@ -655,7 +673,12 @@ const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, pos }) => {
     c.forEach(n => add(s0, 'organ', n, 16));
     [0, 6, 12].forEach(i => { c.forEach(n => add(s0 + i, 'stab', n, 2)); add(s0 + i, 'snare'); add(s0 + i, 'timp', r.replace(/\d/, '2')); });
     [c[0], c[2], c[1], c[2]].forEach((n, i) => { for (let k = 0; k < 4; k++) add(s0 + k * 4 + i, 'toc', n, 1); });
-    let s1 = s0; B_MEL[b].forEach(([n, l]) => { add(s1, 'lead', n, l); s1 += l; });
+    let s1 = s0; B_MEL[b].forEach(([n, l]) => { add(s1, 'lead', n, l); add(s1, 'harm', below(n, c), l); s1 += l; }); // 旋律の下で和音のハモリ
+    // 追加：ハイハット16分、裏打ちのスネア、速い分散和音、弦、合唱、小節頭の鐘
+    for (let i = 0; i < 16; i++){ add(s0 + i, 'hat'); add(s0 + i, 'arp', up8([c[0], c[1], c[2], c[1]][i % 4]), 1); if (i % 4 === 2) add(s0 + i, 'snare'); }
+    c.forEach(n => add(s0, 'str', n, 16)); add(s0, 'choir', c[0], 16); add(s0, 'choir', c[2], 16);
+    add(s0, 'bell', up8(up8(c[0])));
+    [12, 13, 14, 15].forEach((i, k) => add(s0 + i, 'spark', up8(up8(c[k % 3])), 1));
     if (b === 5) fill(s0, 12, 16);
   }));
 
@@ -667,7 +690,10 @@ const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, pos }) => {
     add(s0, 'pedal', dn8(c[0]), 16);
     add(s0, 'bell', up8(up8(c[0])));
     add(s0, 'timp', c[0].replace(/\d/, '2'));
-    let s1 = s0; C_MEL[b].forEach(([n, l]) => { add(s1, 'choir', n, l); add(s1, 'choir', up8(n), l); s1 += l; });
+    let s1 = s0; C_MEL[b].forEach(([n, l]) => { add(s1, 'choir', n, l); add(s1, 'choir', up8(n), l); add(s1, 'harm', below(n, c), l); s1 += l; });
+    // 追加：弦の持続とハープの分散和音（聖歌の下でゆっくり上り下り）
+    c.forEach(n => add(s0, 'str', up8(n), 16));
+    for (let i = 0; i < 16; i += 2) add(s0 + i, 'harp', up8([c[0], c[1], c[2], c[3], up8(c[0]), c[3], c[2], c[1]][i / 2]));
     if (b === 1) for (let i = 8; i < 16; i++){ add(s0 + i, 'timp', 'A1'); if (i >= 12) add(s0 + i, 'snare'); }
   }));
 

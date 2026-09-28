@@ -51,6 +51,9 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .cast .name{text-align:right;font-size:16px;line-height:1.2;margin-top:2px}
 .hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:16px;font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
+/* ボスのHP（P5 通しだけ）：画面の一番上に細いバー、残り%は下のHUDに */
+.bosshp{position:absolute;left:0;right:0;top:0;height:5px;background:#3a1a2a;box-shadow:0 1px 0 #000;pointer-events:none}
+.bosshp i{display:block;height:100%;background:#ff5a8a;transition:width .2s linear}
 /* ヒーラーのときだけ：自分のHP（右上） */
 .hp{position:absolute;right:8px;top:6px;width:34%;pointer-events:none;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
 .hp .hpbar{position:relative;height:clamp(7px,2vw,10px);margin-top:2px;background:#3a1a2a;box-shadow:0 0 0 2px #000;overflow:hidden}
@@ -192,6 +195,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
     <div class="hp outline" id="hp" hidden><span id="hpNum">HP 100</span><div class="hpbar"><div class="hpfill" id="hpFill"></div><div class="hpshield" id="hpShield"></div></div></div>
     <div class="enmity outline" id="enmity" hidden></div>
+    <div class="bosshp" id="bossHp" hidden><i id="bossFill"></i></div>
     <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
     <div class="msg outline" id="msg"></div>
     <div class="title outline" id="title">
@@ -341,7 +345,8 @@ function idealPps(j){
   KEYS.forEach(k => { const ab = j[k]; if (!ab.pot || ab.step || k === 'a') return; pps += ab.gcd ? (ab.pot - aPot) / ab.cd : ab.pot / ab.cd; });
   return pps;
 }
-const dmgPerPot = () => TARGET_DPS[opt.job] / (idealPps(job()) * CRIT_AVG);
+// タンクは攻撃アビリティ込みの構成で計算する（オーケストラ中にボタンが変わっても、1あたりのダメージは変えない）
+const dmgPerPot = () => { const j = JOBS[opt.job]; return TARGET_DPS[opt.job] / (idealPps(j.role === 'tank' ? { ...j, ...j.atk } : j) * CRIT_AVG); };
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
 const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true }; // ニュートラルセクト中に1回だけ
 const KEYS = ['a', 'b', 'x', 'y'];
@@ -1443,7 +1448,7 @@ const RUN = (() => {
   // [ギミック, 開始時刻, オーケストラの回, そのオーケストラのバフ・ヘイトが続く時刻]
   const SEGS = [['flood', 52.55], ['orch', 66.0, 1, 87.6], ['celes', 87.62], ['exa', 132.8], ['orch', 158.0, 2, 182.7], ['miss', 182.7]];
   const MK = id => MECHS.find(m => m.id === id);
-  const ZOOM = 3;
+  const ZOOM = 3, KILL_AT = .9;
   const roleOf = slot => slot[0] === 'M' || slot[0] === 'S' ? 'T' : slot[0];
   const fmt = t => { const s = Math.max(0, Math.floor(t)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
   return {
@@ -1486,6 +1491,8 @@ const RUN = (() => {
         },
         // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 3 カウントで始める
         t0:TARGETABLE,
+        // ボスのHP：そのジョブの目標DPSの9割を最後まで出し続けると、ちょうど削りきれる量（ジョブごとに硬さが変わる）
+        bossHp: TARGET_DPS[opt.job] * (segs[5].end - TARGETABLE) * KILL_AT,
         targetable: t => t >= TARGETABLE,
         activeTime: end => Math.max(1, end - TARGETABLE),
         tankRole(t){
@@ -1917,7 +1924,7 @@ function drawButtons(){
 function begin(){
   const m = mech();
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
-  S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
+  S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
   hpReset();
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
@@ -2052,7 +2059,10 @@ function updateHud(){
   const on = S.inst && (S.phase === 'run' || S.phase === 'done');
   hSet.textContent = on ? S.inst.progress(S.t) : '';
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
-  hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
+  const bossHp = S.phase !== 'menu' && S.inst?.bossHp;
+  $('bossHp').hidden = !bossHp;
+  if (bossHp){ const left = Math.max(0, 1 - A.dmg / bossHp); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `ケフカ ${(left * 100).toFixed(1)}%`; }
+  else hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') hHit.textContent = '';
   if (S.phase === 'menu') setMsg('');
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(S.t0 - S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
@@ -2064,6 +2074,7 @@ function buildResult(){
   const ok = S.hits === 0, n = v => Math.round(v).toLocaleString('en-US');
   return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rankHtml()}</div>` +
     `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
+    (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(Math.max(0, 1 - A.dmg / S.inst.bossHp) * 100).toFixed(1)}%`}</div>` : '') +
     `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(TARGET_DPS[opt.job])}</span></div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
     `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +
@@ -2126,7 +2137,11 @@ function frame(now){
       S.inst.tick(S.t);
       hpTick(dt);
       actTick(dt);
-      if (S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
+      // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）
+      const killed = S.inst.bossHp && A.dmg >= S.inst.bossHp;
+      if (killed) S.killed = true;
+      if (S.inst.bossHp && !killed && S.t > S.inst.end && S.failAt == null) hurt('時間切れ（削りきれなかった）', '');
+      if (killed || S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }
   draw(); updateHud(); drawButtons();
@@ -2353,6 +2368,7 @@ const INFO = {
       '練習用の5つのギミックが、実戦と同じ時刻で順番に来る。間には<b>連続アルテマ</b>（全体4連）、<b>魔撃（AA）</b>、<b>終末の渦</b>（散開）が入る。',
       '流れ：（開幕のどきどきアルテマとターゲット不可の時間は省略）連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',
       'AAはヘイト1位・ヒーラー1人・DPS1人への頭割り。被魔法ダメージ増加が付くので、<b>2つ受けると即死</b>。実機と同じく<b>予兆は出ない</b>ので、いつ来るかを覚えておく。',
+      'ケフカのHPは画面の一番上のバーと、下の「ケフカ ○%」。硬さはジョブごとで、<b>目標DPSの9割</b>を最後まで出し続けるとちょうど削りきれる。削りきれば撃破で終了、残ったまま最後まで行くと時間切れ（ミッシング・ゼロ）で失敗。',
     ],
     why:'ギミック単体の練習と違って、ギミックの合間に「AAの位置へ戻る」動きが要る。オーケストラ直後のAAはタンクの受け方が変わる。',
     steps:[
@@ -2368,6 +2384,7 @@ const INFO = {
       ['無敵なしでAA／AAを受けていない', 'オーケストラ後のAA（ホーリー役）。ボス前で無敵が残っているうちに受ける。'],
       ['AAに入った（ホーリー役が1人で受ける）', 'オーケストラ後のAAにフレア役も入ってしまった。'],
       ['終末の渦が重なった', '散開位置がずれて、ほかの人の位置に近すぎた。'],
+      ['時間切れ（削りきれなかった）', 'DPSが足りなかった。GCDを止めない（ロスを減らす）、アビリティを使い切る。'],
     ],
     tip:'ほかの失敗の意味は、各ギミックの解説を見てください。',
   },

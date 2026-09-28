@@ -91,6 +91,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 /* ギミック選択メニュー */
 .menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
 .menu .head{font-size:16px;color:var(--gold)}
+.menu .head .pg{display:inline-block;padding:0 6px;cursor:pointer;touch-action:manipulation}
 .menu .note{font-size:16px;color:var(--dim)}
 .menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
 .menu .omake{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;max-height:228px;overflow-y:auto;scrollbar-width:none}
@@ -1483,8 +1484,8 @@ const RUN = (() => {
           const k = Math.max(0, Math.min(1, (t - (exa.at - ZOOM)) / ZOOM, (exa.end + ZOOM - t) / ZOOM));
           return 24 + 12 * k * k * (3 - 2 * k);
         },
-        // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 5 カウントで始める
-        t0:TARGETABLE, countdown:5,
+        // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 3 カウントで始める
+        t0:TARGETABLE,
         targetable: t => t >= TARGETABLE,
         activeTime: end => Math.max(1, end - TARGETABLE),
         tankRole(t){
@@ -1966,11 +1967,13 @@ function renderMenu(){
     }).join('');
     return;
   }
-  head.textContent = `ギミック選択（${job().name}）`;
-  note.textContent = 'A／STARTで開始　Y／iで解説';
+  // 2ページ：1ページ目＝ギミック（＋解放後の P5 通し）、2ページ目＝おまけ。左右で切り替え
+  const pg = S.cursor >= menuMechs().length ? 1 : 0;
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のページ">◀</span> ギミック選択（${job().name}） ${pg + 1}/2 <span class="pg" data-pg="1" role="button" aria-label="次のページ">▶</span>`;
+  note.textContent = pg ? 'A／STARTで開く　←→でページ' : 'A／STARTで開始　Y／iで解説　←→でページ';
+
   const L = menuMechs();
-  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('')
-    + `<button type="button" data-i="${L.length}" class="extra ${S.cursor === L.length ? 'cur' : ''}"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>`;
+  $('menuList').innerHTML = pg ? `<button type="button" data-i="${L.length}" class="extra cur"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>` : L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
 function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length + 1 : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
@@ -2027,7 +2030,19 @@ function unlockRun(){
   setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') renderMenu(); }, 1200); // メニューに出すだけ（始めるのは自分で選んでから）
 }
 function moveCursor(d, horiz = false){
-  if (!horiz) kin(d < 0 ? 'u' : 'd'); if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
+  if (!horiz) kin(d < 0 ? 'u' : 'd');
+  if (S.menu === 'mech'){ // 今のページの中だけで上下
+    const n = menuMechs().length;
+    if (S.cursor < n) S.cursor = (S.cursor + d + n) % n;
+  }
+  else { if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); }
+  renderMenu(); sfx.unlock(); sfx.cursor(); }
+// ギミック選択のページ切り替え（2ページなので左右どちらでも反対のページへ）
+function flipPage(){
+  const n = menuMechs().length;
+  S.cursor = S.cursor >= n ? Math.max(0, menuMechs().indexOf(mech())) : n;
+  renderMenu(); sfx.unlock(); sfx.cursor();
+}
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
@@ -2098,7 +2113,7 @@ function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   // メニューはスティックの上下でも選べる
   if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.z) > .7 && now > stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); stickRepeat = now + 280; }
-  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else kin(stickVec.x > 0 ? 'r' : 'l'); stickRepeat = now + 280; }
+  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else if (S.menu === 'mech'){ kin(stickVec.x > 0 ? 'r' : 'l'); flipPage(); } stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;
@@ -2134,8 +2149,8 @@ window.addEventListener('keydown', e => {
     if (k === 's' || k === 'arrowdown'){ moveCursor(1); e.preventDefault(); return; }
     if (k === 'j' || k === '1' || k === 'enter'){ if (!kin('a')) menuConfirm(); e.preventDefault(); return; }
     if (k === 'k' || k === '2' || k === 'escape'){ if (!kin('b')) menuBack(); return; }
-    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); else kin('l'); e.preventDefault(); return; }
-    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); else kin('r'); e.preventDefault(); return; }
+    if (k === 'a' || k === 'arrowleft'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech'){ kin('l'); flipPage(); } e.preventDefault(); return; }
+    if (k === 'd' || k === 'arrowright'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech'){ kin('r'); flipPage(); } e.preventDefault(); return; }
     if (k === 'shift'){ selectJob(1); e.preventDefault(); return; }
     return;
   }
@@ -2205,6 +2220,7 @@ $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bMenu').addEventListener('click', openMenu);
 $('bSafe').addEventListener('click', toggleSafe);
+$('menu').querySelector('.head').addEventListener('click', e => { if (e.target.closest('[data-pg]') && S.menu === 'mech') flipPage(); });
 $('menuList').addEventListener('click', e => {
   const inf = e.target.closest('[data-info]'); if (inf){ openInfo(inf.dataset.info); return; }
   const b = e.target.closest('button[data-i]'); if (b) menuConfirm(Number(b.dataset.i));
@@ -2332,7 +2348,7 @@ const INFO = {
     tip:'立ち位置ガイドON（設定）で、次に行く場所が黄色の番号で出る。',
   },
   p5: {
-    flow:'ギミック選択で ↑↑↓↓←→←→BA を入れるとメニューに追加される。ボスがターゲット可能になるところ（5カウント）からミッシング・ゼロの詠唱まで、約3分10秒を通しで遊ぶ。',
+    flow:'ギミック選択で ↑↑↓↓←→←→BA を入れるとメニューに追加される。ボスがターゲット可能になるところ（3カウント）からミッシング・ゼロの詠唱まで、約3分10秒を通しで遊ぶ。',
     what:[
       '練習用の5つのギミックが、実戦と同じ時刻で順番に来る。間には<b>連続アルテマ</b>（全体4連）、<b>魔撃（AA）</b>、<b>終末の渦</b>（散開）が入る。',
       '流れ：（開幕のどきどきアルテマとターゲット不可の時間は省略）連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',

@@ -154,6 +154,11 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .opt select,.opt input[type=range]{font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:3px 4px;accent-color:var(--gold);max-width:60%}
 .opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold)}
 .panel .note{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--edge)}
+.tabs button{flex:1;font:14px var(--px);color:var(--dim);background:transparent;border:2px solid var(--edge);border-bottom:none;padding:6px 0;cursor:pointer;margin-bottom:-2px}
+.tabs button.on{color:var(--gold);background:var(--btn);border-color:var(--gold)}
+.tabpane{display:flex;flex-direction:column;gap:12px;min-height:180px}
+.tabpane[hidden]{display:none}
 .keyopt{padding:2px 0}
 .keyopt>span:last-child{display:flex;gap:6px}
 .kbtn{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:64px;height:30px;cursor:pointer}
@@ -234,31 +239,41 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <div class="sheet" id="sheet" hidden>
   <div class="panel" role="dialog" aria-label="設定">
     <h2>設定</h2>
-    <label class="opt"><span>ゲーム速度 <span id="oSpeedV">100%</span></span>
-      <input type="range" id="oSpeed" min="0.4" max="1" step="0.1" value="1"></label>
-    <label class="opt"><span>安地表示（安全地帯を緑で出す）</span><input type="checkbox" id="oSafe"></label>
-    <label class="opt"><span>補助表示（進路・予兆を残す）</span><input type="checkbox" id="oPath"></label>
-    <label class="opt"><span>立ち位置ガイド</span><input type="checkbox" id="oSpots"></label>
-    <label class="opt"><span>マーカー</span>
-      <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
-    <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
-    <label class="opt"><span>BGM</span><input type="checkbox" id="oBgm" checked></label>
-    <h3>混沌の終末</h3>
-    <label class="opt"><span>最初の方向</span>
-      <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
-    <h3>スリースターズ</h3>
-    <label class="opt"><span>デバフ</span>
-      <select id="oDebuff"><option value="rand">ランダム</option><option value="0">ファイア</option><option value="1">サンダー</option><option value="2">ブリザド</option><option value="-1">なし</option></select></label>
-    <label class="opt"><span>2本ある属性（デバフ持ち）</span>
-      <select id="oDouble"><option value="first">時計回りで手前</option><option value="second">時計回りで奥</option></select></label>
-    <div class="pconly" style="display:contents">
-    <h3>キー割り当て（PC）</h3>
-    <p class="note">ボタンを押してから、使いたいキーを押す。BS／Delで空にする。1つの操作に2キーまで。</p>
-    <div id="keyOpts"></div>
-    <button class="close" id="keyReset" type="button" style="height:36px;font-size:13px">キー割り当てを初期設定に戻す</button>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="basic" class="on">基本</button><button type="button" role="tab" data-tab="view">表示</button><button type="button" role="tab" data-tab="mech">ギミック</button><button type="button" role="tab" data-tab="keys" class="pconly">キー</button><button type="button" role="tab" data-tab="about">情報</button>
     </div>
-    <p class="note">座標とタイミングは cactbot・Splatoon・AnoMech のゲームデータから算出。ミッシングはヤーン速報の脳死法（2の内側から時計回り）で練習する想定です。</p>
-    <p class="note">非公式のファンメイド練習ツールです（非営利）。株式会社スクウェア・エニックスとは関係ありません。FINAL FANTASY XIV © SQUARE ENIX。BGMはオリジナル曲です。</p>
+    <div class="tabpane" data-pane="basic">
+      <label class="opt"><span>ゲーム速度 <span id="oSpeedV">100%</span></span>
+        <input type="range" id="oSpeed" min="0.4" max="1" step="0.1" value="1"></label>
+      <label class="opt"><span>効果音</span><input type="checkbox" id="oSound" checked></label>
+      <label class="opt"><span>BGM</span><input type="checkbox" id="oBgm" checked></label>
+      <label class="opt"><span>マーカー</span>
+        <select id="oMarker"><option value="nw">1=北西</option><option value="ne">1=北東</option></select></label>
+    </div>
+    <div class="tabpane" data-pane="view" hidden>
+      <label class="opt"><span>安地表示（安全地帯を緑で出す）</span><input type="checkbox" id="oSafe"></label>
+      <label class="opt"><span>補助表示（進路・予兆を残す）</span><input type="checkbox" id="oPath"></label>
+      <label class="opt"><span>立ち位置ガイド</span><input type="checkbox" id="oSpots"></label>
+    </div>
+    <div class="tabpane" data-pane="mech" hidden>
+      <h3>混沌の終末</h3>
+      <label class="opt"><span>最初の方向</span>
+        <select id="oFirst"><option value="rand">ランダム</option><option value="NW">北西</option><option value="NE">北東</option></select></label>
+      <h3>スリースターズ</h3>
+      <label class="opt"><span>デバフ</span>
+        <select id="oDebuff"><option value="rand">ランダム</option><option value="0">ファイア</option><option value="1">サンダー</option><option value="2">ブリザド</option><option value="-1">なし</option></select></label>
+      <label class="opt"><span>2本ある属性（デバフ持ち）</span>
+        <select id="oDouble"><option value="first">時計回りで手前</option><option value="second">時計回りで奥</option></select></label>
+    </div>
+    <div class="tabpane" data-pane="keys" hidden>
+      <p class="note">ボタンを押してから、使いたいキーを押す。BS／Delで空にする。1つの操作に2キーまで。</p>
+      <div id="keyOpts"></div>
+      <button class="close" id="keyReset" type="button" style="height:36px;font-size:13px">キー割り当てを初期設定に戻す</button>
+    </div>
+    <div class="tabpane" data-pane="about" hidden>
+      <p class="note">座標とタイミングは cactbot・Splatoon・AnoMech のゲームデータから算出。ミッシングはヤーン速報の脳死法（2の内側から時計回り）で練習する想定です。</p>
+      <p class="note">非公式のファンメイド練習ツールです（非営利）。株式会社スクウェア・エニックスとは関係ありません。FINAL FANTASY XIV © SQUARE ENIX。BGMはオリジナル曲です。</p>
+    </div>
     <button class="close" id="bClose" type="button">とじる</button>
   </div>
 </div>
@@ -2505,9 +2520,16 @@ oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set
 oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
 oDebuff.addEventListener('change', () => { opt.debuff = oDebuff.value; store.set('debuff', opt.debuff); });
 oDouble.addEventListener('change', () => { opt.dbl = oDouble.value; store.set('dbl', opt.dbl); });
-function closeSheet(){ $('sheet').hidden = true; cv.focus({ preventScroll:true }); }
+function closeSheet(){ keyWait = null; $('sheet').hidden = true; cv.focus({ preventScroll:true }); }
 $('bOpt').addEventListener('click', () => { $('sheet').hidden = false; });
 $('bClose').addEventListener('click', closeSheet);
+// 設定のタブ
+document.querySelector('#sheet .tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  document.querySelectorAll('#sheet .tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('#sheet .tabpane').forEach(p => p.hidden = p.dataset.pane !== b.dataset.tab);
+  keyWait = null; renderKeyOpts();
+});
 $('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
 
 // 起動時はギミック選択から

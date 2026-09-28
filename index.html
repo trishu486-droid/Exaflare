@@ -2010,7 +2010,7 @@ function menuBack(){
   else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }
-// 隠しコマンド：ギミック選択で ↑↑↓↓←→←→BA → P5 通し（一度入れたらメニューに残る）
+// 隠しコマンド：ギミック選択で ↑↑↓↓←→←→BA → メニューに「P5 通し」が出る（一度入れたら残る）
 const KONAMI = ['u', 'u', 'd', 'd', 'l', 'r', 'l', 'r', 'b', 'a'];
 let kbuf = [];
 function kin(tok){
@@ -2024,7 +2024,7 @@ function unlockRun(){
   store.set('p5', true); sfx.unlock(); sfx.clear();
   S.cursor = menuMechs().indexOf(RUN); renderMenu();
   const head = $('menu').querySelector('.head'); head.textContent = '隠しステージ解放！'; head.classList.add('blink');
-  setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') menuConfirm(menuMechs().indexOf(RUN)); }, 1200);
+  setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') renderMenu(); }, 1200); // メニューに出すだけ（始めるのは自分で選んでから）
 }
 function moveCursor(d, horiz = false){
   if (!horiz) kin(d < 0 ? 'u' : 'd'); if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); renderMenu(); sfx.unlock(); sfx.cursor(); }
@@ -2332,7 +2332,7 @@ const INFO = {
     tip:'立ち位置ガイドON（設定）で、次に行く場所が黄色の番号で出る。',
   },
   p5: {
-    flow:'ギミック選択で ↑↑↓↓←→←→BA で解放。ボスがターゲット可能になるところ（5カウント）からミッシング・ゼロの詠唱まで、約3分10秒を通しで遊ぶ。',
+    flow:'ギミック選択で ↑↑↓↓←→←→BA を入れるとメニューに追加される。ボスがターゲット可能になるところ（5カウント）からミッシング・ゼロの詠唱まで、約3分10秒を通しで遊ぶ。',
     what:[
       '練習用の5つのギミックが、実戦と同じ時刻で順番に来る。間には<b>連続アルテマ</b>（全体4連）、<b>魔撃（AA）</b>、<b>終末の渦</b>（散開）が入る。',
       '流れ：（開幕のどきどきアルテマとターゲット不可の時間は省略）連続アルテマ → AA×3 → フラッド → オーケストラ1回目 → AA×2 → スリースターズ → 連続アルテマ → AA×2 → 混沌の終末 → 終末の渦 → オーケストラ2回目 → AA×3 → ミッシング。',

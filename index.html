@@ -1255,7 +1255,7 @@ const MISS = (() => {
 // 味方7人は正しく動く（着弾ギリギリまで動かない）。自分の担当はジョブで決まる（ナイト MT/ST、モンク D1/D2、機工士 D3、黒 D4、学者 H1/H2）
 // =====================================================================
 const ORCH = (() => {
-  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = PLAYER_SPEED * 3; // 味方は着弾の直前まで動かず、ギリギリで3倍速で駆け込む（答えが見えないように）
+  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = PLAYER_SPEED * 6; // 味方は着弾の直前まで動かず、ギリギリで6倍速で駆け込む（答えが見えないように）
   const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // 詠唱の長さと予兆のタイミングは推定
   // 散開位置（攻略図から読み取り）
   const SPREAD = {
@@ -1298,12 +1298,12 @@ const ORCH = (() => {
       };
       // 自分の目安（ガイド表示・安地表示）は着弾のたびに次へ
       const spotAt = (k, t) => phaseSpot(k, t < W1 ? 0 : t < W2 ? 1 : 2);
-      // 味方：着弾の0.08秒前に着くように、直前で駆け込む
+      // 味方：着弾の0.05秒前に着くように、直前で駆け込む
       const DEADLINE = [W1, W2, FINAL];
       const botGoal = (b, t) => {
         const ph = t < W1 ? 0 : t < W2 ? 1 : 2;
         if (ph < 2){
-          const nx = phaseSpot(b.k, ph + 1), leave = DEADLINE[ph + 1] - dist(b, nx) / BOT_SPEED - .08;
+          const nx = phaseSpot(b.k, ph + 1), leave = DEADLINE[ph + 1] - dist(b, nx) / BOT_SPEED - .05;
           if (t >= Math.max(leave, DEADLINE[ph] + .05)) return nx;
         }
         return phaseSpot(b.k, ph);

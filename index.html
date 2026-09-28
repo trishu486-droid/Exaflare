@@ -181,7 +181,6 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 <div class="gb" id="game">
   <div class="top">
     <h1><b id="mechName">絶ケフカP5</b> <span id="jobName">ナイト</span></h1>
-    <button class="mini" id="bSafe" type="button" aria-pressed="false">安置</button>
     <button class="mini" id="bMenu" type="button" aria-label="ギミック選択に戻る">≡</button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
@@ -221,7 +220,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <div class="ssw"><button class="pill" id="btnStart" type="button" aria-label="START：開始"></button><span>START</span></div>
   </div>
 
-  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>U</kbd> X　<kbd>I</kbd> Y　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安置表示　<kbd>Esc</kbd> ギミック選択</p>
+  <p class="help"><kbd>WASD</kbd> 移動　<kbd>J</kbd> A　<kbd>K</kbd> B　<kbd>U</kbd> X　<kbd>I</kbd> Y　<kbd>Enter</kbd> START　<kbd>Shift</kbd> SELECT<br><kbd>Space</kbd> 安地表示　<kbd>Esc</kbd> ギミック選択</p>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -229,6 +228,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     <h2>設定</h2>
     <label class="opt"><span>ゲーム速度 <span id="oSpeedV">100%</span></span>
       <input type="range" id="oSpeed" min="0.4" max="1" step="0.1" value="1"></label>
+    <label class="opt"><span>安地表示（安全地帯を緑で出す）</span><input type="checkbox" id="oSafe"></label>
     <label class="opt"><span>補助表示（進路・予兆を残す）</span><input type="checkbox" id="oPath"></label>
     <label class="opt"><span>立ち位置ガイド</span><input type="checkbox" id="oSpots"></label>
     <label class="opt"><span>マーカー</span>
@@ -1266,7 +1266,7 @@ const ORCH = (() => {
         if (k === H) return STACK;           // ホーリー役はボス前で無敵
         return SOUTH[k];
       };
-      // 自分の目安（ガイド表示・安置表示）は着弾のたびに次へ
+      // 自分の目安（ガイド表示・安地表示）は着弾のたびに次へ
       const spotAt = (k, t) => phaseSpot(k, t < W1 ? 0 : t < W2 ? 1 : 2);
       // 味方：着弾の0.15秒前に着くように、直前で駆け込む
       const DEADLINE = [W1, W2, FINAL];
@@ -2136,7 +2136,7 @@ function frame(now){
 // ===== 入力：キーボード =====
 const KEYMAP = { w:'w', arrowup:'w', s:'s', arrowdown:'s', a:'a', arrowleft:'a', d:'d', arrowright:'d' };
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSafe(); }
-function syncSafe(){ const b = $('bSafe'); b.classList.toggle('on', opt.safe); b.setAttribute('aria-pressed', String(opt.safe)); }
+function syncSafe(){ $('oSafe').checked = opt.safe; }
 function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
 window.addEventListener('keydown', e => {
   if (!$('sheet').hidden) { if (e.key === 'Escape') closeSheet(); return; }
@@ -2219,7 +2219,7 @@ KEYS.forEach(k => holdButton(BTN[k], () => {
 $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bMenu').addEventListener('click', openMenu);
-$('bSafe').addEventListener('click', toggleSafe);
+$('oSafe').addEventListener('change', () => { opt.safe = $('oSafe').checked; store.set('safe', opt.safe); });
 $('menu').querySelector('.head').addEventListener('click', e => { if (e.target.closest('[data-pg]') && S.menu === 'mech') flipPage(); });
 $('menuList').addEventListener('click', e => {
   const inf = e.target.closest('[data-info]'); if (inf){ openInfo(inf.dataset.info); return; }
@@ -2319,14 +2319,14 @@ const INFO = {
     ],
     why:'予兆を見てから考えていると間に合わない。「今いる斜めの軸（レーン）」を意識して、次の予兆が出たら横にずらすだけ、という動きにする。',
     steps:[
-      ['予兆が出たら、2本のエクサの間のあいたレーン（か外側）に自分の軸を合わせる。', 'exa-1', '最初の予兆（北西から2本）。安置表示ONだと、当たらない場所が緑で出る'],
+      ['予兆が出たら、2本のエクサの間のあいたレーン（か外側）に自分の軸を合わせる。', 'exa-1', '最初の予兆（北西から2本）。安地表示ON（設定）だと、当たらない場所が緑で出る'],
       ['次の予兆（向きが90度ちがう）が出たら、今の軸を保ったまま横にスライドして、次のあいたレーンへ。エクサの来る方へ向かって避けると、通り過ぎた後の場所に入りやすい。', 'exa-2', '3セット目。北西・北東の両方から走ってくるので、緑の場所は予兆のたびに変わる'],
       ['6回目を避け切るまでは散開しない（終末の渦の詠唱が始まっても、まだエクサは残っている）。', null],
     ],
     miss:[
       ['エクサに被弾', 'レーンの読み違い、または斜めにずれて隣のレーンに入った。マーカーを軸の目安にすると、ずれに気づきやすい。'],
     ],
-    tip:'設定で速度を落としたり、最初の方向（北西／北東）を固定できる。補助表示ONで進路、安置ボタン（Space）で安全地帯が見える。',
+    tip:'設定で速度を落としたり、最初の方向（北西／北東）を固定できる。補助表示ONで進路、設定の安地表示（Space）で安全地帯が見える。',
   },
   miss: {
     flow:'P5 の最後（時間切れ前）。ミッシングの詠唱が始まったらA付近に集合。',

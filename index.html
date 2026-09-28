@@ -433,6 +433,7 @@ function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.rand
 const pick = a => a[Math.random() * a.length | 0];
 
 // ===== 効果音（8bit矩形波） =====
+const SFX_VOL = .5; // 効果音全体の音量
 const sfx = {
   ac:null,
   unlock(){ if (!opt.sound && !opt.bgm) return; try { this.ac ||= new (window.AudioContext || window.webkitAudioContext)(); if (this.ac.state === 'suspended') this.ac.resume(); } catch {} },
@@ -441,7 +442,7 @@ const sfx = {
     const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t + dur);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    g.gain.setValueAtTime(vol * SFX_VOL, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
     o.connect(g).connect(this.ac.destination); o.start(t); o.stop(t + dur + .02);
   },
   blip(f, d){ this.tone(f, d); },
@@ -614,7 +615,7 @@ function makePlayer(VOL, build){
 // ===== 戦闘BGM（オリジナル曲。ラスボス終盤風：テンポ130・7/8拍子の混在・聖歌風の急な減速） =====
 // 構成：イントロ(4/4×2) → A 7/8リフ(×4) → B 4/4旋律(×6) → C 聖歌風 BPM66(×2) → A に戻る（1周 約25秒）
 // 激しさ：歪んだパワーコードの刻み・重いキック・タムのフィル・コンプレッサーで音圧を上げる
-const bgm = makePlayer(.5, ({ add, bar, up8, dn8, fill, pos }) => {
+const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, pos }) => {
   // --- イントロ（4/4、130）---
   bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5'); });
   bar(16, 130, s0 => { ['A1','A2','E3','A3','C#4','E4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'gtr', 'A1', 8); for (let i = 8; i < 16; i++){ add(s0 + i, 'snare'); add(s0 + i, 'kick'); } });
@@ -673,7 +674,7 @@ const bgm = makePlayer(.5, ({ add, bar, up8, dn8, fill, pos }) => {
 
 // ===== メニューBGM（オリジナル曲。FFのメニュー画面っぽい、ハープが上り下りする分散和音） =====
 // 4/4・16分音符のハープが2オクターブ上がって下がる。和音は D Bm G A / D F#m G A を2小節ずつ（1周 約44秒）
-const menuBgm = makePlayer(.4, ({ add, bar, up8 }) => {
+const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
   const CH = [['D3','F#3','A3','C#4'], ['B2','D3','F#3','A3'], ['G2','B2','D3','F#3'], ['A2','C#3','E3','G3'],
               ['D3','F#3','A3','D4'],  ['F#2','A2','C#3','E3'], ['G2','B2','D3','E3'],  ['A2','C#3','E3','A3']];
   const MEL = [['F#5',16], ['D5',16], ['B4',8,'D5',8], ['C#5',16], ['A5',16], ['C#5',8,'E5',8], ['D5',12,'E5',4], ['C#5',16]];

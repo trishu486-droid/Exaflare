@@ -254,6 +254,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <label class="opt"><span>安地表示（安全地帯を緑で出す）</span><input type="checkbox" id="oSafe"></label>
       <label class="opt"><span>補助表示（進路・予兆を残す）</span><input type="checkbox" id="oPath"></label>
       <label class="opt"><span>立ち位置ガイド</span><input type="checkbox" id="oSpots"></label>
+      <label class="opt"><span>画面の揺れ・フラッシュ</span><input type="checkbox" id="oFx"></label>
     </div>
     <div class="tabpane" data-pane="mech" hidden>
       <h3>混沌の終末</h3>
@@ -405,7 +406,7 @@ const store = {
 const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true),
-  safe: store.get('safe', false), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
+  safe: store.get('safe', false), fx: store.get('fx', !matchMedia('(prefers-reduced-motion: reduce)').matches), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
   debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {}), orch: store.get('orch', 1)
 };
 if (!JOBS[opt.job]) opt.job = 'pld';
@@ -450,6 +451,7 @@ const sfx = {
   ok(){ [660, 990].forEach((f, i) => setTimeout(() => this.tone(f, .07, 'square', .05), i * 70)); },
   back(){ [520, 350].forEach((f, i) => setTimeout(() => this.tone(f, .07, 'square', .045), i * 70)); },
   boom(){ this.tone(140, .09, 'square', .025, -80); },
+  big(){ this.tone(110, .3, 'square', .07, -70); this.tone(55, .35, 'triangle', .09, -20); },
   splash(){ this.tone(420, .18, 'triangle', .05, -300); },
   hurt(){ this.tone(220, .25, 'sawtooth', .08, -160); },
   hit(){ this.tone(988, .05, 'square', .04); },
@@ -717,6 +719,7 @@ function ring(cx, cy, r, c){
 }
 function line(x0, y0, x1, y1, c){
   ctx.fillStyle = c;
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1); // 整数でないと終点に着かない
   const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
   let e = dx + dy;
   for (;;){ ctx.fillRect(x0, y0, 1, 1); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy){ e += dy; x0 += sx; } if (e2 <= dx){ e += dx; y0 += sy; } }
@@ -873,6 +876,98 @@ function drawHurtFlash(){
   alpha(.22 * a, () => rect(0, 0, W, W, P.hurt));
   alpha(a, () => { rect(0, 0, W, 4, P.hurt); rect(0, W - 4, W, 4, P.hurt); rect(0, 0, 4, W, P.hurt); rect(W - 4, 0, 4, W, P.hurt); });
 }
+// ===== 演出（8bit：色は段階的に切り替え、粒は四角いドット、画面の揺れとフラッシュ） =====
+// 時刻はゲーム内の S.t。座標はフィールドの y（x, z）。揺れ・フラッシュは設定で切れる
+const FX = { list:[], parts:[], shakeA:0, shakeUntil:-9, flash:null };
+const FXC = {
+  holy:['#ffffff', '#c8f0ff', '#8ad8ff', '#3a8aff'], flare:['#ffffff', '#ffe070', '#ff9a3a', '#e8442a', '#7a1a10'],
+  magenta:['#ffffff', '#ff8af0', '#e040d0', '#7a2a9a', '#3a1a4a'], water:['#ffffff', '#c8f0ff', '#3ab8ff', '#1a6ad8'],
+  ice:['#ffffff', '#c8f8ff', '#6ad8ff', '#2a8ad8'], thunder:['#ffffff', '#e8c8ff', '#b05aff', '#5a2aa8'],
+  fire:['#ffffff', '#ffe070', '#ff9a3a', '#e8442a'], void:['#ff8af0', '#b05aff', '#5a1a8a', '#1a0a2a', '#000000'],
+  wind:['#e8fff0', '#8af0a8', '#3ac860', '#1a7a3a'], rock:['#e8c890', '#b08850', '#6a4a2a', '#3a2a1a'],
+  orange:['#ffffff', '#ffe08a', '#ff7a1f', '#a8400a'],
+};
+const fxStep = (k, n) => Math.min(n - 1, Math.floor(k * n)); // 0〜1 の進み具合 → 何段目の色か
+function fxReset(){ FX.list.length = 0; FX.parts.length = 0; FX.flash = null; FX.shakeUntil = -9; }
+function fxAdd(kind, x, z, o = {}){ FX.list.push({ kind, x, z, at:S.t, dur:.5, ...o }); }
+function fxShake(a, dur = .25){ if (!opt.fx) return; FX.shakeA = FX.shakeUntil > S.t ? Math.max(FX.shakeA, a) : a; FX.shakeUntil = S.t + dur; }
+function fxFlash(color, a = .55, dur = .15){ if (!opt.fx) return; FX.flash = { color, a, at:S.t, dur }; }
+// 粒：n 個。speed は y/秒、up は上向きの初速（重力で落ちる）
+function fxParts(n, x, z, { cols = FXC.flare, speed = 8, up = 6, life = .6, size = 2, spread = 0, grav = 18 } = {}){
+  for (let i = 0; i < n && FX.parts.length < 500; i++){
+    const a = Math.random() * Math.PI * 2, v = speed * (.4 + Math.random() * .6);
+    FX.parts.push({ x:x + (Math.random() - .5) * spread, z:z + (Math.random() - .5) * spread, vx:Math.cos(a) * v, vz:Math.sin(a) * v * .6,
+      vh:up * (.5 + Math.random() * .8), g:grav, at:S.t, life:life * (.6 + Math.random() * .6), cols, size });
+  }
+}
+function fxShakeOffset(){
+  if (!opt.fx || S.t >= FX.shakeUntil) return [0, 0];
+  const a = Math.round(FX.shakeA * Math.min(1, (FX.shakeUntil - S.t) / .15));
+  const f = Math.floor(S.t * 40); // 1/40 秒ごとにガタガタ
+  return [((f * 7) % 3 - 1) * a, ((f * 5) % 3 - 1) * a];
+}
+function fxDraw(){
+  const t = S.t;
+  FX.list = FX.list.filter(e => t - e.at < e.dur);
+  FX.list.forEach(e => {
+    const age = t - e.at; if (age < 0) return;
+    const k = Math.floor(age * 20) / (e.dur * 20), X = px(e.x), Z = px(e.z); // 1/20 秒刻みでコマ送り
+    const cols = e.cols || FXC.flare, c = cols[fxStep(k, cols.length)];
+    const R = Math.round((e.r || 3) * PPY);
+    if (e.kind === 'burst'){ // 広がって色が落ちていく丸い爆発
+      const r = Math.max(2, Math.round(R * (.35 + .65 * Math.min(1, k * 2.2))));
+      alpha(k < .6 ? .9 : .9 * (1 - k) / .4, () => disc(X, Z, r, c));
+      if (k < .5) disc(X, Z, Math.round(r * .45), cols[0]);
+      thickRing(X, Z, r + 1, k < .3 ? '#ffffff' : c, 2);
+    } else if (e.kind === 'ring'){ // 衝撃波の輪
+      const r = Math.round(R * (.2 + .8 * k));
+      thickRing(X, Z, r, c, k < .5 ? 3 : 2);
+    } else if (e.kind === 'pillar'){ // 地面から立ち上がる光の柱
+      const w = Math.max(4, Math.round(R * 1.2 * (1 - k * .6))), h = Math.round((e.h || 60) * Math.min(1, k * 3));
+      alpha(1 - k * .7, () => { rect(X - (w >> 1), Z - h, w, h, c); rect(X - (w >> 2), Z - h, Math.max(2, w >> 1), h, cols[0]); });
+      disc(X, Z, Math.round(R * .8), c);
+    } else if (e.kind === 'star'){ // 十字のきらめき
+      const L = Math.round((e.L || 14) * (1 - k));
+      for (let i = -1; i <= 1; i++){ line(X - L, Z + i, X + L, Z + i, i ? c : cols[0]); line(X + i, Z - L, X + i, Z + L, i ? c : cols[0]); }
+      const d = Math.round(L * .6); line(X - d, Z - d, X + d, Z + d, c); line(X - d, Z + d, X + d, Z - d, c);
+    } else if (e.kind === 'beam'){ // 横一文字の光
+      const hgt = Math.max(1, Math.round(8 * (1 - k)));
+      rect(0, Z - hgt, W, hgt * 2, c); rect(0, Z - (hgt >> 1), W, Math.max(1, hgt), cols[0]);
+    } else if (e.kind === 'bolt'){ // 上から落ちるギザギザの雷
+      if ((Math.floor(age * 30) & 1) && k > .3) return;
+      let x0 = X + (e.dx || 0), y0 = 0; const seg = 8;
+      for (let i = 1; i <= seg; i++){ const y1 = Math.round(Z * i / seg), x1 = Math.round(X + (e.dx || 0) * (1 - i / seg) + ((i * 37 + Math.round(e.seed || 0)) % 13 - 6));
+        line(x0, y0, x1, y1, c); line(x0 + 1, y0, x1 + 1, y1, cols[0]); x0 = x1; y0 = y1; }
+    } else if (e.kind === 'implode'){ // 縮んで消える穴
+      const r = Math.round(R * (1 - k));
+      alpha(.85, () => disc(X, Z, r, c)); thickRing(X, Z, r + 1, cols[0], 2);
+    } else if (e.kind === 'swirl'){ // 回るドットの渦
+      const n = 18, rr = R;
+      for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2 + age * 6 * (e.spin || 1), r2 = rr * (.5 + .5 * ((i * 7) % 5) / 4) * (e.inward ? 1 - k * .8 : 1);
+        rect(X + Math.round(Math.cos(a) * r2) - 1, Z + Math.round(Math.sin(a) * r2) - 1, 3, 3, cols[i % cols.length]); }
+    } else if (e.kind === 'scorch'){ // 床に残る焦げ跡
+      alpha(.5 * (1 - k), () => disc(X, Z, R, c));
+    }
+  });
+  // 粒
+  FX.parts = FX.parts.filter(p => t - p.at < p.life);
+  FX.parts.forEach(p => {
+    const a = t - p.at; if (a < 0) return;
+    const x = p.x + p.vx * a, z = p.z + p.vz * a, h = Math.max(0, p.vh * a - .5 * p.g * a * a);
+    rect(px(x) - (p.size >> 1), Math.round(px(z) - h * PPY) - (p.size >> 1), p.size, p.size, p.cols[fxStep(a / p.life, p.cols.length)]);
+  });
+}
+function fxFlashDraw(){
+  const f = FX.flash; if (!f || !opt.fx) return;
+  const k = (S.t - f.at) / f.dur; if (k < 0 || k >= 1) return;
+  alpha(f.a * (k < .34 ? 1 : k < .67 ? .55 : .25), () => rect(0, 0, W, W, f.color)); // 3段階で消える
+}
+// よく使う組み合わせ
+const FXK = {
+  holy(x, z, r){ fxAdd('burst', x, z, { r, cols:FXC.holy, dur:.55 }); fxAdd('ring', x, z, { r:r * 1.3, cols:FXC.holy, dur:.4 }); fxParts(10, x, z, { cols:FXC.holy, speed:6, up:8, life:.6 }); },
+  flare(x, z, r, big){ fxAdd('burst', x, z, { r, cols:FXC.flare, dur:big ? .8 : .55 }); fxParts(big ? 30 : 12, x, z, { cols:FXC.fire, speed:big ? 14 : 8, up:10, life:.7, spread:r }); fxShake(big ? 5 : 2, big ? .45 : .2); if (big) fxFlash('#ffe8a0', .6, .2); },
+  stack(x, z, r, cols = FXC.magenta){ fxAdd('pillar', x, z, { r, cols, dur:.45, h:70 }); fxAdd('star', x, z - 2, { cols, L:18, dur:.3 }); fxParts(12, x, z, { cols:[cols[1], cols[2], cols[3]], speed:4, up:3, life:.9, size:3, grav:2, spread:r }); },
+};
 const inArena = (x, z) => x * x + z * z <= ARENA_R * ARENA_R;
 
 // =====================================================================
@@ -920,6 +1015,7 @@ const EXA = (() => {
           all.forEach(h => {
             if (h.done || t < h.t) return;
             h.done = true; boom = true;
+            fxParts(3, h.x, h.z, { cols:FXC.fire, speed:5, up:7, life:.5 }); fxAdd('scorch', h.x, h.z, { r:EXA_R * .8, cols:['#7a2a10'], dur:.9 });
             if ((S.player.x - h.x) ** 2 + (S.player.z - h.z) ** 2 <= EXA_R * EXA_R) hurt('エクサに被弾', '');
           });
           if (boom) sfx.boom();
@@ -982,6 +1078,11 @@ const FLOOD = (() => {
             if (tk.done || t < tk.hit) return;
             tk.done = true; sfx.splash();
             healerHit(75000); // カオティックフラッド（頭割り）
+            // 演出：帯に沿ってしぶき、頭割りはパーティの位置にピンクの光
+            tk.offs.forEach(c => { for (let s = -18; s <= 18; s += 4){
+              const x = tk.fam === 'A' ? (c + s) / SQ2 : (-c + s) / SQ2, z = tk.fam === 'A' ? (s - c) / SQ2 : (-c - s) / SQ2;
+              if (x * x + z * z < 19 * 19) fxParts(3, x, z, { cols:FXC.water, speed:4, up:9, life:.7, size:2, spread:6 }); } });
+            FXK.stack(S.player.x, S.player.z, 2.2); fxShake(2, .2);
             if (inTick(tk, S.player.x, S.player.z)) hurt('フラッドに被弾', '');
           });
         },
@@ -998,16 +1099,21 @@ const FLOOD = (() => {
               tk.offs.forEach(c => {
                 alpha(showTele ? .4 : .15, () => fillArena(z => span(tk.fam, c, z), P.exa));
                 if (showTele && blink) alpha(.35, () => fillArena(z => span(tk.fam, c, z), P.exaHi));
+                // 予兆の帯のふちに白い線
+                if (showTele){ fillArena(z => { const s = span(tk.fam, c, z); return [s[0], s[0] + .45]; }, P.white); fillArena(z => { const s = span(tk.fam, c, z); return [s[1] - .45, s[1]]; }, P.white); }
               });
               if (keep && !showTele) tk.offs.forEach(c => { const s = span(tk.fam, c, 0); glyph(String(k + 1), px((s[0] + s[1]) / 2), C0, P.white); });
             }
-            // 着弾：水の帯
-            const dt = t - tk.hit;
-            if (dt >= 0 && dt < .6){
-              const a = 1 - dt / .6;
+            // 着弾：水の帯（白→水色→青の3段階。流れの縞が帯の中を走る）
+            const dt = t - tk.hit, WET = .9;
+            if (dt >= 0 && dt < WET){
+              const k = dt / WET, step = fxStep(k, 3), base = [P.waterHi, P.water, '#1a6ad8'][step];
               tk.offs.forEach(c => {
-                alpha(.75 * a, () => fillArena(z => span(tk.fam, c, z), P.water));
-                alpha(.6 * a, () => fillArena(z => { const s = span(tk.fam, c, z), m = (s[0] + s[1]) / 2; return [m - 1, m + 1]; }, P.waterHi));
+                alpha(step === 2 ? .45 : .8, () => fillArena(z => span(tk.fam, c, z), base));
+                for (let j = 0; j < 3; j++){
+                  const off = ((Math.floor(dt * 20) * 1.2 + j * 3.4) % 10) - 5;
+                  alpha(.85 * (1 - k), () => fillArena(z => { const s = span(tk.fam, c, z), m = (s[0] + s[1]) / 2 + off; return [m - .5, m + .5]; }, P.white));
+                }
               });
             }
           });
@@ -1071,7 +1177,17 @@ const CELES = (() => {
         tick(t){
           for (let s = 0; s < 3; s++){
             if (done[s] || t < RESOLVE[s]) continue;
-            done[s] = true; flash[s] = t; sfx.boom();
+            done[s] = true; flash[s] = t; sfx.big();
+            // 演出：光った塔が属性ごとに弾ける（炎＝火柱、雷＝落雷、氷＝結晶）
+            p.active[s].forEach(i => {
+              const tw = TOWERS[i];
+              if (tw.el === 0){ fxAdd('pillar', tw.x, tw.z, { r:SOAK, cols:FXC.fire, h:80, dur:.5 }); fxParts(10, tw.x, tw.z, { cols:FXC.fire, speed:5, up:12, life:.7, spread:SOAK }); }
+              else if (tw.el === 1){ fxAdd('bolt', tw.x, tw.z, { cols:FXC.thunder, dur:.35, seed:i * 11, dx:(i % 3 - 1) * 20 }); fxAdd('burst', tw.x, tw.z, { r:SOAK, cols:FXC.thunder, dur:.4 }); }
+              else { fxAdd('pillar', tw.x, tw.z, { r:SOAK, cols:FXC.ice, h:60, dur:.45 }); fxParts(12, tw.x, tw.z, { cols:FXC.ice, speed:7, up:8, life:.6, size:3, spread:SOAK }); }
+            });
+            // 二択のカタストロフ：トルネド（緑の渦が外側を回る）／クエイク（内側に岩が飛ぶ）
+            if (p.cc[s] === 'tornado'){ fxAdd('swirl', 0, 0, { r:RING + 6, cols:FXC.wind, dur:.8 }); fxAdd('swirl', 0, 0, { r:RING + 3, cols:FXC.wind, dur:.8, spin:-1 }); fxFlash('#3ac860', .3, .2); }
+            if (p.cc[s] === 'quake'){ fxParts(36, 0, 0, { cols:FXC.rock, speed:5, up:10, life:.8, size:3, spread:RING * 1.6 }); fxShake(4, .35); fxFlash('#b08850', .25, .2); }
             const { x, z } = S.player;
             const inTower = p.active[s].find(i => (x - TOWERS[i].x) ** 2 + (z - TOWERS[i].z) ** 2 <= SOAK * SOAK);
             if (inTower != null){
@@ -1079,6 +1195,7 @@ const CELES = (() => {
               healerHit(s === 0 ? [147500, 162000, 180000][TOWERS[inTower].el] : 180000); // 塔のダメージ（ファイガ／サンダガ／ブリザガ）
             }
             if (!inTarget(s, x, z)){ towerMiss[s] = true; hurt(inTower == null ? '塔に入っていない' : '担当と違う塔'); }
+            else fxAdd('ring', x, z, { r:4, cols:['#ffffff', '#ffe070', '#ffffff'], dur:.4 }); // 踏めた
             if (!ccSafe(s, x, z)) hurt(`${CC[p.cc[s]].name}に被弾`); // 塔ミスとは別に数える
           }
         },
@@ -1176,14 +1293,17 @@ const MISS = (() => {
         tick(t){
           const { x, z } = S.player;
           rounds.forEach(r => {
-            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.blip(180, .12); healerHit(r.bond); } // ミッシング・ボンド（頭割り）
+            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.big(); healerHit(r.bond); FXK.stack(x, z, STACK_R * .7); fxAdd('ring', x, z, { r:STACK_R * 1.3, cols:FXC.magenta, dur:.4 }); fxShake(3, .25); } // ミッシング・ボンド（頭割り）
             if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：穴の予兆＋自分に一番近いマーカーにオレンジ
               r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08); healerHit(r.raid); // ミッシング（全体攻撃）
+              fxFlash('#ff8af0', .35, .2); for (let i = 0; i < 4; i++) fxAdd('bolt', (i - 1.5) * 9, -4 + (i % 2) * 8, { cols:FXC.void, dur:.3, seed:i * 17 + r.at * 3, dx:(i % 2 ? 1 : -1) * 18 });
               const m = MARKS.reduce((b, q) => (q[0] - x) ** 2 + (q[1] - z) ** 2 < (b[0] - x) ** 2 + (b[1] - z) ** 2 ? q : b);
               oranges.push({ x:m[0], z:m[1], hitAt:r.at + VANISH, done:false });
             }
             if (!r.hit && t >= r.at + VANISH){
-              r.hit = true; sfx.boom();
+              r.hit = true; sfx.big();
+              r.tiles.forEach(([tx, tz]) => { fxAdd('implode', tx * G, tz * G, { r:HOLE_R, cols:FXC.void, dur:.5 }); fxParts(14, tx * G, tz * G, { cols:FXC.void, speed:6, up:6, life:.6, spread:HOLE_R }); });
+              fxShake(3, .3);
               if (r.tiles.some(tl => inHole(x, z, tl))) hurt('穴に落ちた');
               r.tiles.forEach(tl => { gone.push(tl); warn.splice(warn.indexOf(tl), 1); });
               inVoid = gone.some(tl => inHole(x, z, tl));
@@ -1192,6 +1312,7 @@ const MISS = (() => {
           oranges.forEach(o => {
             if (o.done || t < o.hitAt) return;
             o.done = true;
+            fxAdd('burst', o.x, o.z, { r:ORANGE_R * .9, cols:FXC.orange, dur:.45 }); fxParts(10, o.x, o.z, { cols:FXC.orange, speed:6, up:8, life:.6, spread:ORANGE_R });
             if ((x - o.x) ** 2 + (z - o.z) ** 2 <= ORANGE_R * ORANGE_R) hurt('オレンジのAOE');
           });
           // 消えた床（穴）に入った瞬間に1回カウント
@@ -1223,7 +1344,7 @@ const MISS = (() => {
           oranges.forEach(o => {
             const X = px(o.x), Z = px(o.z);
             if (!o.done){ alpha(blink ? .45 : .3, () => disc(X, Z, OR, P.exa)); ring(X, Z, OR, P.exa); }
-            else if (t - o.hitAt < .5) alpha(.6 * (1 - (t - o.hitAt) / .5), () => disc(X, Z, OR, P.exaHi));
+
           });
         },
         // 頭割りマーカー（自分に付く）：4方向から内向きの矢印＋残り秒数。着弾で光る
@@ -1241,9 +1362,7 @@ const MISS = (() => {
               });
               glyph(String(Math.ceil(r.at + STACK_AT - t)), X, Z - 22, P.white);
             }
-            if (r.stacked && t - (r.at + STACK_AT) < .5){
-              alpha(.6 * (1 - (t - r.at - STACK_AT) / .5), () => disc(px(r.stackX), px(r.stackZ), Math.round(STACK_R * PPY), P.exaHi));
-            }
+
           });
         },
       };
@@ -1311,7 +1430,6 @@ const ORCH = (() => {
       const pos = k => k === p.me ? S.player : bots.find(b => b.k === k);
       const fired = { w1:false, w2:false, fin:false };
       let w2targets = [], lastT = 0, lastTop = null, topChangedAt = 0;
-      const fx = []; // { at, kind, x, z, r }
       const vuln = p.targets.includes(p.me);
       const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
       // ヘイト1位：ホーリー役が挑発するまではフレア役。自分がフレア役でシャークを早く使うとホーリー役に移る
@@ -1345,8 +1463,9 @@ const ORCH = (() => {
           const me = S.player;
           if (!fired.w1 && t >= W1){
             fired.w1 = true; sfx.boom();
-            p.targets.forEach(k => fx.push({ at:t, kind:'holy', ...pos(k), r:HOLY_R }));
-            ['MT','ST'].forEach(k => fx.push({ at:t, kind:'tb', ...pos(k), r:TB_R }));
+            p.targets.forEach(k => { const q = pos(k); FXK.holy(q.x, q.z, HOLY_R); });
+            ['MT','ST'].forEach(k => { const q = pos(k); FXK.flare(q.x, q.z, TB_R); });
+            fxFlash('#ffffff', .4, .12); sfx.big();
             const overlap = p.targets.filter(k => k !== p.me).some(k => dist(me, pos(k)) <= HOLY_R);
             if (overlap) hurt('ホーリーが重なった');
             if (vuln && all.filter(k => k !== p.me && !p.targets.includes(k)).some(k => dist(me, pos(k)) <= HOLY_R)) hurt('ホーリーに味方を巻き込んだ');
@@ -1359,8 +1478,9 @@ const ORCH = (() => {
             fired.w2 = true; sfx.boom();
             // ボスに近い3人（自分も含めて判定）
             w2targets = [...all].sort((a, b) => Math.hypot(pos(a).x, pos(a).z) - Math.hypot(pos(b).x, pos(b).z)).slice(0, 3);
-            w2targets.forEach(k => fx.push({ at:t, kind:'holy', ...pos(k), r:HOLY_R }));
-            fx.push({ at:t, kind:'stack', ...pos(H), r:STACK_R });
+            w2targets.forEach(k => { const q = pos(k); FXK.holy(q.x, q.z, HOLY_R); });
+            { const q = pos(H); FXK.flare(q.x, q.z, STACK_R); }
+            fxFlash('#ffffff', .4, .12); sfx.big();
             const mine = w2targets.includes(p.me);
             if (roleOf(p.me) === 'T'){
               if (mine) hurt('タゲサに入った');
@@ -1376,8 +1496,9 @@ const ORCH = (() => {
           }
           if (!fired.fin && t >= FINAL){
             fired.fin = true; sfx.boom();
-            fx.push({ at:t, kind:'flare', ...pos(F), r:FLARE_R });
-            fx.push({ at:t, kind:'tb', ...pos(H), r:TB_R });
+            { const q = pos(F); FXK.flare(q.x, q.z, FLARE_R, true); fxAdd('ring', q.x, q.z, { r:FLARE_R * 1.6, cols:FXC.flare, dur:.5 }); }
+            { const q = pos(H); FXK.holy(q.x, q.z, 6); fxAdd('ring', q.x, q.z, { r:12, cols:FXC.holy, dur:.6 }); }
+            sfx.big();
             if (p.me === F){
               if (all.some(k => k !== F && dist(pos(F), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ');
               if (!hasHeavy()) hurt('重いバフなしでフレア');
@@ -1401,12 +1522,15 @@ const ORCH = (() => {
           // 2回目の頭割り予兆（MTに）、フレア/ホーリーの予兆
           if (t >= W1 + .5 && t < W2){ const q = pos(hateTop(t)); ring(px(q.x), px(q.z), Math.round(STACK_R * PPY), blink ? P.hurt : P.white); }
           if (t >= W2 + .3 && t < FINAL){ const q = pos(F); ring(px(q.x), px(q.z), Math.round(FLARE_R * PPY), blink ? '#ff9a3a' : P.white); }
-          // 着弾
-          fx.forEach(f => {
-            const dt = t - f.at; if (dt < 0 || dt > .6) return;
-            const c = f.kind === 'holy' ? '#5ab0ff' : f.kind === 'flare' ? '#ff9a3a' : P.hurt;
-            alpha(.6 * (1 - dt / .6), () => disc(px(f.x), px(f.z), Math.round(f.r * PPY), c));
-          });
+          // 着弾の直前：対象のまわりに光の粒が集まってくる（1秒前から）
+          const gather = (q, until, cols) => {
+            const k = (until - t) / 1.0; if (k <= 0 || k > 1) return;
+            const X = px(q.x), Z = px(q.z), f = Math.floor(t * 20);
+            for (let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2 + f * .25, r = 4 + Math.round(k * 22);
+              rect(X + Math.round(Math.cos(a) * r) - 1, Z + Math.round(Math.sin(a) * r) - 1, 2, 2, cols[(i + f) % cols.length]); }
+          };
+          if (!fired.w1){ p.targets.forEach(k => gather(pos(k), W1, ['#ffffff', '#ff8af0', '#c8f0ff'])); ['MT','ST'].forEach(k => gather(pos(k), W1, ['#ffe070', '#ff9a3a'])); }
+          if (!fired.fin && fired.w2){ gather(pos(F), FINAL, ['#ffffff', '#ffe070', '#ff9a3a']); gather(pos(H), FINAL, ['#ffffff', '#c8f0ff', '#8ad8ff']); }
           // 味方
           bots.forEach(b => {
             const X = px(b.x), Z = px(b.z), r = roleOf(b.k);
@@ -1489,7 +1613,7 @@ const RUN = (() => {
       const seg = t => segs.find(s => t >= s.at && t <= s.end);
       const aa = FELL.flatMap(f => f.at.map((t, i) => ({ t, dmg:f.dmg[i], solo:i === 0 ? f.solo : 0, done:false })));
       const hits = REPEAT.flatMap(r => r.hits.map(t => ({ t, dmg:r.dmg, done:false })));
-      const fired = { up:false, ent:false };
+      const fired = { up:false, ent:false, swirl:false };
       let entX = 0, entZ = 0;
       const inK = k => Math.hypot(S.player.x - HOME[k].x, S.player.z - HOME[k].z) <= AA_R[k];
       const exa = segs[3], orch2 = segs[4];
@@ -1540,10 +1664,14 @@ const RUN = (() => {
           return out;
         },
         tick(t){
-          hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.blip(220, .1); healerHit(h.dmg); } });
+          // 連続アルテマ：ボスで閃光 → 横一文字の光 → 画面が青く染まって破片が飛ぶ（4回）
+          hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.big(); healerHit(h.dmg);
+            fxAdd('star', 0, 0, { cols:FXC.holy, L:26, dur:.25 }); fxAdd('beam', 0, 0, { cols:['#ffffff', '#ffc8f0', '#b05aff'], dur:.25 });
+            fxFlash('#3ab8ff', .45, .25); fxParts(26, 0, 0, { cols:FXC.ice, speed:22, up:3, life:.55, size:3, spread:8, grav:4 }); fxShake(3, .2); } });
           aa.forEach(a => {
             if (a.done || t < a.t) return;
-            a.done = true; sfx.boom();
+            a.done = true; sfx.big();
+            ['T', 'H', 'D'].forEach(k => FXK.stack(HOME[k].x, HOME[k].z, AA_R[k] * .8)); fxShake(2, .2); // マゼンタの光の柱 → 紫の煙
             if (role === 'T'){
               if (a.solo){
                 const holy = holyOf(a.solo); // ホーリー役：スイッチしてヘイト1位になった方
@@ -1556,8 +1684,13 @@ const RUN = (() => {
               healerHit(a.dmg);
             }
           });
+          if (!fired.swirl && t >= ENTROPY.at - 1.2){ fired.swirl = true; fxAdd('swirl', 0, 0, { r:9, cols:FXC.void, dur:1.2, inward:true }); } // 渦がボスに集まる
           if (!fired.ent && t >= ENTROPY.at){
-            fired.ent = true; sfx.boom(); entX = S.player.x; entZ = S.player.z;
+            fired.ent = true; sfx.big(); entX = S.player.x; entZ = S.player.z;
+            // 終末の渦：全員の位置で爆発、画面が白く飛んで岩が散る
+            FXK.flare(entX, entZ, ENTROPY.r, true);
+            Object.entries(ORCH.SPREAD).forEach(([k, q]) => { if (k !== me) fxAdd('burst', q.x, q.z, { r:ENTROPY.r, cols:FXC.flare, dur:.6 }); });
+            fxFlash('#fff4d0', .7, .25); fxParts(30, 0, 0, { cols:['#3a2a1a', '#6a4a2a', '#1a1010'], speed:12, up:12, life:.9, size:3, spread:24 });
             const near = Object.entries(ORCH.SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
             if (near) hurt('終末の渦が重なった');
             healerHit(ENTROPY.dmg);
@@ -1586,15 +1719,9 @@ const RUN = (() => {
         draw(t){
           const s = seg(t); s?.inst.draw(t - s.at);
           const blink = (Math.floor(performance.now() / 160) & 1) === 0;
-          // AA：実機と同じく予兆なし（詠唱もマーカーも出ない）。着弾した瞬間だけ A・4・3 に頭割りの範囲を見せる
-          aa.forEach(a => {
-            const dt = t - a.t; if (dt < 0 || dt > .5) return;
-            ['T', 'H', 'D'].forEach(k => { const q = HOME[k]; alpha(.6 * (1 - dt / .5), () => disc(px(q.x), px(q.z), Math.round(AA_R[k] * PPY), AA_COL[k])); });
-          });
+          // AA：実機と同じく予兆なし（詠唱もマーカーも出ない）。着弾の演出は FX（マゼンタの柱）
           // 終末の渦：詠唱中は自分のまわりに散開の輪
           if (t >= ENTROPY.cast && t < ENTROPY.at) ring(px(S.player.x), px(S.player.z), Math.round(ENTROPY.r * PPY), blink ? '#ff9a3a' : P.white);
-          const de = t - ENTROPY.at;
-          if (de >= 0 && de < .5) alpha(.6 * (1 - de / .5), () => disc(px(entX), px(entZ), Math.round(ENTROPY.r * PPY), '#ff9a3a'));
         },
       };
     }
@@ -1624,12 +1751,17 @@ function drawPlayer(){
 function draw(){
   const v = S.inst?.view ?? mech().view;
   PPY = (W / 2) / (typeof v === 'function' ? v(S.t) : v);
+  const [sx, sz] = fxShakeOffset();
+  ctx.save(); ctx.translate(sx, sz);
   drawField();
   if (opt.spots && S.inst) S.inst.guide?.(S.t);
   drawBoss();
   if (S.inst) S.inst.draw(S.t);
+  if (S.phase !== 'menu') fxDraw();
   drawSafe();
-  drawActFx(); drawPlayer(); drawCast(); drawHurtFlash();
+  drawActFx(); drawPlayer();
+  ctx.restore();
+  fxFlashDraw(); drawCast(); drawHurtFlash();
 }
 
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
@@ -1951,7 +2083,7 @@ function drawButtons(){
 function begin(){
   const m = mech();
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
-  S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
+  fxReset(); S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
   hpReset();
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
@@ -2304,6 +2436,8 @@ KEYS.forEach(k => holdButton(BTN[k], () => {
 $('btnStart').addEventListener('click', pressStart);
 $('btnSelect').addEventListener('click', () => selectJob(1));
 $('bMenu').addEventListener('click', openMenu);
+$('oFx').checked = opt.fx;
+$('oFx').addEventListener('change', () => { opt.fx = $('oFx').checked; store.set('fx', opt.fx); });
 $('oSafe').addEventListener('change', () => { opt.safe = $('oSafe').checked; store.set('safe', opt.safe); });
 $('menu').querySelector('.head').addEventListener('click', e => { if (e.target.closest('[data-pg]') && S.menu === 'mech') flipPage(); });
 $('menuList').addEventListener('click', e => {

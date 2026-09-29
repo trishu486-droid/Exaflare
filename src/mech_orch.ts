@@ -5,7 +5,7 @@ import { S, shuffle } from './state.js';
 import { A, hasHeavy, hasInvuln, hasMit } from './action.js';
 import { sfx } from './audio.js';
 import { FXC, FXK, fxAdd, fxFlash } from './fx.js';
-import { P, PPY, glyph, hurt, px, rect, ring, thickRing } from './gfx.js';
+import { P, PPY, glyph, hurt, px, rect, ring } from './gfx.js';
 
 // =====================================================================
 // ギミック5：狂気のオーケストラ（kanatan.info の処理法。1回目・2回目）
@@ -15,7 +15,7 @@ const ORCH = (() => {
   const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, BOT_SPEED = PLAYER_SPEED * 4; // 味方は着弾の直前まで動かず、ギリギリで4倍速で駆け込む（答えが見えないように）
   // フレア（フレア役タンクへの大きな円範囲）：半径25（Splatoon の P5 プリセットの値）。北端で捨てれば、南に集まった味方には届かない
   const FLARE_R = 25;
-  const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // 詠唱の長さと予兆のタイミングは推定
+  const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6; // 詠唱の長さと着弾のタイミングは推定
   // 散開位置（攻略図から読み取り）
   const SPREAD = {
     MT:{ x:-5, z:-12.4 }, ST:{ x:4.8, z:-12.9 },
@@ -153,11 +153,7 @@ const ORCH = (() => {
         guide(t){ const g = spotAt(p.me, t); ring(px(g.x), px(g.z), Math.round(TOL * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
         draw(t){
           const blink = (Math.floor(performance.now() / 160) & 1) === 0;
-          // 1回目の予兆：ランダム3人に青い輪、MT/STに赤い輪
-          if (t >= MARK_AT && t < W1){
-            p.targets.forEach(k => { const q = pos(k); thickRing(px(q.x), px(q.z), Math.round(HOLY_R * PPY), blink ? '#5ab0ff' : P.white, 2); });
-            ['MT','ST'].forEach(k => { const q = pos(k); thickRing(px(q.x), px(q.z), Math.round(TB_R * PPY), blink ? P.hurt : '#ff9a9a', 2); });
-          }
+          // 1発目（ランダム3人の円範囲・タンク強攻撃）は、実機どおり予兆なし。着弾して初めて誰に当たったか分かる
           // 2回目の頭割り予兆（MTに）、フレア/ホーリーの予兆
           if (t >= W1 + .5 && t < W2){ const q = pos(hateTop(t)); ring(px(q.x), px(q.z), Math.round(STACK_R * PPY), blink ? P.hurt : P.white); }
           if (t >= W2 + .3 && t < FINAL){ const q = pos(F); ring(px(q.x), px(q.z), Math.round(FLARE_R * PPY), blink ? '#ff9a3a' : P.white); }
@@ -168,7 +164,6 @@ const ORCH = (() => {
             for (let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2 + f * .25, r = 4 + Math.round(k * 22);
               rect(X + Math.round(Math.cos(a) * r) - 1, Z + Math.round(Math.sin(a) * r) - 1, 2, 2, cols[(i + f) % cols.length]); }
           };
-          if (!fired.w1){ p.targets.forEach(k => gather(pos(k), W1, ['#ffffff', '#ff8af0', '#c8f0ff'])); ['MT','ST'].forEach(k => gather(pos(k), W1, ['#ffe070', '#ff9a3a'])); }
           if (!fired.fin && fired.w2){ gather(pos(F), FINAL, ['#ffffff', '#ffe070', '#ff9a3a']); gather(pos(H), FINAL, ['#ffffff', '#c8f0ff', '#8ad8ff']); }
           // 味方
           bots.forEach(b => {

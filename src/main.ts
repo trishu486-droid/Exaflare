@@ -1,0 +1,33 @@
+import './style.css';
+import './debug.js';
+import './pwa.js';
+import './config.js';
+import './jobs.js';
+import './gfx.js';
+import './store.js';
+import './state.js';
+import './audio.js';
+import './fx.js';
+import './mech_exa.js';
+import './mech_flood.js';
+import './mech_celes.js';
+import './mech_miss.js';
+import './mech_orch.js';
+import './mechs.js';
+import './omake.js';
+import './mech_run.js';
+import './hud.js';
+import './action.js';
+import './game.js';
+import './menu.js';
+import './input.js';
+import './info.js';
+import './settings.js';
+import './title.js';
+import { applyTitle } from './hud.js';
+import { frame, openMenu } from './game.js';
+
+// 起動時はギミック選択から
+applyTitle();
+openMenu();
+requestAnimationFrame(frame);

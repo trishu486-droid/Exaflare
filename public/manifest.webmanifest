@@ -1,0 +1,17 @@
+{
+  "name": "絶ケフカP5トレーナー",
+  "short_name": "P5トレーナー",
+  "description": "絶ケフカ P5 のギミック練習（非公式ファンメイド）",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#1c1a3c",
+  "theme_color": "#1c1a3c",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

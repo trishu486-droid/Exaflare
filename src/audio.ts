@@ -33,7 +33,7 @@ const sfx = {
 // ===== BGMの再生エンジン（戦闘・メニューで共通） =====
 // 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14、6/8=12）とテンポを持つ
 // build(曲を組み立てる関数) はループ開始位置を返す
-function makePlayer(VOL, build){
+function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい響き）の量。0 なら無し
   const N = n => { const m = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11, 'B#':12, 'E#':5, Fb:4, Cb:-1 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s: number, ch: string, n?: string | number, l?: number) => song.push({ s, ch, n:n && (typeof n === 'number' ? n : N(n)), l });
@@ -77,6 +77,12 @@ function makePlayer(VOL, build){
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -20; comp.knee.value = 6; comp.ratio.value = 6; comp.attack.value = .003; comp.release.value = .12;
     master = ac.createGain(); master.gain.value = VOL; master.connect(comp).connect(ac.destination);
+    if (REV){ // 残響：減衰するノイズを畳み込んで、広い石造りの空間の響きを作る（スーファミのエコーのような広がり）
+      const len = ac.sampleRate * 2.6, ir = ac.createBuffer(2, len, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+      const conv = ac.createConvolver(), wet = ac.createGain(); conv.buffer = ir; wet.gain.value = REV;
+      master.connect(conv); conv.connect(wet).connect(comp);
+    }
     // 歪み（ギター役のパワーコード用）
     const shaper = ac.createWaveShaper(), curve = new Float32Array(1024);
     for (let i = 0; i < 1024; i++){ const x = i / 512 - 1; curve[i] = Math.tanh(x * 8); }
@@ -176,6 +182,13 @@ function makePlayer(VOL, build){
       case 'harp':  pluck(ac, t, f); break;
       case 'flute': voice(ac, t, 'triangle', f, dur * .95, .09, .08, master, .008); voice(ac, t, 'sine', f * 2, dur * .9, .02, .1); break;
       case 'pad':   voice(ac, t, 'triangle', f, dur, .035, .4); voice(ac, t, 'pulse', f * 1.003, dur, .008, .5); break;
+      // 大聖堂のオルガン：8'（基音）＋16'（1オクターブ下）＋4'・2'（倍音）を重ね、少しずらして厚くする
+      case 'organ2': voice(ac, t, 'pulse', f, dur, .026, .03); voice(ac, t, 'square', f / 2, dur, .014, .04); voice(ac, t, 'triangle', f * 2, dur, .016, .03);
+                     voice(ac, t, 'sine', f * 4, dur, .008, .03); voice(ac, t, 'triangle', f * 1.004, dur, .02, .03); break;
+      // 合唱「あー」：ゆっくり立ち上がる三角波を少しずらして重ね、ビブラート
+      case 'choir2': voice(ac, t, 'triangle', f, dur, .055, .35, master, .01); voice(ac, t, 'triangle', f * 1.008, dur, .04, .4, master, .012); voice(ac, t, 'sine', f * 2, dur, .012, .4); break;
+      // 金管：のこぎり波と1オクターブ下の矩形。短く立ち上がる
+      case 'brass': voice(ac, t, 'sawtooth', f, dur * .92, .045, .03, master, .006); voice(ac, t, 'square', f / 2, dur * .92, .02, .03); break;
     }
   }
   function tick(){
@@ -303,7 +316,7 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
 });
 
 // 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
-const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map(t => ({ name:t.name, player:makePlayer(.125, t.build) }))];
+const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) }))];
 const bgm = {
   start(){ (BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
   stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },

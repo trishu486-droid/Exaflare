@@ -338,6 +338,66 @@ function frenzy(api){
   return LOOP;
 }
 
+// 12曲目「堕天の舞（組曲）」：ハ短調。ラスボス戦の組曲らしく、4つの楽章で表情が変わる（すべてオリジナル）
+//   第1楽章：重い合唱とオルガン。ベースが半音ずつ下がっていく（嘆きの進行）、減七の和音で一瞬止まる
+//   第2楽章：3/4 の尊大な行進。金管の付点リズム
+//   第3楽章：オルガン独奏のトッカータ（16分の分散和音・ドラム無し）
+//   第4楽章：ロック。8分のベースが半音でつなぎ、道化のような半音の「くすくす笑う」音型を繰り返す → 第3楽章へ戻る
+function fallen(api){
+  const { add, bar, up8, dn8, pos, fill } = api, K = kit(api);
+  // 第1楽章（60・4/4 を2和音ずつ）
+  const M1 = [
+    [['C2','C3','Eb3','G3'], ['B1','D3','F3','G3'], 'G5', 'G5'],
+    [['Bb1','Eb3','G3','Bb3'], ['A1','C3','Eb3','F#3'], 'F5', 'Eb5'],
+    [['Ab1','C3','Eb3','Ab3'], ['G1','B2','D3','F3'], 'Eb5', 'D5'],
+    [['F#1','A2','C3','Eb3'], ['G1','B2','D3','G3'], 'C5', 'B4'],
+  ];
+  M1.forEach(([c1, c2, t1, t2], b) => bar(16, 60, s0 => {
+    [[0, c1, t1], [8, c2, t2]].forEach(([i, c, t]: any) => {
+      c.forEach((n, k) => add(s0 + i, k ? 'organ2' : 'pedal', n, 8));
+      add(s0 + i, 'choir2', t, 8); add(s0 + i, 'choir2', dn8(t), 8); add(s0 + i, 'choir2', c[2], 8);
+    });
+    add(s0, 'timp', dn8(c1[1])); add(s0, 'bell', up8(t1));
+    if (b === 3){ for (let i = 8; i < 14; i++) add(s0 + i, 'timp', 'G1'); add(s0 + 14, 'crash'); } // 減七で溜めて、ティンパニの連打
+  }));
+  // 第2楽章（84・3/4）
+  const M2 = [[['Ab3','C4','Eb4'], [['C5',6],['Eb5',2],['Ab5',4]]], [['F3','Ab3','C4'], [['Ab5',6],['F5',2],['C5',4]]],
+              [['Db4','F4','Ab4'], [['F5',6],['Ab5',2],['Db6',4]]], [['G3','B3','D4','F4'], [['D6',6],['B5',2],['G5',4]]]];
+  M2.forEach(([c, m]: any, b) => bar(12, 84, s0 => {
+    add(s0, 'timp', dn8(dn8(c[0]))); add(s0, 'kick'); add(s0, 'bass', dn8(dn8(c[0])), 4); [4, 8].forEach(i => c.forEach(n => add(s0 + i, 'brass', n, 3)));
+    K.mel(s0, m, 'brass'); K.mel(s0, m.map(([n, l]) => [dn8(n), l]), 'brass'); c.forEach(n => add(s0, 'organ2', n, 12)); add(s0, 'choir2', up8(c[0]), 12);
+    [4, 8].forEach(i => add(s0 + i, 'snare'));
+    if (b === 3) fill(s0, 6, 12, 'roll');
+  }));
+  // 第3楽章（116・オルガン独奏）
+  const LOOP = pos();
+  const M3 = [
+    ['C4','Eb4','G4','C5','Eb5','G5','C6','G5','Eb5','C5','G4','Eb4','C4','G3','Eb3','G3'], 'C2',
+    ['B3','D4','F4','Ab4','B4','D5','F5','Ab5','F5','D5','B4','Ab4','F4','D4','B3','Ab3'], 'G1',
+    ['Ab3','C4','F4','Ab4','C5','F5','Ab5','C6','Ab5','F5','C5','Ab4','F4','C4','Ab3','F3'], 'F1',
+    ['G5','F5','D5','B4','Ab4','F4','D4','B3','G3','B3','D4','F4','Ab4','B4','D5','G5'], 'G1',
+  ];
+  for (let b = 0; b < 4; b++) bar(16, 116, s0 => {
+    (M3[b * 2] as string[]).forEach((n, i) => { add(s0 + i, 'organ2', n, 1); if (i % 4 === 0) add(s0 + i, 'organ2', dn8(n), 2); });
+    add(s0, 'pedal', M3[b * 2 + 1] as string, 16); add(s0, 'organ2', M3[b * 2 + 1] as string, 16);
+    if (b === 3){ add(s0 + 12, 'timp', 'G1'); add(s0 + 14, 'timp', 'G1'); }
+  });
+  // 第4楽章（152・ロック）
+  const RC = [['C4','Eb4','G4'], ['Ab3','C4','Eb4'], ['F3','Ab3','C4'], ['G3','B3','D4'], ['C4','Eb4','G4'], ['Db4','F4','Ab4'], ['Bb3','D4','F4'], ['G3','B3','D4','F4','Ab4']];
+  const RM = [[['G5',2],['Ab5',2],['G5',2],['F#5',2],['G5',8]], [['Eb6',4],['C6',4],['Ab5',4],['Eb5',4]], [['F5',2],['Gb5',2],['F5',2],['E5',2],['F5',4],['Ab5',4]], [['B5',8],['D6',4],['G5',4]],
+              [['G5',2],['Ab5',2],['G5',2],['F#5',2],['G5',4],['C6',4]], [['Db6',6],['C6',2],['Bb5',4],['Ab5',4]], [['Bb5',4],['D6',4],['F6',4],['D6',4]], [['B5',4],['Ab5',4],['F5',4],['D5',4]]];
+  RC.forEach((c, b) => bar(16, 152, s0 => {
+    const r = dn8(dn8(c[0])), nr = dn8(dn8(RC[(b + 1) % RC.length][0]));
+    for (let i = 0; i < 16; i += 2){ const n = i === 14 ? api.tr(nr, -1) : r; add(s0 + i, 'bass', n, 2); add(s0 + i, 'gtr', r, i % 8 === 0 ? 2 : 1); } // 8分のベース。最後は次の和音へ半音でつなぐ
+    K.drums(s0, 16, { kick:'8', snare:[4, 12], crash:b % 4 === 0 });
+    c.forEach(n => add(s0, 'organ2', n, 16)); K.mel(s0, RM[b], 'lead', c.slice(0, 3)); add(s0, 'choir2', up8(c[0]), 16);
+    K.arp(s0, 16, c.slice(0, 3), [0, 1, 2, 1]);
+    if (b === 3) fill(s0, 12, 16, 'tom', ['G3','F3','D3','B2']);
+    if (b === 7){ fill(s0, 8, 16, 'up', ['Ab3','F3','D3','B2']); for (let i = 8; i < 16; i++) add(s0 + i, 'toc', ['G5','Ab5','B5','C6','D6','Eb6','F6','G6'][i - 8], 1); } // 上がって第3楽章へ
+  }));
+  return LOOP;
+}
+
 const EXTRA_TRACKS = [
   { name:'レクイエム（ホ短調・5/4）', build:requiem },
   { name:'テンペスト（ハ短調・トッカータ）', build:tempest },
@@ -349,5 +409,6 @@ const EXTRA_TRACKS = [
   { name:'虚無の舞踏（ヘ短調・3+3+2）', build:tango },
   { name:'審判（嬰ハ短調・合唱）', build:judgment },
   { name:'狂騒曲（ホ・フリギア・7/8）', build:frenzy },
+  { name:'堕天の舞（組曲・大聖堂の響き）', build:fallen, rev:.32 },
 ];
 export { EXTRA_TRACKS };

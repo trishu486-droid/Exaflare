@@ -152,8 +152,20 @@ function setBtn(el, key, name, p, ready, combo = false){
   if (b.textContent !== key) b.textContent = key;
   if (sm.textContent !== name) sm.textContent = name;
 }
+// 通しのタンク：ホットバーが切り替わる3秒前から、ボタンの上に残り秒数を出す。切り替わった直後はボタンが光る
+function swapHint(run){
+  const ab = document.querySelector('.ab') as HTMLElement;
+  let soon = '';
+  if (run && job().role === 'tank' && S.inst?.tankRole){
+    const now = S.inst.tankRole(S.t);
+    for (let d = .25; d <= 3; d += .25) if (S.inst.tankRole(S.t + d) !== now){ soon = `切替まで ${Math.ceil(d)}`; break; }
+  }
+  if (ab.dataset.soon !== soon){ ab.dataset.soon = soon; ab.classList.toggle('soon', !!soon); }
+  ab.classList.toggle('swapped', run && S.t - A.swapAt < 1.2);
+}
 function drawButtons(){
   const run = S.phase === 'run', j = job();
+  swapHint(run);
   const gcdP = run ? Math.max(0, Math.min(1, (A.readyAt - S.t) / GCD)) : 0;
   KEYS.forEach(k => {
     const ab = j[k];

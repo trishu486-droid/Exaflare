@@ -7,11 +7,11 @@ import { sfx } from './audio.js';
 
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
-            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{},
+            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9,
             provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null } as {
   readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
-  gcds:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>;
+  gcds:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number;
   provoke:number | null; shirk:number | null; sunUsed:boolean;
 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
@@ -67,7 +67,7 @@ function hpDraw(){
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{} });
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
@@ -112,6 +112,7 @@ function pressKey(k){
   sfx.unlock();
   if (!active()) return;
   const ab = job()[k];
+  if (k !== 'a' && S.t - A.swapAt < SWAP_LOCK) return; // ホットバーが切り替わった直後
   // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
   if (ab.sunsign){ if (S.phase !== 'run') return; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
   if (isGcd(job(), k)){
@@ -158,9 +159,21 @@ function finishGcd(ab){
   else dealDamage(ab.pot, ab.name);
 }
 // タンク：P5 通しではオーケストラの前後で B・X・Y の技が入れ替わる。リキャストは技ごとに覚えておく
+// 切り替わった直後の少しの間は B・X・Y の入力を受け付けない（連打していた技が、新しい技として暴発しないように）
+const SWAP_LOCK = .8;
 function kitSwap(j){
   if (A.kit === j) return;
-  if (A.kit) ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? 0; A.q[k] = false; });
+  if (A.kit){
+    const changed = ['b', 'x', 'y'].filter(k => A.kit[k].name !== j[k].name);
+    ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? 0; A.q[k] = false; });
+    if (changed.length && S.phase === 'run'){ // 切り替えの知らせ：音と、新しい技の一覧
+      A.swapAt = S.t; sfx.ok();
+      const el = document.createElement('div');
+      el.className = 'swapnote outline';
+      el.innerHTML = '<b>ホットバー切替</b>' + changed.map(k => `<span>${k.toUpperCase()} ${j[k].name}</span>`).join('');
+      fxEl.appendChild(el); setTimeout(() => el.remove(), 1800);
+    }
+  }
   A.kit = j; // A のコンボは切り替わっても途切れない
 }
 function actTick(dt){

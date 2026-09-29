@@ -2,10 +2,22 @@ import { EXTRA_TRACKS } from './bgm_tracks.js';
 import { opt } from './store.js';
 
 // ===== 効果音（8bit矩形波） =====
+// 指を離した・クリック・キー入力のたびに音を起こしておく（iOS は touchstart では音を鳴らせない）
+['touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, () => sfx.unlock(), { capture:true, passive:true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && sfx.ac) sfx.unlock(); });
 const SFX_VOL = .5; // 効果音全体の音量
 const sfx = {
   ac:null,
-  unlock(){ if (!opt.sound && !opt.bgm) return; try { this.ac ||= new (window.AudioContext || window.webkitAudioContext)(); if (this.ac.state === 'suspended') this.ac.resume(); } catch {} },
+  // iOS：ホーム画面から開いたアプリでは、止まった音（suspended／interrupted）を指を離したときに再開する必要がある
+  //   audioSession を playback にすると、マナーモードでも鳴り、ほかのアプリの音に消されない（Safari 16.4 以降）
+  unlock(){
+    if (!opt.sound && !opt.bgm) return;
+    try {
+      const n: any = navigator; if (n.audioSession && n.audioSession.type !== 'playback') n.audioSession.type = 'playback';
+      this.ac ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ac.state !== 'running') this.ac.resume().catch(() => {});
+    } catch {}
+  },
   tone(freq, dur, type = 'square', vol = .06, slide = 0){
     if (!opt.sound || !this.ac) return;
     const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();

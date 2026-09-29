@@ -1,3 +1,4 @@
+import { EXTRA_TRACKS } from './bgm_tracks.js';
 import { opt } from './store.js';
 
 // ===== 効果音（8bit矩形波） =====
@@ -33,7 +34,7 @@ const sfx = {
 // 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14、6/8=12）とテンポを持つ
 // build(曲を組み立てる関数) はループ開始位置を返す
 function makePlayer(VOL, build){
-  const N = n => { const m = { C:0, 'C#':1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
+  const N = n => { const m = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s: number, ch: string, n?: string | number, l?: number) => song.push({ s, ch, n:n && (typeof n === 'number' ? n : N(n)), l });
   const up8 = n => n.replace(/\d/, d => String(+d + 1));
@@ -44,7 +45,8 @@ function makePlayer(VOL, build){
 
   // 和音の中で、n より下にある一番近い音（ハモリ用。MIDI番号で返す）
   const below = (n, chord) => { const m = N(n); let best = m - 12; chord.forEach(c => { let x = N(c); while (x >= m - 2) x -= 12; while (x + 12 < m - 2) x += 12; if (x > best) best = x; }); return best; };
-  const LOOP = build({ add, bar, up8, dn8, fill, below, pos:() => cur });
+  const tr = (n, k) => N(n) + k; // 半音 k 個ずらした音（MIDI番号）
+  const LOOP = build({ add, bar, up8, dn8, fill, below, tr, pos:() => cur });
 
   const TOTAL = cur;
   const byStep = Array.from({ length:TOTAL }, () => []);
@@ -161,7 +163,7 @@ function makePlayer(VOL, build){
   }
   function tick(){
     const ac = sfx.ac; if (!ac) return;
-    while (next < ac.currentTime + .15){
+    while (next < ac.currentTime + (window.__offline ? 60 : .15)){ // __offline：テストで音をファイルに書き出すとき
       byStep[step].forEach(e => play(ac, e, next));
       next += stepDur[step]; step++;
       if (step >= TOTAL) step = LOOP; // イントロは最初だけ
@@ -192,7 +194,7 @@ function makePlayer(VOL, build){
 // 構成：イントロ(4/4×2) → A 7/8リフ(×4) → B 4/4旋律(×6) → C 聖歌風 BPM66(×2) → A に戻る（1周 約25秒）
 // 激しさ：歪んだパワーコードの刻み・重いキック・タムのフィル・コンプレッサーで音圧を上げる
 // 厚み：ハイハット16分・速い分散和音・弦・合唱・旋律のハモリ・対旋律・鐘を重ねる
-const bgm = makePlayer(.125, ({ add, bar, up8, dn8, fill, below, pos }) => {
+const bgm1 = makePlayer(.125, ({ add, bar, up8, dn8, fill, below, pos }) => {
   // --- イントロ（4/4、130）---
   bar(16, 130, s0 => { ['D2','D3','A3','D4','F4','A4'].forEach(n => add(s0, 'organ', n, 16)); add(s0, 'crash'); add(s0, 'kick'); add(s0, 'gtr', 'D2', 12); add(s0, 'timp', 'D2'); add(s0, 'bell', 'A5');
     ['D4','F4','A4'].forEach(n => add(s0, 'str', n, 16)); add(s0, 'choir', 'D5', 16); add(s0, 'choir', 'A4', 16);
@@ -283,4 +285,10 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
   return 0;
 });
 
-export { SFX_VOL, sfx, makePlayer, bgm, menuBgm };
+// 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
+const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map(t => ({ name:t.name, player:makePlayer(.125, t.build) }))];
+const bgm = {
+  start(){ (BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
+  stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },
+};
+export { SFX_VOL, sfx, makePlayer, bgm, menuBgm, BGM_TRACKS };

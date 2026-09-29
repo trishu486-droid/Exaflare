@@ -8,7 +8,7 @@ const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
   spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true),
   safe: store.get('safe', false), fx: store.get('fx', !matchMedia('(prefers-reduced-motion: reduce)').matches), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
-  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {}), orch: store.get('orch', 1)
+  debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {}), orch: store.get('orch', 1), track: store.get('track', 0)
 };
 
 export { $, store, opt };

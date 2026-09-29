@@ -5,7 +5,8 @@ import { MECHS } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { A, HP, pressKey, actTick, hasInvuln } from './action.js';
 import { job } from './jobs.js';
+import { sfx, BGM_TRACKS } from './audio.js';
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
-if (DEBUG) window.__T = { S, opt, MECHS, RUN, A, HP, pressKey, actTick, job, hasInvuln, keys };
+if (DEBUG) window.__T = { S, opt, MECHS, RUN, A, HP, pressKey, actTick, job, hasInvuln, keys, sfx, BGM_TRACKS };
 export { DEBUG };

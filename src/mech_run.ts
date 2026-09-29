@@ -14,7 +14,7 @@ import { P, PPY, hurt, px, rect, ring } from './gfx.js';
 // 間に 連続アルテマ・魔撃（AA）・終末の渦 を入れる
 // AA：ヘイト1位・ヒーラー1人・DPS1人に頭割り（被魔法ダメージ増加つき。2つ受けると即死）
 //   タンク＝A（ボスの北）、ヒーラー＝4（南西）、DPS＝3（南東）で受ける
-//   オーケストラ直後の1発目のAAは、ヘイト1位（ホーリー役）がボス前で無敵のまま1人で受ける。2発目からはタンク2人で頭割り
+//   オーケストラ直後のAAは、ヘイト1位（ホーリー役）がボス前で無敵のまま1人で受ける（soloN 発。1回目は2発とも無敵の10秒に収まる）。残りはタンク2人で頭割り
 // =====================================================================
 const RUN = (() => {
   const TARGETABLE = 33;
@@ -23,7 +23,7 @@ const RUN = (() => {
   const REPEAT = [{ cast:34.2, hits:[39.3, 40.1, 40.8, 41.6], dmg:74358 }, { cast:118.1, hits:[123.2, 124.0, 124.7, 125.5], dmg:108000 }];
   const FELL = [
     { at:[44.2, 47.4, 50.5], dmg:[55769, 61965, 68850] },
-    { at:[83.2, 86.3], dmg:[81000, 90000], solo:1 },
+    { at:[83.2, 86.3], dmg:[81000, 90000], solo:1, soloN:2 }, // ホーリー（78.6）直前の無敵で2発とも受けきれる
     { at:[128.1, 131.3], dmg:[81000, 81000] },
     { at:[175.2, 178.3, 181.4], dmg:[68850, 81000, 81000], solo:2 },
   ];
@@ -46,7 +46,7 @@ const RUN = (() => {
       segs.forEach(s => s.end = s.at + s.inst.end);
       segs[5].end = ENRAGE.at; // ミッシングの穴は時間切れまで残る（最後まで床の判定を続ける）
       const seg = t => segs.find(s => t >= s.at && t <= s.end);
-      const aa = FELL.flatMap(f => f.at.map((t, i) => ({ t, dmg:f.dmg[i], solo:i === 0 ? f.solo : 0, done:false })));
+      const aa = FELL.flatMap(f => f.at.map((t, i) => ({ t, dmg:f.dmg[i], solo:i < (f.soloN || 1) ? f.solo : 0, done:false })));
       const hits = REPEAT.flatMap(r => r.hits.map(t => ({ t, dmg:r.dmg, done:false })));
       const fired = { up:false, ent:false, swirl:false };
       let entX = 0, entZ = 0;

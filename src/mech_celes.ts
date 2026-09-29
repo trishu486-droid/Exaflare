@@ -74,7 +74,7 @@ const CELES = (() => {
             const inTower = p.active[s].find(i => (x - TOWERS[i].x) ** 2 + (z - TOWERS[i].z) ** 2 <= SOAK * SOAK);
             if (inTower != null){
               debuffs.push({ el:TOWERS[inTower].el, from:t, until:t + DEBUFF_LEN });
-              healerHit(s === 0 ? [147500, 162000, 180000][TOWERS[inTower].el] : 180000); // 塔のダメージ（ファイガ／サンダガ／ブリザガ）
+              healerHit(s === 0 ? [147500, 162000, 180000][TOWERS[inTower].el] : 180000, s === 0 ? ['ファイガ', 'サンダガ', 'ブリザガ'][TOWERS[inTower].el] : '塔'); // 塔のダメージ（ファイガ／サンダガ／ブリザガ）
             }
             if (!inTarget(s, x, z)){ towerMiss[s] = true; hurt(inTower == null ? '塔に入っていない' : '担当と違う塔'); }
             else fxAdd('ring', x, z, { r:4, cols:['#ffffff', '#ffe070', '#ffffff'], dur:.4 }); // 踏めた

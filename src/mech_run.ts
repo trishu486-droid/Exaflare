@@ -100,7 +100,7 @@ const RUN = (() => {
         },
         tick(t){
           // 連続アルテマ：ボスで閃光 → 横一文字の光 → 画面が青く染まって破片が飛ぶ（4回）
-          hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.big(); healerHit(h.dmg);
+          hits.forEach(h => { if (!h.done && t >= h.t){ h.done = true; sfx.big(); healerHit(h.dmg, 'アルテマ');
             fxAdd('star', 0, 0, { cols:FXC.holy, L:26, dur:.25 }); fxAdd('beam', 0, 0, { cols:['#ffffff', '#ffc8f0', '#b05aff'], dur:.25 });
             fxFlash('#3ab8ff', .45, .25); fxParts(26, 0, 0, { cols:FXC.ice, speed:22, up:3, life:.55, size:3, spread:8, grav:4 }); fxShake(3, .2); } });
           aa.forEach(a => {
@@ -116,7 +116,7 @@ const RUN = (() => {
             } else {
               if (!inK(role)) hurt('AAの頭割りに入れていない');
               else if (['T', 'H', 'D'].some(k => k !== role && inK(k))) hurt('別のAAに入った');
-              healerHit(a.dmg);
+              healerHit(a.dmg, '魔撃');
             }
           });
           if (!fired.swirl && t >= ENTROPY.at - 1.2){ fired.swirl = true; fxAdd('swirl', 0, 0, { r:9, cols:FXC.void, dur:1.2, inward:true }); } // 渦がボスに集まる
@@ -128,7 +128,7 @@ const RUN = (() => {
             fxFlash('#fff4d0', .7, .25); fxParts(30, 0, 0, { cols:['#3a2a1a', '#6a4a2a', '#1a1010'], speed:12, up:12, life:.9, size:3, spread:24 });
             const near = Object.entries(ORCH.SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
             if (near) hurt('終末の渦が重なった');
-            healerHit(ENTROPY.dmg);
+            healerHit(ENTROPY.dmg, '終末の渦');
           }
           segs.forEach(s => {
             if (t < s.at || s.done) return;

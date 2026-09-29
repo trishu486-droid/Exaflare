@@ -49,7 +49,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .hp .hpfill{position:absolute;left:0;top:0;bottom:0;width:100%;background:#58e07a}
 .hp .hpshield{position:absolute;top:0;height:40%;left:0;width:0;background:#ffe070}
 .hp.low .hpfill{background:#ff4d5e}
-.dmg.hurtnum{color:#ff6a6a}
+.dmg.hurtnum{color:#ff7a5a}
 /* 敵視リスト（タンクのオーケストラのみ・右上）：実機のパーティリストのように 順位・ジョブアイコン・下のバー */
 .enmity{position:absolute;right:8px;top:6px;pointer-events:none;display:flex;flex-direction:column;gap:6px;font-size:16px}
 .enmity .erow{display:flex;align-items:center;gap:4px}
@@ -103,6 +103,10 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .dmg.miss small{display:block;font-size:.72em;color:#fff}
 .dmg .act{display:block;font-size:.6em;color:#e8e0ff;text-align:center}
 @keyframes dmg{0%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-28px}}
+/* 自キャラへの被ダメージ・回復：自分の頭上から出て、ボスへの与ダメージより長くゆっくり上へ流れる（実機のフライテキストの出方） */
+.dmg.self{font-size:15px;animation:dmgSelf 1.25s steps(12) forwards;z-index:1}
+.dmg.self .act{font-size:.62em;color:inherit;opacity:.9}
+@keyframes dmgSelf{0%{opacity:1;margin-top:6px}15%{margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-34px}}
 
 /* ===== 操作部 ===== */
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
@@ -175,4 +179,4 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .guide .row{display:flex;gap:8px;position:sticky;bottom:-16px;background:#131022;padding:8px 0 0}
 .guide .row .close{flex:1}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-@media (prefers-reduced-motion: reduce){.msg .blink{animation:none}.dmg{animation-duration:.01s}}
+@media (prefers-reduced-motion: reduce){.msg .blink{animation:none}.dmg,.dmg.self{animation-duration:.01s}}

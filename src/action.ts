@@ -1,7 +1,7 @@
 import { BUFFS, GCD, KEYS, MELEE, QUEUE, SLIDECAST, dmgPerPot, isGcd, job } from './jobs.js';
 import { $ } from './store.js';
 import { S, keys, stickVec } from './state.js';
-import { C0, P, PPY, alpha, hurt, jobIconSvg, line, px, rect, ring } from './gfx.js';
+import { C0, P, PPY, W, alpha, hurt, jobIconSvg, line, px, rect, ring } from './gfx.js';
 import { BOSS_R } from './config.js';
 import { sfx } from './audio.js';
 
@@ -28,12 +28,12 @@ function hpReset(){
 function onBuff(id){
   if (!HP.on || S.phase !== 'run' && S.phase !== 'count') return;
   const b = BUFFS[id], ns = hasBuff('ns');
-  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); HP.healed += HP.hp - before; popup('+' + Math.round((HP.hp - before) * MAX_HP / 100).toLocaleString('en-US'), 'healnum'); }
+  if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); HP.healed += HP.hp - before; popup(Math.round((HP.hp - before) * MAX_HP / 100).toLocaleString('en-US'), 'healnum self', BUFFS[id].name, S.player); }
   if (b.shield) HP.shield = Math.max(HP.shield, b.shield);
   if (id === 'helios' && ns) HP.shield = Math.max(HP.shield, 25); // ニュートラルセクト中のヘリオスはバリアも付く
 }
-// ギミックから呼ぶ：全員が受ける攻撃
-function healerHit(raw){
+// ギミックから呼ぶ：全員が受ける攻撃（name は被ダメージ表示に出す攻撃名）
+function healerHit(raw, name?: string){
   if (!HP.on || S.phase !== 'run') return;
   const mits = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].mit).length;
   const base = raw / MAX_HP * 100 * PARTY_MIT;
@@ -41,7 +41,7 @@ function healerHit(raw){
   const absorbed = Math.min(HP.shield, dmg); HP.shield -= absorbed; dmg -= absorbed;
   HP.taken += base; HP.prevented += base - (dmg + absorbed); HP.absorbed += absorbed;
   HP.hp -= dmg;
-  popup('-' + Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum');
+  popup(Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum self', name, S.player);
   if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
 }
 function hpTick(dt){
@@ -80,15 +80,21 @@ function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <=
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 
 const fxEl = $('fx');
-function popup(text: string, cls?: string, name?: string){
+// at を渡すと、その場所（自キャラ）から出る。渡さなければボスに出る
+function popup(text: string, cls?: string, name?: string, at?: { x:number; z:number }){
   const el = document.createElement('div');
   el.className = 'dmg outline ' + (cls || '');
   el.textContent = text;
   if (name){ const n = document.createElement('span'); n.className = 'act'; n.textContent = name; el.prepend(n); }
-  el.style.left = (50 + (Math.random() * 16 - 8)) + '%';
-  el.style.top = (37 + Math.random() * 4) + '%';
+  if (at){ // 自キャラの頭の少し上から、上へ流れる（FF14 の被ダメージ・回復の出方）
+    el.style.left = (px(at.x) / W * 100 + (Math.random() * 6 - 3)) + '%';
+    el.style.top = ((px(at.z) - 40) / W * 100) + '%';
+  } else {
+    el.style.left = (50 + (Math.random() * 16 - 8)) + '%';
+    el.style.top = (37 + Math.random() * 4) + '%';
+  }
   fxEl.appendChild(el);
-  setTimeout(() => el.remove(), 950);
+  setTimeout(() => el.remove(), 1300);
 }
 function dealDamage(pot, name){
   const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);

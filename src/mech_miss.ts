@@ -1,4 +1,5 @@
 import { S, pick, shuffle } from './state.js';
+import { opt } from './store.js';
 import { sfx } from './audio.js';
 import { healerHit } from './action.js';
 import { FXC, FXK, fxAdd, fxFlash, fxParts, fxShake } from './fx.js';
@@ -15,7 +16,9 @@ import { P, PPY, alpha, disc, glyph, hurt, px, rect, ring } from './gfx.js';
 const MISS = (() => {
   const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
   const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, STACK_AT = 5.12, STACK_R = 6; // 頭割りは穴より少し早く着弾
-  const MISS_EASE = .9; // ヒーラーの被ダメージ：実機どおりだと厳しすぎるので、ミッシングだけさらに10%軽くする
+  // ヒーラーの被ダメージ：練習では相方ヒーラーがいないので実機より軽くする。
+  // 「回復と軽減を両方きちんと使って、ぎりぎり耐える」ライン（どちらかを使わないと倒れる）。学者は回復が少ないぶん軽め
+  const MISS_EASE = () => opt.job === 'sch' ? .48 : .55;
   // 方角（北から時計回りの角度）→ 格子の位置
   const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
   const cell = d => d === 'MID' ? [0, 0] : [Math.round(Math.sin(DIRS.indexOf(d) * Math.PI / 4)), Math.round(-Math.cos(DIRS.indexOf(d) * Math.PI / 4))];
@@ -36,7 +39,7 @@ const MISS = (() => {
     },
     create(d){
       const gone = [], warn = [], oranges = [];
-      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false, stacked:false, stackX:0, stackZ:0, raid:[202967, 243000, 243000, 243000][r] * MISS_EASE, bond:[243000, 300000, 243000, 243000][r] * MISS_EASE }));
+      const rounds = ROUND_AT.map((at, r) => ({ at, tiles:d.rounds[r], baited:false, hit:false, stacked:false, stackX:0, stackZ:0, raid:[202967, 243000, 243000, 243000][r] * MISS_EASE(), bond:[243000, 300000, 243000, 243000][r] * MISS_EASE() }));
       const spots = d.route.map(k => INNER[k]);
       let inVoid = false;
       return {
@@ -46,9 +49,9 @@ const MISS = (() => {
         tick(t){
           const { x, z } = S.player;
           rounds.forEach(r => {
-            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.big(); healerHit(r.bond); FXK.stack(x, z, STACK_R * .7); fxAdd('ring', x, z, { r:STACK_R * 1.3, cols:FXC.magenta, dur:.4 }); fxShake(3, .25); } // ミッシング・ボンド（頭割り）
+            if (!r.stacked && t >= r.at + STACK_AT){ r.stacked = true; r.stackX = x; r.stackZ = z; sfx.big(); healerHit(r.bond, 'ミッシング・ボンド'); FXK.stack(x, z, STACK_R * .7); fxAdd('ring', x, z, { r:STACK_R * 1.3, cols:FXC.magenta, dur:.4 }); fxShake(3, .25); } // ミッシング・ボンド（頭割り）
             if (!r.baited && t >= r.at + .08){ // 頭割りマーカー：穴の予兆＋自分に一番近いマーカーにオレンジ
-              r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08); healerHit(r.raid); // ミッシング（全体攻撃）
+              r.baited = true; warn.push(...r.tiles); sfx.blip(300, .08); healerHit(r.raid, 'ミッシング'); // ミッシング（全体攻撃）
               fxFlash('#ff8af0', .35, .2); for (let i = 0; i < 4; i++) fxAdd('bolt', (i - 1.5) * 9, -4 + (i % 2) * 8, { cols:FXC.void, dur:.3, seed:i * 17 + r.at * 3, dx:(i % 2 ? 1 : -1) * 18 });
               const m = MARKS.reduce((b, q) => (q[0] - x) ** 2 + (q[1] - z) ** 2 < (b[0] - x) ** 2 + (b[1] - z) ** 2 ? q : b);
               oranges.push({ x:m[0], z:m[1], hitAt:r.at + VANISH, done:false });

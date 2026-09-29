@@ -36,7 +36,7 @@ const FLOOD = (() => {
           ticks.forEach(tk => {
             if (tk.done || t < tk.hit) return;
             tk.done = true; sfx.splash();
-            healerHit(75000); // カオティックフラッド（頭割り）
+            healerHit(75000, 'カオティックフラッド'); // カオティックフラッド（頭割り）
             // 演出：帯に沿ってしぶき、頭割りはパーティの位置にピンクの光
             tk.offs.forEach(c => { for (let s = -18; s <= 18; s += 4){
               const x = tk.fam === 'A' ? (c + s) / SQ2 : (-c + s) / SQ2, z = tk.fam === 'A' ? (s - c) / SQ2 : (-c - s) / SQ2;

@@ -17,8 +17,8 @@ const MISS = (() => {
   const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
   const ROUND_AT = [10.0, 18.19, 26.35, 34.49], VANISH = 5.65, STACK_AT = 5.12, STACK_R = 6; // 頭割りは穴より少し早く着弾
   // ヒーラーの被ダメージ：練習では相方ヒーラーがいないので実機より軽くする。
-  // 回復を切らさず、軽減を着弾に合わせて使えば耐えるライン（雑に回すと倒れる）。学者は回復が少ないぶん軽め
-  const MISS_EASE = () => opt.job === 'sch' ? .56 : .63;
+  // 回復GCDをほぼ連打し、軽減を着弾に合わせて使ってやっと耐えるライン。学者は士気のバリアが重ならないぶん軽め（これ以上は士気連打でも耐えられない）
+  const MISS_EASE = () => opt.job === 'sch' ? .56 : .7;
   // 方角（北から時計回りの角度）→ 格子の位置
   const DIRS = ['N','NE','E','SE','S','SW','W','NW'];
   const cell = d => d === 'MID' ? [0, 0] : [Math.round(Math.sin(DIRS.indexOf(d) * Math.PI / 4)), Math.round(-Math.cos(DIRS.indexOf(d) * Math.PI / 4))];

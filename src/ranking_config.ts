@@ -1,9 +1,12 @@
-// ===== みんなのランキング（Supabase）の接続先 =====
-// Supabase の Project Settings → API（Data API）にある「Project URL」と「anon / publishable key」を入れる。
-// どちらも公開してよい値（書き込めるのは scores テーブルへの追加と読み取りだけ。docs/ranking.sql の設定で制限している）。
+// ===== みんなのランキング（Firebase / Firestore）の接続先 =====
+// Firebase コンソール → プロジェクトの設定 → マイアプリ（ウェブ）の firebaseConfig にある「projectId」と「apiKey」を入れる。
+// どちらも公開してよい値（できるのは記録の追加と読み取りだけ。docs/firestore.rules のルールで制限している）。
 // 空のままならランキング機能は出ない。アーティファクト版（claude.ai）も外部に通信できないので出さない
-const RANK_URL = '';
-const RANK_KEY = '';
-const RANK_ON = !!RANK_URL && !!RANK_KEY && import.meta.env.MODE !== 'artifact';
+const FB_PROJECT = '';
+const FB_KEY = '';
+// テスト用：?rankapi=http://localhost:xxxx でモックに向ける（?debug のときだけ）
+const q = new URLSearchParams(location.search);
+const FB_BASE = (q.has('debug') && q.get('rankapi')) || 'https://firestore.googleapis.com';
+const RANK_ON = (!!FB_PROJECT && !!FB_KEY || FB_BASE !== 'https://firestore.googleapis.com') && import.meta.env.MODE !== 'artifact';
 
-export { RANK_URL, RANK_KEY, RANK_ON };
+export { FB_PROJECT, FB_KEY, FB_BASE, RANK_ON };

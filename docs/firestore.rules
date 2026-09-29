@@ -1,0 +1,25 @@
+rules_version = '2';
+// みんなのランキング用のルール（Firebase コンソール → Firestore Database → ルール に貼って「公開」）
+// できること：rank_<ギミック> と rank_<ギミック>_<ジョブ> の記録を読む・追加する。書き換え・削除はできない（消すときはコンソールから）
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function okRecord(d, c) {
+      return d.keys().hasOnly(['name', 'mech', 'job', 'slot', 'score', 'dps', 'rankKey', 'created_at'])
+        && d.keys().hasAll(['name', 'mech', 'job', 'slot', 'score', 'dps', 'rankKey', 'created_at'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.mech in ['flood', 'orch', 'celes', 'exa', 'miss', 'p5']
+        && d.job in ['pld', 'drk', 'mnk', 'rpr', 'mch', 'blm', 'ast', 'sch']
+        && (d.slot == null || d.slot in ['MT', 'ST', 'D1', 'D2', 'D3', 'D4', 'H1', 'H2'])
+        && d.score is int && d.score >= 0 && d.score <= 120
+        && d.dps is int && d.dps >= 0 && d.dps <= 100000
+        && d.rankKey == d.score * 1000000 + d.dps
+        && d.created_at == request.time
+        && (c == 'rank_' + d.mech || c == 'rank_' + d.mech + '_' + d.job);
+    }
+    match /{c}/{id} {
+      allow read: if c.matches('rank_[a-z0-9]+(_[a-z]+)?');
+      allow create: if c.matches('rank_[a-z0-9]+(_[a-z]+)?') && okRecord(request.resource.data, c);
+      allow update, delete: if false;
+    }
+  }
+}

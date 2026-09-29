@@ -1,4 +1,4 @@
-import { RANK_KEY, RANK_ON, RANK_URL } from './ranking_config.js';
+import { FB_BASE, FB_KEY, FB_PROJECT, RANK_ON } from './ranking_config.js';
 import { $, opt, store } from './store.js';
 import { S } from './state.js';
 import { MECHS } from './mechs.js';
@@ -8,10 +8,18 @@ import { sfx } from './audio.js';
 
 // ===== みんなのランキング =====
 // リザルトで「被弾0・補助なし・速度100%」なら登録できる。ギミックごとに、スコア（目標DPSに対する%）→ DPS の順で並べる
-// 通信先は Supabase の REST API（scores テーブル）。名前はニックネームだけ（12文字まで）
+// 通信先は Firestore の REST API（SDKは使わない）。名前はニックネームだけ（12文字まで）
+// コレクションは rank_<ギミック>（全ジョブ）と rank_<ギミック>_<ジョブ> の2つに同じ記録を書く。
+// 並び順は rankKey（スコア×100万＋DPS）の降順1本なので、Firestore の複合インデックスを作らなくても動く
 const TOP = 20;
-const headers = (extra = {}) => ({ apikey:RANK_KEY, ...(RANK_KEY.startsWith('sb_') ? {} : { Authorization:`Bearer ${RANK_KEY}` }), ...extra });
-const api = (q: string, init: RequestInit = {}) => fetch(`${RANK_URL}/rest/v1/scores${q}`, { ...init, headers:headers(init.headers as any) });
+const DB = `projects/${FB_PROJECT || 'demo'}/databases/(default)/documents`;
+const api = (path: string, body: any) => fetch(`${FB_BASE}/v1/${DB}${path}${FB_KEY ? `?key=${encodeURIComponent(FB_KEY)}` : ''}`,
+  { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) }).then(async r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
+const col = (mech: string, job = '') => `rank_${mech}${job ? '_' + job : ''}`;
+const rankKey = e => e.score * 1e6 + e.dps;
+const str = (v: string | null) => v == null ? { nullValue:null } : { stringValue:v };
+const int = (v: number) => ({ integerValue:String(v) });
+const val = f => f == null ? null : 'stringValue' in f ? f.stringValue : 'integerValue' in f ? Number(f.integerValue) : null;
 
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
@@ -30,20 +38,23 @@ const mechs = () => [...MECHS, ...(store.get('p5', false) ? [RUN] : [])];
 
 let view = { mech:'', job:'' };
 async function load(){
-  const list = $('rankList'), q = `?select=name,job,slot,score,dps,created_at&mech=eq.${view.mech}${view.job ? `&job=eq.${view.job}` : ''}&order=score.desc,dps.desc,created_at.asc&limit=${TOP}`;
+  const list = $('rankList');
   list.innerHTML = '<li class="dim">読み込み中…</li>';
   try {
-    const r = await api(q); if (!r.ok) throw new Error(String(r.status));
-    const rows = await r.json();
+    const res = await api(':runQuery', { structuredQuery:{ from:[{ collectionId:col(view.mech, view.job) }],
+      orderBy:[{ field:{ fieldPath:'rankKey' }, direction:'DESCENDING' }], limit:TOP } });
+    const rows = res.filter(x => x.document).map(x => Object.fromEntries(Object.entries(x.document.fields).map(([k, v]) => [k, val(v)]))) as any[];
     list.innerHTML = rows.length ? rows.map((x, i) =>
       `<li><b>${i + 1}</b><span class="nm">${esc(x.name)}</span><span class="jb">${esc(JOBS[x.job]?.name || x.job)}${x.slot ? ' ' + esc(x.slot) : ''}</span><span class="sc">${x.score}%</span><span class="dp">${Number(x.dps).toLocaleString('en-US')}</span></li>`).join('')
       : '<li class="dim">まだ記録がありません</li>';
   } catch { list.innerHTML = '<li class="dim">読み込めませんでした（通信を確認してください）</li>'; }
 }
-// 自分の順位：同じギミックで自分より上（スコアが高い、同点ならDPSが高い）の件数 + 1
+// 自分の順位：同じギミック（全ジョブ）で rankKey が自分より大きい件数 + 1
 async function myRank(e){
-  const r = await api(`?select=id&mech=eq.${e.mech}&or=(score.gt.${e.score},and(score.eq.${e.score},dps.gt.${e.dps}))`, { method:'HEAD', headers:{ Prefer:'count=exact' } });
-  const n = Number((r.headers.get('content-range') || '').split('/')[1]);
+  const res = await api(':runAggregationQuery', { structuredAggregationQuery:{
+    structuredQuery:{ from:[{ collectionId:col(e.mech) }], where:{ fieldFilter:{ field:{ fieldPath:'rankKey' }, op:'GREATER_THAN', value:int(rankKey(e)) } } },
+    aggregations:[{ alias:'n', count:{} }] } });
+  const n = Number(res?.[0]?.result?.aggregateFields?.n?.integerValue);
   return Number.isFinite(n) ? n + 1 : null;
 }
 function renderForm(){
@@ -63,8 +74,12 @@ async function send(){
   store.set('rankName', name);
   ($('rankSend') as HTMLButtonElement).disabled = true;
   try {
-    const r = await api('', { method:'POST', headers:{ 'Content-Type':'application/json', Prefer:'return=minimal' }, body:JSON.stringify({ ...e, name }) });
-    if (!r.ok) throw new Error(String(r.status));
+    // 同じ記録を「全ジョブ」と「ジョブ別」に1回の commit で書く。登録時刻はサーバーの時刻（ルールで確認している）
+    const id = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/-/g, '').slice(0, 20);
+    const fields = { name:str(name), mech:str(e.mech), job:str(e.job), slot:str(e.slot), score:int(e.score), dps:int(e.dps), rankKey:int(rankKey(e)) };
+    await api(':commit', { writes:[col(e.mech), col(e.mech, e.job)].map(c => ({
+      update:{ name:`${DB}/${c}/${id}`, fields }, currentDocument:{ exists:false },
+      updateTransforms:[{ fieldPath:'created_at', setToServerValue:'REQUEST_TIME' }] })) });
     const pos = await myRank(e).catch(() => null);
     S.rankSent = pos ? `登録しました！ ${pos}位` : true; sfx.clear();
   } catch { ($('rankSend') as HTMLButtonElement).disabled = false; $('rankForm').insertAdjacentHTML('beforeend', '<p class="note ng">送れませんでした。通信を確認してもう一度。</p>'); return; }

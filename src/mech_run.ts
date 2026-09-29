@@ -1,5 +1,5 @@
 import { MECHS } from './mechs.js';
-import { TARGET_DPS, mySlot } from './jobs.js';
+import { GCD, TARGET_DPS, mySlot } from './jobs.js';
 import { S, shuffle } from './state.js';
 import { ORCH } from './mech_orch.js';
 import { opt } from './store.js';
@@ -31,8 +31,14 @@ const RUN = (() => {
   // [ギミック, 開始時刻, オーケストラの回, そのオーケストラのバフ・ヘイトが続く時刻]
   const SEGS: [string, number, number?, number?][] = [['flood', 52.55], ['orch', 66.0, 1, 87.6], ['celes', 87.62], ['exa', 132.8], ['orch', 158.0, 2, 182.7], ['miss', 182.7]];
   const MK = id => MECHS.find(m => m.id === id);
-  const ZOOM = 3, KILL_AT = .9;
   const ENRAGE = { at:253.4, len:26 }; // ミッシング・ゼロ（時間切れ）：詠唱 1587.4 → 完了 1613.4。ターゲット可能から 3分40秒
+  const ZOOM = 3, KILL_AT = .95;
+  // ヒーラー：相方ヒーラーがいないぶん、ミッシング以外の被ダメージを実機の85%に（連続アルテマ2回目は、軽減を温存して合わせれば耐えられる量）
+  //   回復GCDを打つと攻撃GCDが減るので、耐えるのに最低限いる回復の回数（被弾の記録からの試算）だけボスを柔らかくする
+  const HEAL_EASE = .85, HEAL_GCDS = { ast:25, sch:24 };
+  const activeLen = ENRAGE.at - TARGETABLE;
+  // 目標DPS：ヒーラーは回復GCDのぶんを引いた値（リザルトのランク・目標表示にも使う）
+  const dpsTarget = () => TARGET_DPS[opt.job] * (1 - (HEAL_GCDS[opt.job] || 0) * GCD / activeLen);
   const roleOf = slot => slot[0] === 'M' || slot[0] === 'S' ? 'T' : slot[0];
   const fmt = t => { const s = Math.max(0, Math.floor(t)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
   return {
@@ -77,8 +83,10 @@ const RUN = (() => {
         },
         // 開幕（どきどきアルテマ〜ターゲット不可）は飛ばして、ターゲット可能になる時刻から 3 カウントで始める
         t0:TARGETABLE,
-        // ボスのHP：そのジョブの目標DPSの9割を最後まで出し続けると、ちょうど削りきれる量（ジョブごとに硬さが変わる）
-        bossHp: TARGET_DPS[opt.job] * (ENRAGE.at - TARGETABLE) * KILL_AT,
+        // ボスのHP：そのジョブの目標DPS（ヒーラーは回復GCDのぶんを引いた値）の95%を最後まで出し続けると、ちょうど削りきれる量
+        bossHp: dpsTarget() * activeLen * KILL_AT,
+        dpsTarget: dpsTarget(),
+        healEase: t => t < SEGS[5][1] ? HEAL_EASE : 1, // ミッシングは mech_miss 側で調整済み
         targetable: t => t >= TARGETABLE,
         activeTime: end => Math.max(1, end - TARGETABLE),
         tankRole(t){

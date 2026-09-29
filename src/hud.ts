@@ -221,7 +221,7 @@ function buildResult(){
   return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rk}</div>` +
     `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
     (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(Math.max(0, 1 - A.dmg / S.inst.bossHp) * 100).toFixed(1)}%`}</div>` : '') +
-    `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(TARGET_DPS[opt.job])}</span></div>` +
+    `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(dpsGoal())}</span></div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
     `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +
     [...misses].map(([r, c]) => `<div class="sub" style="color:var(--red)">${r} ×${c}</div>`).join('') + rankLine +
@@ -229,11 +229,13 @@ function buildResult(){
 }
 // ランク：目標DPSに対する割合。ヒーラーは被弾するギミックでは「回復・軽減の割合」と半々。被弾したら D
 const RANKS: [string, number, string][] = [['S', .95, '#ffcf4a'], ['A', .85, '#58e07a'], ['B', .70, '#5ad0ff'], ['C', .50, '#d08cff'], ['D', 0, '#8c83a8']];
+// 目標DPS：P5 通しのヒーラーは回復GCDのぶんを引いた値（ギミックが決める）
+const dpsGoal = () => S.inst?.dpsTarget ?? TARGET_DPS[opt.job];
 const fightDps = () => { const end = S.endT ?? S.inst.end; return A.dmg / Math.max(1, S.inst.activeTime ? S.inst.activeTime(end) : end); };
 // 受けたダメージ（ほかの人の軽減込み）のうち、自分の軽減・バリア・回復で埋めた割合
 const healRatio = () => HP.taken ? Math.min(1, (HP.prevented + HP.absorbed + HP.healed) / HP.taken) : 1;
 function rankHtml(){
-  const dps = Math.min(1.2, fightDps() / TARGET_DPS[opt.job]);
+  const dps = Math.min(1.2, fightDps() / dpsGoal());
   const score = HP.on && HP.taken ? (dps + healRatio()) / 2 : dps;
   const i = S.hits ? RANKS.length - 1 : RANKS.findIndex(r => score >= r[1]); // 被弾したら即 D（実戦なら落ちてDPS 0）
   const [name, , color] = RANKS[i];

@@ -36,7 +36,7 @@ function onBuff(id){
 function healerHit(raw, name?: string){
   if (!HP.on || S.phase !== 'run') return;
   const mits = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].mit).length;
-  const base = raw / MAX_HP * 100 * PARTY_MIT;
+  const base = raw / MAX_HP * 100 * PARTY_MIT * (S.inst?.healEase?.(S.t) ?? 1); // P5 通しはギミックごとに軽くする
   let dmg = base * Math.pow(1 - MIT_PCT, mits);
   const absorbed = Math.min(HP.shield, dmg); HP.shield -= absorbed; dmg -= absorbed;
   HP.taken += base; HP.prevented += base - (dmg + absorbed); HP.absorbed += absorbed;

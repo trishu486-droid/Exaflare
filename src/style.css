@@ -1,3 +1,6 @@
+/* ドットフォント（DotGothic16・SIL Open Font License 1.1 → src/fonts/OFL.txt）。
+   Google Fonts だと日本語が文字のまとまりごとに後から届き、途中で字形が変わって見えるので、フォント1本をアプリに同梱する */
+@font-face{font-family:"DotGothic16";src:url("./fonts/DotGothic16.woff2") format("woff2");font-weight:400;font-style:normal;font-display:block}
 :root{
   color-scheme: light;
   --bg:#0b0a14;

@@ -6,7 +6,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig(({ mode }) => ({
   base: './',
   build: mode === 'artifact'
-    ? { outDir: 'dist-artifact', copyPublicDir: false, assetsInlineLimit: 0 }
+    ? { outDir: 'dist-artifact', copyPublicDir: false, assetsInlineLimit: (f) => f.endsWith('.woff2') } // フォントだけは1枚に埋め込む
     : { outDir: 'dist' },
   plugins: mode === 'artifact' ? [viteSingleFile({ removeViteModuleLoader: true })] : [],
 }));

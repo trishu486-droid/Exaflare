@@ -34,14 +34,31 @@ const sfx = {
 // 1ステップ＝16分音符。小節ごとに長さ（4/4=16、7/8=14、6/8=12）とテンポを持つ
 // build(曲を組み立てる関数) はループ開始位置を返す
 function makePlayer(VOL, build){
-  const N = n => { const m = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
+  const N = n => { const m = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11, 'B#':12, 'E#':5, Fb:4, Cb:-1 }; const [, k, o] = n.match(/^([A-G][#b]?)(\d)$/); return 12 * (+o + 1) + m[k]; };
   const song = [], stepDur = [];   // song: { s:ステップ, ch, n:MIDI, l:長さ }
   const add = (s: number, ch: string, n?: string | number, l?: number) => song.push({ s, ch, n:n && (typeof n === 'number' ? n : N(n)), l });
   const up8 = n => n.replace(/\d/, d => String(+d + 1));
   const dn8 = n => n.replace(/\d/, d => String(+d - 1));
   let cur = 0;
   const bar = (len, bpm, fn) => { const s0 = cur; for (let i = 0; i < len; i++) stepDur.push(60 / bpm / 4); cur += len; fn(s0); };
-  const fill = (s0, from, to) => { for (let i = from; i < to; i++) add(s0 + i, 'tom', ['A2','G2','E2','D2'][(i - from) % 4]); };
+  // フィル（区切りの前の太鼓）。曲の調に合わせた音程と、いくつかの叩き方から選ぶ
+  //   tom：タムが下がる / up：タムが上がる / roll：スネアの連打→シンバル / tri：3つずつのタム（3連風）
+  //   timp：ティンパニの連打 / kick：バスドラの連打＋スネア / flam：スネアとタムを重ねて下がる / sparse：8分で間を空ける
+  const fill = (s0: number, from: number, to: number, style = 'tom', notes: string[] = ['A2','G2','E2','D2']) => {
+    const n = to - from;
+    for (let i = 0; i < n; i++){
+      const s = s0 + from + i, last = i === n - 1;
+      if (style === 'tom') add(s, 'tom', notes[i % notes.length]);
+      else if (style === 'up') add(s, 'tom', notes[notes.length - 1 - i % notes.length]);
+      else if (style === 'roll'){ add(s, 'snare'); if (i >= n - 2) add(s, 'kick'); }
+      else if (style === 'tri'){ if (i % 3 !== 2) add(s, 'tom', notes[Math.floor(i / 3) % notes.length]); else add(s, 'snare'); }
+      else if (style === 'timp') add(s, 'timp', notes[i % 2 ? notes.length - 1 : 0]);
+      else if (style === 'kick'){ add(s, 'kick'); if (i % 2) add(s, 'snare'); }
+      else if (style === 'flam'){ add(s, 'snare'); add(s, 'tom', notes[i % notes.length]); }
+      else if (style === 'sparse'){ if (i % 2 === 0) add(s, 'tom', notes[(i / 2) % notes.length]); }
+      if (last && style !== 'sparse') add(s, 'crash');
+    }
+  };
 
   // 和音の中で、n より下にある一番近い音（ハモリ用。MIDI番号で返す）
   const below = (n, chord) => { const m = N(n); let best = m - 12; chord.forEach(c => { let x = N(c); while (x >= m - 2) x -= 12; while (x + 12 < m - 2) x += 12; if (x > best) best = x; }); return best; };
@@ -220,7 +237,7 @@ const bgm1 = makePlayer(.125, ({ add, bar, up8, dn8, fill, below, pos }) => {
     c.forEach(n => add(s0, 'str', up8(n), 14));
     [[0, up8(c[2]), 4], [4, up8(c[1]), 4], [8, up8(c[0]), 6]].forEach(([i, n, l]) => add(s0 + i, 'harm', n, l));
     add(s0, 'choir', up8(c[0]), 14);
-    if (b === 3) fill(s0, 10, 14);
+    if (b === 3) fill(s0, 10, 14, 'tom', ['D3','C3','A2','F2']);
   }));
 
   // --- B：4/4 の旋律（Dm B♭ E° A7 / E♭ A）---
@@ -248,7 +265,7 @@ const bgm1 = makePlayer(.125, ({ add, bar, up8, dn8, fill, below, pos }) => {
     c.forEach(n => add(s0, 'str', n, 16)); add(s0, 'choir', c[0], 16); add(s0, 'choir', c[2], 16);
     add(s0, 'bell', up8(up8(c[0])));
     [12, 13, 14, 15].forEach((i, k) => add(s0 + i, 'spark', up8(up8(c[k % 3])), 1));
-    if (b === 5) fill(s0, 12, 16);
+    if (b === 5) fill(s0, 12, 16, 'roll');
   }));
 
   // --- C：聖歌風（テンポ66に急減速）---

@@ -339,6 +339,7 @@ function frenzy(api){
 }
 
 // 12曲目「堕天の舞（組曲）」：ハ短調。ラスボス戦の組曲らしく、4つの楽章で表情が変わる（すべてオリジナル）
+//   練習の短い時間でも最後まで聞けるよう、第1〜3楽章は2小節ずつに詰めてある（最初の1周 約28秒、以降は第3〜4楽章の約16秒でループ）
 //   第1楽章：重い合唱とオルガン。ベースが半音ずつ下がっていく（嘆きの進行）、減七の和音で一瞬止まる
 //   第2楽章：3/4 の尊大な行進。金管の付点リズム
 //   第3楽章：オルガン独奏のトッカータ（16分の分散和音・ドラム無し）
@@ -352,23 +353,23 @@ function fallen(api){
     [['Ab1','C3','Eb3','Ab3'], ['G1','B2','D3','F3'], 'Eb5', 'D5'],
     [['F#1','A2','C3','Eb3'], ['G1','B2','D3','G3'], 'C5', 'B4'],
   ];
-  M1.forEach(([c1, c2, t1, t2], b) => bar(16, 60, s0 => {
+  [M1[0], M1[3]].forEach(([c1, c2, t1, t2], k) => { const b = k ? 3 : 0; bar(16, 66, s0 => {
     [[0, c1, t1], [8, c2, t2]].forEach(([i, c, t]: any) => {
       c.forEach((n, k) => add(s0 + i, k ? 'organ2' : 'pedal', n, 8));
       add(s0 + i, 'choir2', t, 8); add(s0 + i, 'choir2', dn8(t), 8); add(s0 + i, 'choir2', c[2], 8);
     });
     add(s0, 'timp', dn8(c1[1])); add(s0, 'bell', up8(t1));
     if (b === 3){ for (let i = 8; i < 14; i++) add(s0 + i, 'timp', 'G1'); add(s0 + 14, 'crash'); } // 減七で溜めて、ティンパニの連打
-  }));
+  }); });
   // 第2楽章（84・3/4）
   const M2 = [[['Ab3','C4','Eb4'], [['C5',6],['Eb5',2],['Ab5',4]]], [['F3','Ab3','C4'], [['Ab5',6],['F5',2],['C5',4]]],
               [['Db4','F4','Ab4'], [['F5',6],['Ab5',2],['Db6',4]]], [['G3','B3','D4','F4'], [['D6',6],['B5',2],['G5',4]]]];
-  M2.forEach(([c, m]: any, b) => bar(12, 84, s0 => {
+  [M2[0], M2[3]].forEach(([c, m]: any, k) => { const b = k ? 3 : 0; bar(12, 84, s0 => {
     add(s0, 'timp', dn8(dn8(c[0]))); add(s0, 'kick'); add(s0, 'bass', dn8(dn8(c[0])), 4); [4, 8].forEach(i => c.forEach(n => add(s0 + i, 'brass', n, 3)));
     K.mel(s0, m, 'brass'); K.mel(s0, m.map(([n, l]) => [dn8(n), l]), 'brass'); c.forEach(n => add(s0, 'organ2', n, 12)); add(s0, 'choir2', up8(c[0]), 12);
     [4, 8].forEach(i => add(s0 + i, 'snare'));
     if (b === 3) fill(s0, 6, 12, 'roll');
-  }));
+  }); });
   // 第3楽章（116・オルガン独奏）
   const LOOP = pos();
   const M3 = [
@@ -377,7 +378,7 @@ function fallen(api){
     ['Ab3','C4','F4','Ab4','C5','F5','Ab5','C6','Ab5','F5','C5','Ab4','F4','C4','Ab3','F3'], 'F1',
     ['G5','F5','D5','B4','Ab4','F4','D4','B3','G3','B3','D4','F4','Ab4','B4','D5','G5'], 'G1',
   ];
-  for (let b = 0; b < 4; b++) bar(16, 116, s0 => {
+  for (const b of [0, 3]) bar(16, 116, s0 => {
     (M3[b * 2] as string[]).forEach((n, i) => { add(s0 + i, 'organ2', n, 1); if (i % 4 === 0) add(s0 + i, 'organ2', dn8(n), 2); });
     add(s0, 'pedal', M3[b * 2 + 1] as string, 16); add(s0, 'organ2', M3[b * 2 + 1] as string, 16);
     if (b === 3){ add(s0 + 12, 'timp', 'G1'); add(s0 + 14, 'timp', 'G1'); }

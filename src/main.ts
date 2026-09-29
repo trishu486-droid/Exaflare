@@ -17,6 +17,7 @@ import './mechs.js';
 import './omake.js';
 import './mech_run.js';
 import './hud.js';
+import './ranking.js';
 import './action.js';
 import './game.js';
 import './menu.js';

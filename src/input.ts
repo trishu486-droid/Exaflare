@@ -1,3 +1,4 @@
+import { closeRank } from './ranking.js';
 import { $, opt, store } from './store.js';
 import { S, keys, stickVec } from './state.js';
 import { flipPage, infoTarget, kin, menuBack, menuConfirm, moveCursor } from './menu.js';
@@ -32,6 +33,7 @@ function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSa
 function syncSafe(){ $('oSafe').checked = opt.safe; }
 function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
 window.addEventListener('keydown', e => {
+  if (!$('rank').hidden){ if (e.key === 'Escape') closeRank(); return; } // ランキング（名前の入力中はゲームの操作を止める）
   if (!$('sheet').hidden) { if (keyWait) return; if (e.key === 'Escape') closeSheet(); return; }
   const act = keyOf[e.key.toLowerCase()];
   if (!$('info').hidden){ if (act === 'menu' || act === 'b' || act === 'y' || e.key === 'Escape') closeInfo(); return; }

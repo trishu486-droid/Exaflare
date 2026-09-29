@@ -188,6 +188,21 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .guide a{color:#8ac8ff}
 .guide ul.src{margin:0;padding-left:1.2em;font-size:12px}
 .guide .row{display:flex;gap:8px;position:sticky;bottom:-16px;background:#131022;padding:8px 0 0}
+/* みんなのランキング */
+.rank .row{display:flex;gap:8px}
+.rank select,.rank input{flex:1;min-width:0;font:14px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:6px;border-radius:0;-webkit-user-select:text;user-select:text}
+.rank input{font-size:16px} /* iPhone で入力時に拡大されないよう16px */
+.rank .row .close{flex:0 0 auto;padding:0 14px}
+.rlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;font-variant-numeric:tabular-nums}
+.rlist li{display:grid;grid-template-columns:2em 1fr auto 3.4em 4.6em;gap:6px;align-items:baseline;padding:3px 4px;background:rgba(255,255,255,.04)}
+.rlist li:nth-child(1) b{color:#ffcf4a}.rlist li:nth-child(2) b{color:#d8d8e8}.rlist li:nth-child(3) b{color:#e0a060}
+.rlist b{font-weight:400;text-align:right;color:var(--dim)}
+.rlist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rlist .jb{color:var(--dim);font-size:11px}
+.rlist .sc{color:var(--gold);text-align:right}
+.rlist .dp{color:var(--dim);text-align:right;font-size:11px}
+.rlist li.dim{display:block;color:var(--dim);background:none}
+.rank .note.ok{color:var(--green)}.rank .note.ng{color:var(--red)}
 .guide .row .close{flex:1}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){.msg .blink{animation:none}.ab.soon::before,.ab.swapped .round,.swapnote{animation:none}.dmg,.dmg.self{animation-duration:.01s}}

@@ -19,6 +19,7 @@
   <div class="top">
     <h1><b id="mechName">絶ケフカP5</b> <span id="jobName">ナイト</span></h1>
     <button class="mini" id="bMenu" type="button" aria-label="ギミック選択に戻る">≡</button>
+    <button class="mini" id="bRank" type="button" aria-label="ランキング" hidden>★</button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
 
@@ -103,6 +104,17 @@
       <p class="note">非公式のファンメイド練習ツールです（非営利）。株式会社スクウェア・エニックスとは関係ありません。FINAL FANTASY XIV © SQUARE ENIX。BGMはオリジナル曲です。フォントは DotGothic16（SIL Open Font License）。</p>
     </div>
     <button class="close" id="bClose" type="button">とじる</button>
+  </div>
+</div>
+
+<div class="sheet" id="rank" hidden>
+  <div class="panel rank" role="dialog" aria-label="ランキング">
+    <h2>みんなのランキング</h2>
+    <div class="row"><select id="rankMech" aria-label="ギミック"></select><select id="rankJob" aria-label="ジョブ"></select></div>
+    <ol class="rlist" id="rankList"></ol>
+    <p class="note">スコア＝目標DPSに対する%（被弾0・速度100%・補助表示なしの記録だけ）。同点はDPS順。</p>
+    <div id="rankForm"></div>
+    <button class="close" id="rankClose" type="button">とじる</button>
   </div>
 </div>
 

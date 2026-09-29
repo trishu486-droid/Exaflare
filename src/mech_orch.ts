@@ -12,7 +12,9 @@ import { P, PPY, glyph, hurt, px, rect, ring, thickRing } from './gfx.js';
 // 味方7人は正しく動く（着弾ギリギリまで動かない）。自分の担当はジョブで決まる（ナイト MT/ST、モンク D1/D2、機工士 D3、黒 D4、学者 H1/H2）
 // =====================================================================
 const ORCH = (() => {
-  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, FLARE_R = 8, BOT_SPEED = PLAYER_SPEED * 4; // 味方は着弾の直前まで動かず、ギリギリで4倍速で駆け込む（答えが見えないように）
+  const HOLY_R = 5, TB_R = 4.5, STACK_R = 4, BOT_SPEED = PLAYER_SPEED * 4; // 味方は着弾の直前まで動かず、ギリギリで4倍速で駆け込む（答えが見えないように）
+  // フレア（フレア役タンクへの大きな円範囲）：半径25（Splatoon の P5 プリセットの値）。北端で捨てれば、南に集まった味方には届かない
+  const FLARE_R = 25;
   const CAST_END = 5.0, W1 = 5.9, W2 = 9.1, FINAL = 12.6, MARK_AT = 1.5; // 詠唱の長さと予兆のタイミングは推定
   // 散開位置（攻略図から読み取り）
   const SPREAD = {
@@ -133,15 +135,15 @@ const ORCH = (() => {
           }
           if (!fired.fin && t >= FINAL){
             fired.fin = true; sfx.boom();
-            { const q = pos(F); FXK.flare(q.x, q.z, FLARE_R, true); fxAdd('ring', q.x, q.z, { r:FLARE_R * 1.6, cols:FXC.flare, dur:.5 }); }
+            { const q = pos(F); FXK.flare(q.x, q.z, FLARE_R, true); fxAdd('ring', q.x, q.z, { r:FLARE_R, cols:FXC.flare, dur:.5 }); }
             { const q = pos(H); FXK.holy(q.x, q.z, 6); fxAdd('ring', q.x, q.z, { r:12, cols:FXC.holy, dur:.6 }); }
             sfx.big();
             if (p.me === F){
-              if (all.some(k => k !== F && dist(pos(F), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ');
+              if (all.some(k => k !== F && k !== H && dist(pos(F), pos(k)) <= FLARE_R)) hurt('フレアに味方を巻き込んだ'); // ホーリー役はボス前で無敵なので巻き込んでよい
               if (!hasHeavy()) hurt('重いバフなしでフレア');
               if (A.shirk === null) hurt('シャークしていない');
             }
-            else if (dist(me, pos(F)) <= FLARE_R) hurt('フレアに巻き込まれた');
+            else if (p.me !== H && dist(me, pos(F)) <= FLARE_R) hurt('フレアに巻き込まれた');
             if (p.me === H && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
             if (p.me === H && !hasInvuln()) hurt('無敵なしでホーリー');
           }

@@ -30,6 +30,7 @@ body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--
 .top h1{margin:0;font:400 16px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
 .top h1 b{color:var(--ab);font-weight:400}
 .top h1 span{color:var(--gb-ink)}
+.mini .crown{width:22px;height:18px;display:block;margin:auto}
 .mini{font:16px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
 .screen{position:relative;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
@@ -194,13 +195,16 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .rank input{font-size:16px} /* iPhone で入力時に拡大されないよう16px */
 .rank .row .close{flex:0 0 auto;padding:0 14px}
 .rlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;font-variant-numeric:tabular-nums}
-.rlist li{display:grid;grid-template-columns:2em 1fr auto 3.4em 4.6em;gap:6px;align-items:baseline;padding:3px 4px;background:rgba(255,255,255,.04)}
+.rlist li{display:grid;grid-template-columns:2em 1fr 16px 5em 2.6em;gap:6px;align-items:center;padding:3px 4px;background:rgba(255,255,255,.04)}
+.rlist li.hd{background:none;color:var(--dim);font-size:11px;padding-bottom:0}.rlist li.hd b{color:var(--dim)}
 .rlist li:nth-child(1) b{color:#ffcf4a}.rlist li:nth-child(2) b{color:#d8d8e8}.rlist li:nth-child(3) b{color:#e0a060}
 .rlist b{font-weight:400;text-align:right;color:var(--dim)}
 .rlist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rlist .jb{color:var(--dim);font-size:11px}
-.rlist .sc{color:var(--gold);text-align:right}
-.rlist .dp{color:var(--dim);text-align:right;font-size:11px}
+.rlist .jb svg{width:16px;height:16px;display:block}
+.rlist .dp{text-align:right}
+/* Perf の色（FF Logs と同じ区切り） */
+.rlist .pf{text-align:right;color:var(--dim)}
+.pf.grey{color:#9d9d9d}.pf.green{color:#1eff00}.pf.blue{color:#3a9bff}.pf.purple{color:#b872f5}.pf.orange{color:#ff8000}.pf.pink{color:#e268a8}.pf.gold{color:#e5cc80}
 .rlist li.dim{display:block;color:var(--dim);background:none}
 .rank .note.ok{color:var(--green)}.rank .note.ng{color:var(--red)}
 .guide .row .close{flex:1}

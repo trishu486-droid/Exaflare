@@ -19,7 +19,7 @@
   <div class="top">
     <h1><b id="mechName">絶ケフカP5</b> <span id="jobName">ナイト</span></h1>
     <button class="mini" id="bMenu" type="button" aria-label="ギミック選択に戻る">≡</button>
-    <button class="mini" id="bRank" type="button" aria-label="ランキング" hidden>★</button>
+    <button class="mini" id="bRank" type="button" aria-label="ランキング" hidden><svg class="crown" viewBox="0 0 11 9" shape-rendering="crispEdges" aria-hidden="true"><path fill="#ffcf4a" d="M0 2h1v1h1v1h1V2h1V1h1V0h1v1h1v1h1v2h1V3h1V2h1v7H0z"/><path fill="#ff5a6a" d="M5 5h1v2H5z"/><path fill="#5ab0ff" d="M2 6h1v1H2zM8 6h1v1H8z"/><path fill="#b8862a" d="M0 8h11v1H0z"/></svg></button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
 
@@ -112,7 +112,7 @@
     <h2>みんなのランキング</h2>
     <div class="row"><select id="rankMech" aria-label="ギミック"></select><select id="rankJob" aria-label="ジョブ"></select></div>
     <ol class="rlist" id="rankList"></ol>
-    <p class="note">スコア＝目標DPSに対する%（被弾0・速度100%・補助表示なしの記録だけ）。同点はDPS順。</p>
+    <p class="note">FF Logs と同じく DPS 順（1人につき一番いい記録）。Perf＝同じギミック・同じジョブの記録の中での位置（1位が100）。被弾0・速度100%・補助表示なしの記録だけ。</p>
     <div id="rankForm"></div>
     <button class="close" id="rankClose" type="button">とじる</button>
   </div>

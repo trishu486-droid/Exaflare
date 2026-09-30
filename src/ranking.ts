@@ -37,7 +37,10 @@ function rankPrepare(entry){ S.rankEntry = entry; S.rankSent = false; }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const cleanName = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
-const mechs = () => [...MECHS, ...(store.get('p5', false) ? [RUN] : [])];
+// P5 通しは隠しステージ。解放前は「？？？」として並べ、中身は見せない
+const unlockedRun = () => store.get('p5', false);
+const mechs = () => [...MECHS, RUN];
+const mechLabel = m => m.id === RUN.id && !unlockedRun() ? '？？？' : m.name;
 
 let view = { mech:'', job:'' };
 const fields = doc => Object.fromEntries(Object.entries(doc.fields).map(([k, v]) => [k, val(v)])) as any;
@@ -58,6 +61,7 @@ async function perfOf(mech: string, job: string, dps: number){
 const perfCol = (v: number) => v >= 100 ? 'gold' : v >= 99 ? 'pink' : v >= 95 ? 'orange' : v >= 75 ? 'purple' : v >= 50 ? 'blue' : v >= 25 ? 'green' : 'grey';
 async function load(){
   const list = $('rankList'), my = JSON.stringify(view);
+  if (view.mech === RUN.id && !unlockedRun()){ list.innerHTML = '<li class="dim secret">？？？<br>どこかに隠されたステージを見つけると、ここが開きます。</li>'; return; }
   list.innerHTML = '<li class="dim">読み込み中…</li>';
   for (const k in totals) delete totals[k]; // 開くたびに数え直す
   try {
@@ -109,8 +113,8 @@ async function send(){
 }
 function openRank(){
   if (!RANK_ON) return;
-  view.mech = S.rankEntry?.mech || (mechs().some(m => m.id === opt.mech) ? opt.mech : mechs()[0].id);
-  ($('rankMech') as HTMLSelectElement).innerHTML = mechs().map(m => `<option value="${m.id}"${m.id === view.mech ? ' selected' : ''}>${m.name}</option>`).join('');
+  view.mech = S.rankEntry?.mech || (mechs().some(m => m.id === opt.mech) && (opt.mech !== RUN.id || unlockedRun()) ? opt.mech : mechs()[0].id);
+  ($('rankMech') as HTMLSelectElement).innerHTML = mechs().map(m => `<option value="${m.id}"${m.id === view.mech ? ' selected' : ''}>${mechLabel(m)}</option>`).join('');
   ($('rankJob') as HTMLSelectElement).value = view.job;
   $('rank').hidden = false; renderForm(); load(); sfx.unlock(); sfx.ok();
 }

@@ -8,9 +8,9 @@ import { sfx } from './audio.js';
 import { jobIconSvg } from './gfx.js';
 
 // ===== みんなのランキング =====
-// リザルトで「被弾0・補助なし・速度100%」なら登録できる。表示は FF Logs にならって DPS 順、Perf（パーセンタイル）つき
+// リザルトで「被弾0・補助なし・速度100%」なら登録できる。表示は DPS 順で、Perf（パーセンタイル）つき
 // Perf：同じギミック・同じジョブの記録の中での位置。1位が100、それ以外は floor(100 ×（総数 − 順位）÷ 総数)
-//   色も FF Logs と同じ区切り（灰 <25・緑 25〜49・青 50〜74・紫 75〜94・橙 95〜98・桃 99・金 100）
+//   色の区切り（灰 <25・緑 25〜49・青 50〜74・紫 75〜94・橙 95〜98・桃 99・金 100）
 // 通信先は Firestore の REST API（SDKは使わない）。名前はニックネームだけ（12文字まで）
 // コレクションは rank_<ギミック>（全ジョブ）と rank_<ギミック>_<ジョブ> の2つに同じ記録を書く。
 // 並び順は rankKey（スコア×100万＋DPS）の降順1本なので、Firestore の複合インデックスを作らなくても動く
@@ -67,7 +67,7 @@ async function load(){
   try {
     const res = await api(':runQuery', { structuredQuery:{ from:[{ collectionId:col(view.mech, view.job) }],
       orderBy:[{ field:{ fieldPath:'dps' }, direction:'DESCENDING' }], limit:TOP * 2 } });
-    // FF Logs と同じく、1人（名前＋ジョブ）につき一番いい記録だけ
+    // 1人（名前＋ジョブ）につき一番いい記録だけ
     const seen = new Set<string>(), rows = res.filter(x => x.document).map(x => fields(x.document))
       .filter(x => { const k = x.name + '/' + x.job; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, TOP);
     if (JSON.stringify(view) !== my) return; // 読み込み中に切り替えた

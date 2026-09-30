@@ -202,7 +202,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 .rlist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rlist .jb svg{width:16px;height:16px;display:block}
 .rlist .dp{text-align:right}
-/* Perf の色（FF Logs と同じ区切り） */
+/* Perf の色（灰 <25・緑 25〜49・青 50〜74・紫 75〜94・橙 95〜98・桃 99・金 100） */
 .rlist .pf{text-align:right;color:var(--dim)}
 .pf.grey{color:#9d9d9d}.pf.green{color:#1eff00}.pf.blue{color:#3a9bff}.pf.purple{color:#b872f5}.pf.orange{color:#ff8000}.pf.pink{color:#e268a8}.pf.gold{color:#e5cc80}
 .rlist li.dim{display:block;color:var(--dim);background:none}

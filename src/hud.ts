@@ -8,7 +8,7 @@ import { BUFFS, GCD, JOB_ORDER, KEYS, TARGET_DPS, isGcd, job, mySlot } from './j
 import { needOrchN, openJobs } from './menu.js';
 import { titleOn } from './title.js';
 import { sfx } from './audio.js';
-import { rankBlock, rankPrepare } from './ranking.js';
+import { REG_BTN, rankBlock, rankPrepare } from './ranking.js';
 
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
@@ -217,7 +217,7 @@ function buildResult(){
   // みんなのランキング：登録用に今回の記録を覚えておく（登録は上の★から）
   rankPrepare({ mech:mech().id, job:opt.job, slot:mech().slots ? mySlot() : null, score:Math.round(S.score * 100), dps:Math.round(fightDps()) });
   const block = rankBlock();
-  const rankLine = block === 'off' ? '' : block ? `<div class="sub" style="color:var(--dim);font-size:12px">ランキング：${block}</div>` : `<div class="sub" style="color:var(--gold)">ランキングに登録できます（上の王冠）</div>`;
+  const rankLine = block === 'off' ? '' : block ? `<div class="sub" style="color:var(--dim);font-size:12px">ランキング：${block}</div>` : REG_BTN;
   return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rk}</div>` +
     `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
     (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(Math.max(0, 1 - A.dmg / S.inst.bossHp) * 100).toFixed(1)}%`}</div>` : '') +

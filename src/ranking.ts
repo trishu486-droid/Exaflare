@@ -82,10 +82,13 @@ async function load(){
     }).catch(() => {}));
   } catch { list.innerHTML = '<li class="dim">読み込めませんでした（通信を確認してください）</li>'; }
 }
-// 登録フォーム：今回の記録のギミックを見ているときだけ出す。登録後の「登録しました」は、とじるまでの一度きり
+// 登録フォーム：リザルトの「ランキングに登録する」から開いたときだけ出す（王冠からはランキングを見るだけ）
+// 登録後の「登録しました」は、とじるまでの一度きり
+let regMode = false;
+const REG_BTN = '<button type="button" class="rankreg" data-rank="reg">▶ ランキングに登録する</button>';
 function renderForm(){
   const f = $('rankForm'), e = S.rankEntry, block = rankBlock();
-  if (!e || e.mech !== view.mech || S.rankSent === 'done'){ f.innerHTML = ''; return; }
+  if (!regMode || !e || e.mech !== view.mech || S.rankSent === 'done'){ f.innerHTML = ''; return; }
   if (S.rankSent){ f.innerHTML = `<p class="note ok">${esc(S.rankSent as string)}</p>`; return; }
   if (block){ f.innerHTML = `<p class="note">今回の記録は登録できません：${esc(block)}</p>`; return; }
   f.innerHTML = `<p class="note">今回の記録：<b>DPS ${e.dps.toLocaleString('en-US')}</b>（${esc(JOBS[e.job].name)}）</p>` +
@@ -108,12 +111,16 @@ async function send(){
     const perf = await perfOf(e.mech, e.job, e.dps).catch(() => null);
     S.rankSent = `登録しました！ DPS ${e.dps.toLocaleString('en-US')}` + (perf != null ? `（Perf ${perf}）` : ''); sfx.clear();
     view.job = ''; ($('rankJob') as HTMLSelectElement).value = ''; // 登録したら全ジョブの表で確認
+    if (S.resultHtml) S.resultHtml = S.resultHtml.replace(REG_BTN, '<div class="sub" style="color:var(--green)">ランキングに登録しました</div>');
   } catch { ($('rankSend') as HTMLButtonElement).disabled = false; $('rankForm').insertAdjacentHTML('beforeend', '<p class="note ng">送れませんでした。通信を確認してもう一度。</p>'); return; }
   renderForm(); load();
 }
-function openRank(){
+// reg：リザルトから登録しに来たとき（今回の記録のギミック・全ジョブの表を出して、下に登録フォーム）
+function openRank(reg = false){
   if (!RANK_ON) return;
-  view.mech = S.rankEntry?.mech || (mechs().some(m => m.id === opt.mech) && (opt.mech !== RUN.id || unlockedRun()) ? opt.mech : mechs()[0].id);
+  regMode = reg && !!S.rankEntry && !S.rankSent;
+  if (regMode) view.job = '';
+  view.mech = (regMode && S.rankEntry.mech) || (mechs().some(m => m.id === opt.mech) && (opt.mech !== RUN.id || unlockedRun()) ? opt.mech : mechs()[0].id);
   ($('rankMech') as HTMLSelectElement).innerHTML = mechs().map(m => `<option value="${m.id}"${m.id === view.mech ? ' selected' : ''}>${mechLabel(m)}</option>`).join('');
   ($('rankJob') as HTMLSelectElement).value = view.job;
   $('rank').hidden = false; renderForm(); load(); sfx.unlock(); sfx.ok();
@@ -123,7 +130,8 @@ function closeRank(){ $('rank').hidden = true; if (S.rankSent) S.rankSent = 'don
 if (RANK_ON){
   $('bRank').hidden = false;
   ($('rankJob') as HTMLSelectElement).innerHTML = '<option value="">全ジョブ</option>' + JOB_ORDER.map(k => `<option value="${k}">${JOBS[k].name}</option>`).join('');
-  $('bRank').addEventListener('click', openRank);
+  $('bRank').addEventListener('click', () => openRank(false));
+  $('msg').addEventListener('click', e => { if ((e.target as HTMLElement).closest('[data-rank="reg"]')) openRank(true); });
   $('rankClose').addEventListener('click', closeRank);
   $('rank').addEventListener('click', e => { if ((e.target as HTMLElement).id === 'rank') closeRank(); });
   $('rankMech').addEventListener('change', e => { view.mech = (e.target as HTMLSelectElement).value; renderForm(); load(); });
@@ -132,4 +140,4 @@ if (RANK_ON){
   $('rankForm').addEventListener('keydown', e => { if ((e as KeyboardEvent).key === 'Enter' && (e.target as HTMLElement).id === 'rankName') send(); });
 }
 
-export { rankBlock, rankPrepare, openRank, closeRank };
+export { rankBlock, rankPrepare, openRank, closeRank, REG_BTN };

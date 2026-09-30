@@ -78,6 +78,9 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 /* リザルト：暗い枠の中に出して、フィールドと重ならないように */
 .msg .result{background:rgba(10,8,24,.9);border:3px solid var(--edge);box-shadow:0 0 0 2px #000;padding:10px 12px 12px;white-space:normal;width:min(300px,82vw);box-sizing:border-box}
 .msg .blink{animation:blink 1s steps(2,start) infinite}
+/* リザルトの「ランキングに登録する」：ここだけ押せる */
+.msg .rankreg{pointer-events:auto;display:block;margin:8px auto 2px;font:15px var(--px);color:var(--gold);background:#1d1930;border:2px solid var(--gold);padding:5px 12px;cursor:pointer;box-shadow:0 2px 0 #000}
+.msg .rankreg:active{transform:translateY(2px);box-shadow:none}
 @keyframes blink{to{visibility:hidden}}
 /* タイトル（PRESS START）：最初の操作で音を鳴らせるようにする */
 .title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,4vw,22px);background:rgba(0,0,0,.82);cursor:pointer;text-align:center}

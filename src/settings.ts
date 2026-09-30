@@ -1,5 +1,5 @@
 import { $, opt, store } from './store.js';
-import { bgm, menuBgm, sfx, BGM_TRACKS } from './audio.js';
+import { bgm, menuBgm, sfx, BGM_TRACKS, applyBgmVol } from './audio.js';
 import { S } from './state.js';
 import { cancelKeyWait, renderKeyOpts } from './input.js';
 import { cv } from './gfx.js';
@@ -26,6 +26,10 @@ oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set
 oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
 oDebuff.addEventListener('change', () => { opt.debuff = oDebuff.value; store.set('debuff', opt.debuff); });
 oDouble.addEventListener('change', () => { opt.dbl = oDouble.value; store.set('dbl', opt.dbl); });
+// BGMの音量：動かすと鳴っている曲にもすぐ反映
+const oBgmVol = $('oBgmVol'), volLabel = () => { $('oBgmVolV').textContent = opt.bgmVol + '%'; };
+oBgmVol.value = String(opt.bgmVol); volLabel();
+oBgmVol.addEventListener('input', () => { opt.bgmVol = Number(oBgmVol.value); store.set('bgmVol', opt.bgmVol); volLabel(); applyBgmVol(); });
 // 戦闘BGMの選択。メニューにいるときは試聴する
 const oTrack = $('oTrack');
 oTrack.innerHTML = BGM_TRACKS.map((t, i) => `<option value="${i}">${i + 1}. ${t.name}</option>`).join('');

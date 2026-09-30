@@ -6,6 +6,8 @@ import { opt } from './store.js';
 ['touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, () => sfx.unlock(), { capture:true, passive:true }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && sfx.ac) sfx.unlock(); });
 const SFX_VOL = .5; // 効果音全体の音量
+// BGMの音量（設定の「サウンド」タブ。0〜100%）。50% が以前の音量で、初期値は 25%（以前の半分）
+const bgmGain = () => Math.max(0, Math.min(100, opt.bgmVol ?? 25)) / 50;
 const sfx = {
   ac:null,
   // iOS：ホーム画面から開いたアプリでは、止まった音（suspended／interrupted）を指を離したときに再開する必要がある
@@ -88,7 +90,7 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
     // 全体：コンプレッサーでまとめて音圧を上げる
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -20; comp.knee.value = 6; comp.ratio.value = 6; comp.attack.value = .003; comp.release.value = .12;
-    master = ac.createGain(); master.gain.value = VOL; master.connect(comp).connect(ac.destination);
+    master = ac.createGain(); master.gain.value = VOL * bgmGain(); master.connect(comp).connect(ac.destination);
     if (REV){ // 残響：減衰するノイズを畳み込んで、広い石造りの空間の響きを作る（スーファミのエコーのような広がり）
       const len = ac.sampleRate * 2.6, ir = ac.createBuffer(2, len, ac.sampleRate);
       for (let ch = 0; ch < 2; ch++){ const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
@@ -216,10 +218,12 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       if (!opt.bgm) return;
       sfx.unlock(); const ac = sfx.ac; if (!ac || timer) return;
       setup(ac);
-      master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(VOL, ac.currentTime);
+      master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(VOL * bgmGain(), ac.currentTime);
       step = 0; next = ac.currentTime + .05;
       timer = setInterval(tick, 25); tick();
     },
+    // 音量を変えたとき：鳴っている曲にもすぐ反映
+    setVol(){ const ac = sfx.ac; if (!ac || !master || !timer) return; master.gain.cancelScheduledValues(ac.currentTime); master.gain.setTargetAtTime(VOL * bgmGain(), ac.currentTime, .05); },
     stop(fade = .6){
       if (!timer) return;
       clearInterval(timer); timer = null;
@@ -333,4 +337,5 @@ const bgm = {
   start(){ (BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
   stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },
 };
-export { SFX_VOL, sfx, makePlayer, bgm, menuBgm, BGM_TRACKS };
+function applyBgmVol(){ menuBgm.setVol(); BGM_TRACKS.forEach(t => t.player.setVol()); }
+export { SFX_VOL, sfx, makePlayer, bgm, menuBgm, BGM_TRACKS, applyBgmVol };

@@ -6,7 +6,7 @@ const store = {
 };
 const opt = {
   first: store.get('first', 'rand'), speed: store.get('speed', 1), path: store.get('path', false),
-  spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true),
+  spots: store.get('spots', false), marker: store.get('marker', 'nw'), sound: store.get('sound', true), bgm: store.get('bgm', true), bgmVol: store.get('bgmVol', 25),
   safe: store.get('safe', false), fx: store.get('fx', !matchMedia('(prefers-reduced-motion: reduce)').matches), job: store.get('job', 'pld'), mech: store.get('mech', 'exa'),
   debuff: store.get('debuff', 'rand'), dbl: store.get('dbl', 'first'), slot: store.get('slot', {}), orch: store.get('orch', 1), track: store.get('bgmVer', 0) >= 2 ? store.get('track', 11) : 11 // 戦闘BGMの初期設定は12曲目「堕天の舞」（以前の保存値は1度だけ上書き）
 };

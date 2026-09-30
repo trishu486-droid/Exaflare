@@ -42,8 +42,10 @@ const ORCH = (() => {
       // タンクの役割：F＝フレア役（最初ヘイト1位 → 重いバフ＋シャークで北へ）、H＝ホーリー役（挑発して頭割り → ボス前で無敵）
       const F = p.n === 1 ? 'MT' : 'ST', H = F === 'MT' ? 'ST' : 'MT';
       const PROVOKE_AT = W1 + .6; // 味方タンクが挑発する時刻
-      // 2回目の誘導役：1回目で当たらなかった3人を、散開位置の西から順に 西・南・東 へ
-      const baiters = NON_TANK.filter(k => !p.targets.includes(k)).sort((a, b) => SPREAD[a].x - SPREAD[b].x);
+      // 2回目の誘導役：1回目で当たらなかった3人を、散開位置を北西から反時計回りに並べた順（D3→D1→H1→H2→D2→D4）に 西・南・東 へ
+      //   東西の位置だけで並べると、北東の D4 と南東の D2 がそろったとき D4 が南へ回って進路が交差するので、角度で並べる
+      const ccw = k => { const a = Math.atan2(SPREAD[k].x, -SPREAD[k].z); return a < 0 ? a + 2 * Math.PI : a; }; // 北0・東90°・南180°・西270°
+      const baiters = NON_TANK.filter(k => !p.targets.includes(k)).sort((a, b) => ccw(b) - ccw(a));
       const phaseSpot = (k, ph) => {
         if (ph === 0) return SPREAD[k];
         if (ph === 1){

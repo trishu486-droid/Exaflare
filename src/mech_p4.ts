@@ -16,7 +16,7 @@ const P4 = (() => {
   const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
   const SUP = ['MT', 'ST', 'H1', 'H2'], DPS = ['D1', 'D2', 'D3', 'D4'];
   const grp = k => SUP.includes(k) ? 'TH' : 'D';
-  const BOT_SPEED = 9, SPREAD_R = 5, STACK_R = 4, BAIT_R = 6, EDGE_HW = 2.5;
+  const BOT_SPEED = 9, SPOT_TOL = 3, SPREAD_R = 5, STACK_R = 4, BAIT_R = 6, EDGE_HW = 2.5;
   const T = {
     mystery:[11.02, 25.94, 41.08], gc:[11.37, 26.30, 41.26], gcHit:[20.35, 35.20, 50.05],
     chaos:[16.51, 31.43], chaosHit:[25.35, 40.20], debuff1:20.36, debuff2:35.28, chaosDebuff:[27.28, 40.99], gc3Debuff:51.67,
@@ -117,9 +117,11 @@ const P4 = (() => {
       // ---- 散開・頭割りの位置 ----
       // 1セット目：無の氾濫でネオエクスデスがいた方向を北。2セット目：フィールドの北（ブリザガの安地側へ寄る）
       const blizzHits = iceHits(charged);
+      const setBase = (k, set) => { const base = set === 1 ? p.neoDir : 0, g = grp(k); return isSpread(k, set) ? base + (g === 'TH' ? 270 : 90) : base + (g === 'TH' ? 0 : 180); };
+      const setSpots = (k, set) => { const b = setBase(k, set), r = isSpread(k, set) ? 14 : 9.5; return (set === 2 ? [b, b - 30, b + 30] : [b]).map(c => at(c, r)); };
       const setSpot = (k, set) => {
-        const base = set === 1 ? p.neoDir : 0, g = grp(k), sp = isSpread(k, set);
-        let b = sp ? base + (g === 'TH' ? 270 : 90) : base + (g === 'TH' ? 0 : 180);
+        const g = grp(k), sp = isSpread(k, set);
+        let b = setBase(k, set);
         if (set === 2){ const cand = [b - 30, b + 30]; b = cand.find(c => !blizzHits.includes(quadOf(at(c, 10)))) ?? b; }
         if (sp) return at(b, 14);
         const tgt = SLOTS.find(x => grp(x) === g && stackTarget(x, set));
@@ -200,29 +202,22 @@ const P4 = (() => {
       const MEMO_TXT = { stop:'加速度：止まる', move:'加速度：動く', spread:'散開', stack:'頭割り', away:'視線：見ない', look:'視線：見る' };
       // ---- 判定 ----
       const myD = dbf[me];
+      // 散開・頭割り・視線は「決められた位置にいるか」で判定する（味方は画面に出さない。1人で処理できるかの練習）
       const checkSet = set => {
         const meP = S.player, sp = isSpread(me, set);
-        const spreaders = SLOTS.filter(k => isSpread(k, set));
-        if (sp){ if (SLOTS.some(k => k !== me && dist(pos(k), meP) <= SPREAD_R)) hurt('散開に味方を巻き込んだ'); }
-        else {
-          const tgt = SLOTS.find(k => grp(k) === myGrp && stackTarget(k, set));
-          if (tgt && dist(pos(tgt), meP) > STACK_R) hurt(tgt === me ? '頭割りの対象なのに味方と離れた' : '頭割りに入れていない');
-          if (spreaders.some(k => dist(pos(k), meP) <= SPREAD_R)) hurt('散開に巻き込まれた');
-          const otherTgt = SLOTS.find(k => grp(k) !== myGrp && stackTarget(k, set));
-          if (otherTgt && dist(pos(otherTgt), meP) <= STACK_R) hurt('別の頭割りに入った');
-        }
+        if (Math.min(...setSpots(me, set).map(q => dist(q, meP))) > SPOT_TOL) hurt(sp ? '散開の位置にいない' : '頭割りの位置にいない');
         if (myD.bomb && myD.bomb.set === set){
           const real = p.gcTrue[myD.bomb.gc], moving = isMoving();
           if (real && moving) hurt('加速度爆弾（本当）で動いた');
           if (!real && !moving) hurt('加速度爆弾（嘘）で止まっていた');
         }
         sfx.big(); fxShake(2, .2);
-        spreaders.forEach(k => { const q = pos(k); FXK.holy(q.x, q.z, SPREAD_R * .7); });
-        ['TH', 'D'].forEach(g => { const tg = SLOTS.find(k => grp(k) === g && stackTarget(k, set)); if (tg){ const q = pos(tg); FXK.stack(q.x, q.z, STACK_R * .7); } });
+        if (sp) FXK.holy(meP.x, meP.z, SPREAD_R * .7); else FXK.stack(meP.x, meP.z, STACK_R * .7);
       };
       const checkGaze = n => {
         const holders = gazeHolders(n), real = p.gcTrue[n - 1];
         const f = S.face || { x:0, z:-1 }, meP = S.player;
+        if (dist(gazeSpot(me, n), meP) > SPOT_TOL) hurt('視線の待機位置にいない');
         holders.filter(k => k !== me).forEach(k => {
           const q = pos(k), dx = q.x - meP.x, dz = q.z - meP.z, d = Math.hypot(dx, dz) || 1, cos = (dx * f.x + dz * f.z) / d;
           if (real && cos >= Math.SQRT1_2) hurt('呪詛の叫声（本当）を見た');
@@ -290,10 +285,12 @@ const P4 = (() => {
         if (ice) iceTell(m).forEach(q => alpha(blink ? .22 : .14, () => fillArena(quadSpan(q), '#a8e8ff')));
         if (th) thTell(m).forEach(i => alpha(blink ? .22 : .14, () => fillArena(bandSpan(m.thO, BAND_C[i]), '#fff070')));
       };
-      const kefkaOrbs = (iceT, thT) => { // ケフカの頭上：左＝ブリザガ（扇）、右＝サンダガ（帯）
-        const X = px(0), Y = px(0) - Math.round(9 * PPY) - 6;
-        if (iceT !== null){ rect(X - 12, Y - 1, 3, 3, '#a8e8ff'); orb(X - 6, Y, iceT, true); }
-        if (thT !== null){ rect(X + 10, Y - 1, 3, 3, '#fff070'); orb(X + 5, Y, thT, true); }
+      const ellipse = (X, Y, rx, ry, col) => { for (let a = 0; a < 64; a++) rect(X + Math.round(Math.cos(a * Math.PI / 32) * rx), Y + Math.round(Math.sin(a * Math.PI / 32) * ry), 2, 1, col); };
+      const kefkaOrbs = (iceT, thT) => { // ケフカの体のまわりの輪：上の紫＝サンダガ（帯）、下の青＝ブリザガ（扇）。青い玉＝本当、？の赤い玉＝嘘
+        const X = px(0), Y = px(0), a = performance.now() / 300, rx = 11, ry = 3;
+        const ringOrb = (Yc, col, truth, ph) => { ellipse(X, Yc, rx, ry, col); orb(X + Math.round(Math.cos(a + ph) * rx), Yc + Math.round(Math.sin(a + ph) * ry), truth); };
+        if (thT !== null) ringOrb(Y - 10, '#c05aff', thT, 0);
+        if (iceT !== null) ringOrb(Y + 2, '#5ab0ff', iceT, Math.PI);
       };
       const neoPos = t => t < T.neoLeave ? NEO0 : t >= T.neoFlood && t < T.surge ? neo : null;
       const markerDraw = () => {
@@ -388,11 +385,7 @@ const P4 = (() => {
           if (t >= T.thunder && t < T.thunder + TELL) kefkaOrbs(null, charged.thTrue);
           if (t >= T.blizzard && t < T.blizzard + TELL) kefkaOrbs(charged.iceTrue, null);
           if (t >= T.releaseTell - 6 && t < T.releaseTell + TELL) kefkaOrbs(relShown.ice, relShown.th);
-          // 味方
-          bots.forEach(b => {
-            const X = px(b.x), Z = px(b.z), g = grp(b.k), col = b.k[0] === 'H' ? '#3aa84e' : g === 'TH' ? '#3a6ad8' : '#d8404e';
-            rect(X - 4, Z - 4, 9, 9, P.white); rect(X - 3, Z - 3, 7, 7, col);
-          });
+          // 味方（7人）は描かない。内部では決まった位置へ動き、混沌の炎・水の置き場所と視線の向きの判定にだけ使う
           // 自分の向き（視線の判定に使う）と頭上マーカー
           const f = S.face || { x:0, z:-1 }, X = px(S.player.x), Z = px(S.player.z);
           rect(X + Math.round(f.x * 11) - 1, Z + Math.round(f.z * 11) - 1, 3, 3, '#ffe070');

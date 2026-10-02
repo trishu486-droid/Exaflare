@@ -1,38 +1,40 @@
 import { $ } from './store.js';
-import { S } from './state.js';
+import { S, LOG } from './state.js';
 import { cv } from './gfx.js';
 
 // ===== P4：PT チャット（マクロが流れてくる）と、自分で押すメモ・頭上マーカーのボタン =====
 // マクロの行は味方が流す（ギミックの真偽が分かった順）。自分の指示は自分でボタンを押して流す／頭上に付ける
-let shownVer = -1, shownInst = null;
+// チャット欄は画面の中（全ギミック共通）。P4 以外はミスや結果が流れる。ボタンは P4 のときだけ
+let shownVer = -1;
 function renderP4Panel(){
-  const inst = S.inst, on = !!inst?.chat && S.phase !== 'menu';
+  const on = !!S.inst?.chat && S.phase !== 'menu';
   const panel = $('p4panel');
-  if (panel.hidden === on) panel.hidden = !on;
-  if (!on) return;
-  if (inst === shownInst && inst.chatVer === shownVer) return;
-  shownInst = inst; shownVer = inst.chatVer;
-  const log = $('p4chat');
+  if (panel.classList.contains('off') === on){ panel.classList.toggle('off', !on); $('game').classList.toggle('p4on', on); }
+  // ランプ：押した状態
+  const st = on ? S.inst.memoState?.() ?? {} : {};
+  panel.querySelectorAll('.key').forEach(b => b.classList.toggle('on', !!st[b.dataset.say]));
+  if (LOG.ver === shownVer) return;
+  shownVer = LOG.ver;
   const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[c]);
-  log.innerHTML = inst.chat.map(l => `<div class="${l.cls}">${esc(l.text)}</div>`).join('') || '<div class="dim">（PT チャット）</div>';
-  log.scrollTop = log.scrollHeight;
+  const put = (el: HTMLElement, lines, empty: string) => {
+    el.innerHTML = lines.map(l => `<div class="${l.cls}">${esc(l.text)}</div>`).join('') || `<div class="dim">${empty}</div>`;
+    el.scrollTop = el.scrollHeight;
+  };
+  put($('p4chat'), LOG.lines.filter(l => l.cls !== 'me'), '（チャット）');
+  put($('chatMe'), LOG.lines.filter(l => l.cls === 'me'), '（自分）');
 }
 function p4Say(kind: string){ if (S.phase === 'run' || S.phase === 'count') S.inst?.say?.(kind); }
-function p4Mark(m: string){ if (S.phase === 'run' || S.phase === 'count') S.inst?.setMarker?.(m); }
 $('p4panel').addEventListener('click', e => {
   const b = (e.target as HTMLElement).closest('button'); if (!b) return;
   if (b.dataset.say) p4Say(b.dataset.say);
-  if (b.dataset.mk !== undefined) p4Mark(b.dataset.mk);
   cv.focus({ preventScroll:true });
 });
-// PC：5〜0 でメモ、Z/X/C/V で頭上マーカー、B で外す
-const KEY_SAY = { '5':'stop', '6':'move', '7':'spread', '8':'stack', '9':'away', '0':'look' };
-const KEY_MK = { z:'a1', x:'a2', c:'b1', v:'x1', b:'' };
+// PC：5＝早 散開、6＝遅 散開、7＝止まる、8＝動く
+const KEY_SAY = { '5':'early', '6':'late', '7':'stop', '8':'move' };
 function p4Key(key: string){
   if (!S.inst?.say) return false;
   const k = key.toLowerCase();
   if (KEY_SAY[k]){ p4Say(KEY_SAY[k]); return true; }
-  if (k in KEY_MK){ p4Mark(KEY_MK[k]); return true; }
   return false;
 }
 

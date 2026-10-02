@@ -36,15 +36,27 @@
   </div>
 
   <div class="screen">
-    <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
-    <div class="fx" id="fx"></div>
-    <div class="buff outline" id="buff"></div>
-    <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
-    <div class="hp outline" id="hp" hidden><span id="hpNum">HP 100</span><div class="hpbar"><div class="hpfill" id="hpFill"></div><div class="hpshield" id="hpShield"></div></div></div>
-    <div class="enmity outline" id="enmity" hidden></div>
-    <div class="bosshp" id="bossHp" hidden><i id="bossFill"></i></div>
-    <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
-    <div class="msg outline" id="msg"></div>
+    <!-- フィールドは真ん中。左の列＝バフ・デバフ、右の列＝敵視リスト／HP（フィールドに重ならない） -->
+    <div class="stage">
+      <div class="bosshp" id="bossHp" hidden><i id="bossFill"></i></div>
+      <div class="side l"><div class="buff outline" id="buff"></div></div>
+      <div class="field">
+        <canvas id="cv" width="288" height="288" tabindex="0" aria-label="フィールド"></canvas>
+        <div class="fx" id="fx"></div>
+      </div>
+      <div class="side r">
+        <div class="enmity outline" id="enmity" hidden></div>
+        <div class="hp outline" id="hp" hidden><span id="hpNum">HP</span><div class="hpbar"><div class="hpfill" id="hpFill"></div><div class="hpshield" id="hpShield"></div></div></div>
+      </div>
+      <div class="msg outline" id="msg"></div>
+    </div>
+    <!-- フィールドの下：詠唱バーと進行・ダメージ・被弾数（フィールドに重ならないように） -->
+    <div class="status">
+      <div class="castmore outline" id="castMore"></div>
+      <div class="cast outline" id="cast" hidden><div class="bar"><div class="fill" id="castFill"></div></div><div class="name" id="castName"></div></div>
+      <div class="hud outline"><span id="hSet"></span><span id="hDmg">DMG 0</span><span id="hHit">HIT 0</span></div>
+    </div>
+    <!-- タイトルとギミック選択は画面全体に重ねる -->
     <div class="title outline" id="title">
       <div class="logo">絶ケフカ P5<small>TRAINER</small></div>
       <div class="push">PRESS START</div>
@@ -54,17 +66,17 @@
       <div id="menuList" style="display:contents"></div>
       <div class="note outline">十字で選んでA／STARTで開始</div>
     </div>
+    <!-- チャット欄（P4 だけ中身が出る。ほかのギミックは同じ高さの空き） -->
+    <div class="chatlog">
+      <div class="chatsys" id="p4chat" aria-live="polite"></div>
+      <div class="chatme" id="chatMe" aria-label="自分のメモ"></div>
+    </div>
   </div>
 
-  <!-- P4：PT チャット（マクロ）と自分用のボタン -->
-  <div class="p4panel" id="p4panel" hidden>
-    <div class="p4chat outline" id="p4chat"></div>
-    <div class="p4btns" aria-label="自分のメモ">
-      <button type="button" data-say="stop">止まる</button><button type="button" data-say="move">動く</button><button type="button" data-say="spread">散開</button><button type="button" data-say="stack">頭割り</button><button type="button" data-say="away">見ない</button><button type="button" data-say="look">見る</button>
-    </div>
-    <div class="p4btns mk" aria-label="頭上マーカー">
-      <button type="button" data-mk="a1">攻撃1</button><button type="button" data-mk="a2">攻撃2</button><button type="button" data-mk="b1">足止め</button><button type="button" data-mk="x1">禁止</button><button type="button" data-mk="">外す</button>
-    </div>
+  <!-- メモのボタン（4つ）。P4 は「早 散開／遅 散開／止まる／動く」、ほかのギミックは同じ場所に置いて何も割り当てない。押した状態はランプで分かる -->
+  <div class="p4panel" id="p4panel">
+    <div class="grp"><button type="button" class="key" data-say="early"><s></s><span>早 散開</span></button><button type="button" class="key" data-say="late"><s></s><span>遅 散開</span></button></div>
+    <div class="grp"><button type="button" class="key g" data-say="stop"><s></s><span>止まる</span></button><button type="button" class="key g" data-say="move"><s></s><span>動く</span></button></div>
   </div>
 
   <div class="controls">

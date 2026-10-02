@@ -33,19 +33,24 @@ body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--
 .mini .crown{width:22px;height:18px;display:block;margin:auto}
 .mini{font:16px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
-.screen{position:relative;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
+.screen{position:relative;isolation:isolate;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+canvas:focus{outline:none}
 
 /* 画面内の表示 */
 .outline{text-shadow:2px 0 0 #000,-2px 0 0 #000,0 2px 0 #000,0 -2px 0 #000,2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000}
-.cast{position:absolute;left:12%;right:12%;bottom:11%;pointer-events:none}
+.cast{position:absolute;left:0;right:0;top:0;pointer-events:none}
 .cast .bar{height:clamp(8px,2.2vw,12px);border:3px solid #ff9f2a;background:#3a2a55;box-shadow:0 0 0 2px #000}
 .cast .fill{height:100%;width:0;background:#fff}
-.cast .name{text-align:right;font-size:16px;line-height:1.2;margin-top:2px}
-.hud{position:absolute;inset:auto 8px 6px 8px;display:flex;justify-content:space-between;pointer-events:none;font-size:16px;font-variant-numeric:tabular-nums}
+.cast .name{position:absolute;right:0;top:calc(100% + 1px);font-size:14px;line-height:1.2}
+/* 同時に詠唱しているもの：メインの詠唱バーの上に積む（下から上へ） */
+.castmore{position:absolute;left:0;right:0;bottom:calc(100% + 2px);display:flex;flex-direction:column-reverse;gap:16px;pointer-events:none}
+.castmore .cast.more{position:relative;top:auto}
+.castmore:empty{display:none}
+.hud{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;pointer-events:none;font-size:16px;font-variant-numeric:tabular-nums}
 .hud .hit{color:var(--red)}
 /* ボスのHP（P5 通しだけ）：画面の一番上に細いバー、残り%は下のHUDに */
-.bosshp{position:absolute;left:0;right:0;top:0;height:5px;background:#3a1a2a;box-shadow:0 1px 0 #000;pointer-events:none}
+.bosshp{position:absolute;z-index:3;left:0;right:0;top:0;height:5px;background:#3a1a2a;box-shadow:0 1px 0 #000;pointer-events:none}
 .bosshp i{display:block;height:100%;background:#ff5a8a;transition:width .2s linear}
 /* ヒーラーのときだけ：自分のHP（右上） */
 .hp{position:absolute;right:8px;top:6px;width:34%;pointer-events:none;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
@@ -116,15 +121,83 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 @keyframes dmgSelf{0%{opacity:1;margin-top:6px}15%{margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-34px}}
 
 /* ===== 操作部 ===== */
-.p4panel{display:flex;flex-direction:column;gap:6px}
-.p4chat{height:9.6em;overflow-y:auto;background:#0c0a18;border:2px solid #2a2650;padding:4px 6px;font-size:11px;line-height:1.2;white-space:pre;color:#8adcff;-webkit-user-select:text;user-select:text}
-.p4chat .rule{color:#5a8ab0}.p4chat .mine{color:#ffe070}.p4chat .dim{color:#6a6490}
-.p4btns{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-.p4btns.mk{grid-template-columns:repeat(5,1fr)}
-.p4btns button{font:12px var(--px);color:#ece8ff;background:#2a2650;border:2px solid #4a4480;border-radius:3px;height:32px;padding:0;cursor:pointer;touch-action:manipulation}
-.p4btns button:active{transform:translateY(1px);background:#3a3470}
-.p4btns.mk button{background:#3a1e2a;border-color:#7a3a52}
+.p4panel{display:flex;justify-content:center;gap:clamp(10px,4vw,22px)}
+.p4panel .grp{display:flex;gap:6px;padding:5px 6px;border-radius:6px;background:#c8c6bc;box-shadow:inset 0 0 0 2px #b0aea4}
+.p4panel .key{display:flex;flex-direction:column;align-items:center;gap:3px;width:clamp(58px,17vw,76px);padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;font:inherit}
+.p4panel .key s{display:block;width:9px;height:9px;border-radius:50%;background:#4a1a1a;box-shadow:inset 0 0 0 1px #000}
+.p4panel .key.on s{background:#ff4a4a;box-shadow:0 0 6px #ff4a4a}
+.p4panel .key.g.on s{background:#5aff7a;box-shadow:0 0 6px #5aff7a}
+.p4panel .key span{display:flex;align-items:center;justify-content:center;width:100%;height:28px;border-radius:4px;background:#3a3870;color:#ece8ff;font-size:12px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+.p4panel .key:active span{transform:translateY(1px)}
+/* P4 以外：同じ場所に置くだけ（割り当てなし） */
+.p4panel.off .key{pointer-events:none}.p4panel.off .key span{background:#8a8898;color:transparent}.p4panel.off .key s{background:#6a6a72}
+/* 結果画面：上の帯（デバフ・敵視／HP）は消して、フィールドは暗く */
+.gb.over .side{visibility:hidden}
+.gb.over .field canvas{filter:brightness(.3) saturate(.6)}
+.gb.over .status .cast,.gb.over .castmore{visibility:hidden}
+.msg{z-index:6}
+/* P4 は結果の行が多いので、フィールドの高さまでにして、はみ出す分は枠の中でスクロール */
+.gb.p4on .msg .result{max-height:calc(var(--stage-h) - 12px);overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;font-size:.9em}
+/* 画面の大きさは全ギミック共通。
+   P4：左右の細い列（左＝バフ・デバフ、右＝敵視／HP）＋真ん中にフィールド、下にチャット欄。
+   ほか（P5 など）：上の帯（左＝バフ・デバフ、右＝敵視／HP）＋横いっぱいのフィールド。チャット欄はなし。
+   上の帯の高さ＝チャット欄の高さ − 左右の列2本分 なので、画面の高さは P4 と同じになる */
+.gb{--side:clamp(30px,8.6vw,46px);--status-h:clamp(40px,11vw,54px);container-type:inline-size}
+.stage{position:relative;display:flex;justify-content:center}
+.field{position:relative;overflow:hidden;flex:none;width:calc(100% - 2 * var(--side))}
+.side{position:relative;z-index:2;flex:none;width:var(--side);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:6px;min-width:0}
+.side .buff,.side .enmity,.side .hp{position:static;width:auto}
+.hp .hpfill{width:var(--hp,100%)}.hp .hpshield{width:var(--sh,0%)}
+.hp .hpl{margin-right:.3em}
+/* P4：P5 と同じく上の帯（左＝デバフ・バフ、右＝HP）。その下に、上下の星空の余白だけ切ったフィールド、下にチャット欄。
+   上の帯の高さ＝詠唱・HUD の段の高さにして、フィールドがチャット欄より上の部分の高さのど真ん中に来るように。
+   画面の高さは P5 と同じ（横幅 − 2 × --side ＋ 詠唱・HUD の段 ＋ --chat-h） */
+.gb{--p4band:calc(var(--status-h) + 2px);--p4fs:calc(var(--chat-fs) - .5px);--p4chat:calc(10 * 1.15 * var(--p4fs) + 9px)}
+/* 画面の高さは全ギミック共通（横幅 − 2 × --side ＋ 詠唱・HUD の段 ＋ --chat-h） */
+.screen{display:flex;flex-direction:column;height:calc(100cqw - 2 * var(--side) + var(--status-h) + 2px + var(--chat-h))}
+.stage,.status,.chatlog{flex:none}
+.gb.p4on .stage{flex:1;min-height:0;display:block;overflow:hidden;--stage-h:calc(100cqw - 20px - 2 * var(--side) + var(--chat-h) - var(--p4chat))}
+/* フィールド：上の帯の下から詠唱・HUD の段の上までの高さに、闘技場の円（キャンバスの 40/48）と
+   外周の少し内側に立つボスがちょうど収まる大きさ（キャンバスの 43/48 が見える）で、その高さの真ん中に置く */
+.gb.p4on .stage{overflow:hidden;--p4area:calc(var(--stage-h) - var(--p4band))}
+.gb.p4on .status{position:relative;z-index:4}
+.gb.p4on .chatlog{position:relative;z-index:5}
+.gb.p4on .field{position:absolute;left:50%;top:calc(var(--p4band) + var(--p4area) / 2);width:min(100%, calc(var(--p4area) * 48 / 43));transform:translate(-50%,-50%)}
+.gb.p4on .side{position:absolute;top:0;width:auto;height:var(--p4band);padding:4px 8px 0}
+.gb.p4on .side.l{left:0}.gb.p4on .side.r{right:0;align-items:flex-end}
+.gb.p4on .side .buff,.gb.p4on .side .buff .bufrow{flex-direction:row;gap:6px}
+.gb.p4on .side .hp{width:clamp(110px,34vw,200px);text-align:right}
+.gb.p4on .status{flex:none}
+.gb.p4on .status .hud{line-height:1.2}
+/* P4：詠唱名はバーの右に並べて、HUD と重ならないように */
+.gb.p4on .cast{right:38%}
+.gb.p4on .castmore{right:38%;gap:9px;bottom:calc(100% + 8px)}
+.gb.p4on .castmore .cast.more{right:auto}
+.gb.p4on .cast .name{top:-4px;left:calc(100% + 6px);right:auto;white-space:nowrap;font-size:13px}
+.gb.p4on .chatlog{flex:none;height:var(--p4chat);font-size:var(--p4fs)}
+/* P5 など：上の帯＋横いっぱいのフィールド */
+.gb:not(.p4on) .stage{flex-wrap:wrap;justify-content:space-between}
+/* フィールドが画面の高さのど真ん中に来るように、上の帯＝(画面の高さ − 横幅) ÷ 2 */
+.gb:not(.p4on) .side{width:auto;height:calc((var(--chat-h) - 2 * var(--side) + var(--status-h) + 2px) / 2);padding:5px 8px 0;align-items:flex-start}
+.gb:not(.p4on) .side.l .buff{flex-direction:row;gap:6px}
+.gb:not(.p4on) .side.r{order:1;align-items:flex-end}
+.gb:not(.p4on) .field{order:2;width:100%}
+.gb:not(.p4on) .side .hp{width:clamp(110px,34vw,200px);text-align:right}
+.gb:not(.p4on) .chatlog{display:none}
+.gb{--chat-fs:clamp(8px,2.45vw,10.5px);--chat-h:calc(11 * 1.15 * var(--chat-fs) + 9px)}
+.status{position:relative;height:var(--status-h);margin:2px 8px 0}
+/* スマホ：背の低い画面では全体を少し細くして1画面に収める */
+@media (pointer:coarse){.gb{max-width:min(640px,calc(100svh * .44))}}
+@media (pointer:coarse) and (max-height:740px){.gb{max-width:calc(100svh * .395)}}
+.chatlog{height:var(--chat-h);box-sizing:border-box}
+/* チャット欄：左7割＝システム（マクロ・ミス・結果）、右3割＝自分で打ったメモ */
+.gb.p4on .chatlog{display:grid;grid-template-columns:7fr 3fr;background:#0c0a18;border-top:3px solid var(--gb-bezel);line-height:1.15;color:#8adcff}
+.chatlog>div{overflow-y:auto;overflow-x:hidden;padding:3px 5px;white-space:pre;-webkit-user-select:text;user-select:text;scrollbar-width:none}
+.chatlog>div::-webkit-scrollbar{display:none}
+.chatme{border-left:2px solid #2a2650;color:#ffe070}
+.chatlog .rule{color:#5a8ab0}.chatlog .dim{color:#6a6490}.chatlog .miss{color:#ff6a7a}.chatlog .ok{color:#7aff9a}
 .buff .bufrow .gly{display:flex;align-items:center;justify-content:center;width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);font-size:clamp(13px,4vw,17px);color:#fff;border:2px solid #101018;text-shadow:1px 1px 0 #000}
+.buff .bufrow .pxi{display:block;width:clamp(24px,7vw,32px);height:auto;image-rendering:pixelated;filter:drop-shadow(0 1px 0 #000)}
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
 .stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
 .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}

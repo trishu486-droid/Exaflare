@@ -1,5 +1,5 @@
 import { mech, menuMechs } from './mechs.js';
-import { S, keys, stickVec } from './state.js';
+import { S, keys, stickVec, logClear } from './state.js';
 import { fxReset } from './fx.js';
 import { ARENA_R, COUNTDOWN, PLAYER_SPEED } from './config.js';
 import { cv, hurt, misses } from './gfx.js';
@@ -13,6 +13,7 @@ import { flipPage, kin, moveCursor, renderMenu } from './menu.js';
 // ===== 進行 =====
 function begin(){
   const m = mech();
+  logClear(); // チャット欄（P4 の PT マクロと自分のメモ）を空にする
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
   fxReset(); S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };

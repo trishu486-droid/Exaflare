@@ -7,11 +7,11 @@ import { sfx } from './audio.js';
 
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
-            gcds:0, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9,
+            gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9,
             provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null } as {
   readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
-  gcds:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number;
+  gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number;
   provoke:number | null; shirk:number | null; sunUsed:boolean;
 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
@@ -61,13 +61,13 @@ function enmityDraw(){
 }
 function hpDraw(){
   if (!HP.on) return;
-  $('hpNum').textContent = `HP ${Math.max(0, Math.round(HP.hp * MAX_HP / 100)).toLocaleString('en-US')}`;
-  $('hpFill').style.width = Math.max(0, HP.hp) + '%';
-  $('hpShield').style.width = Math.min(100, HP.shield) + '%';
+  // P4 は右の列に縦のバー、ほかは上の帯に横のバー（数字は k 単位）
+  $('hpNum').innerHTML = `<span class="hpl">HP</span>${Math.round(Math.max(0, HP.hp * MAX_HP / 100) / 1000)}k`;
+  const hp = $('hp'); hp.style.setProperty('--hp', Math.max(0, HP.hp) + '%'); hp.style.setProperty('--sh', Math.min(100, HP.shield) + '%');
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
+  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
@@ -78,6 +78,9 @@ const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS
 const canHit = () => S.inst?.targetable?.(S.t) ?? true;
 function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
+// 行動中か：移動・詠唱中・スキルを使った直後（実機の硬直 約0.6秒）。加速度爆弾の判定に使う
+const ACT_LOCK = .6;
+function isActing(){ return isMoving() || !!A.cast || S.t - (A.actAt ?? -99) < ACT_LOCK; }
 
 const fxEl = $('fx');
 // at を渡すと、その場所（自キャラ）から出る。渡さなければボスに出る
@@ -114,7 +117,7 @@ function pressKey(k){
   const ab = job()[k];
   if (k !== 'a' && S.t - A.swapAt < SWAP_LOCK) return; // ホットバーが切り替わった直後
   // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
-  if (ab.sunsign){ if (S.phase !== 'run') return; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
+  if (ab.sunsign){ if (S.phase !== 'run') return; A.actAt = S.t; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
   if (isGcd(job(), k)){
     if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; } // GCD技：覚えておいて次のGCDで
     if (!A.cast && S.t >= A.readyAt - QUEUE) A.queued = k;
@@ -123,7 +126,7 @@ function pressKey(k){
   if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
   if (A.cast){ A.q[k] = true; return; } // 詠唱中に押したら、詠唱が終わってから発動
   if (ab.pot && (!inRange() || !canHit())){ fail(); return; }
-  A.cds[k] = S.t + ab.cd;
+  A.cds[k] = S.t + ab.cd; A.actAt = S.t;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
   else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
   else if (ab.instant){ if (ab.instant >= A.instant) A.instantArt = ab.instant > 1 ? 'triple' : 'swift'; A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
@@ -131,7 +134,7 @@ function pressKey(k){
 }
 function runGcd(k){
   const j = job(), ab = j[k];
-  A.readyAt = S.t + GCD; A.gcds++;
+  A.readyAt = S.t + GCD; A.gcds++; A.actAt = S.t;
   if (ab.gcd){
     A.cds[k] = S.t + ab.cd;
     if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k }; return; }
@@ -218,4 +221,4 @@ function drawActFx(){
   }
 }
 
-export { A, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, fxEl, popup, dealDamage, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };
+export { A, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };

@@ -10,12 +10,20 @@ import { titleOn } from './title.js';
 import { sfx } from './audio.js';
 import { REG_BTN, rankBlock, rankPrepare } from './ranking.js';
 import { renderP4Panel } from './p4ui.js';
+import { p4IconUrl } from './p4icons.js';
 
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
+// 同時に詠唱しているもの（P4 の序盤は3つ）は、メインの詠唱バーのすぐ上に積む（フィールドに重なってよい）
+const castMore = $('castMore');
+let castMoreKey = '';
 function drawCast(){
-  const c = S.phase === 'run' && S.inst ? S.inst.casts.find(c => S.t >= c.start && S.t < c.start + c.len && S.t <= S.inst.end) : null;
+  const act = S.phase === 'run' && S.inst ? S.inst.casts.filter(c => S.t >= c.start && S.t < c.start + c.len && S.t <= S.inst.end) : [];
+  const c = act[0];
   castEl.hidden = !c;
+  const more = act.slice(1), key = more.map(x => x.name + x.start).join('|');
+  if (key !== castMoreKey){ castMoreKey = key; castMore.innerHTML = more.map(x => `<div class="cast more"><div class="bar"><div class="fill"></div></div><div class="name">${x.name}</div></div>`).join(''); }
+  [...castMore.children].forEach((el: HTMLElement, i) => { const x = more[i], f = el.querySelector('.fill') as HTMLElement; f.style.width = ((S.t - x.start) / x.len * 100).toFixed(1) + '%'; f.style.background = x.color || '#fff'; });
   if (!c) return;
   if (castName.textContent !== c.name) castName.textContent = c.name;
   castFill.style.width = ((S.t - c.start) / c.len * 100).toFixed(1) + '%';
@@ -182,11 +190,13 @@ function drawButtons(){
     const left = run && !ab.sunsign ? Math.max(0, A.cds[k] - S.t) : 0;
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)));
   });
-  const st = [...[].concat(S.phase === 'run' || S.phase === 'done' ? S.inst?.status?.(S.t) ?? [] : [])];
+  // 結果が出たら（done）デバフ・バフ・敵視／HP は消して、フィールドを暗くする（結果の文字と重ならないように）
+  $('game').classList.toggle('over', S.phase === 'done');
+  const st = [...[].concat(S.phase === 'run' ? S.inst?.status?.(S.t) ?? [] : [])];
   hpDraw(); enmityDraw();
   // 左上はバフ・デバフのアイコンだけ。上段＝デバフ（ギミックで付くもの）、下段＝バフ（自分で使ったもの）
   const icon = (art, name, n) => `<i title="${name}">${buffIcon(art)}<b>${n}</b></i>`;
-  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
+  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.icon ? `<i title="${x.name}"><img class="pxi" src="${p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');

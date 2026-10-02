@@ -14,5 +14,9 @@ const stickVec = { x:0, z:0 };
 
 function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const pick = a => a[Math.random() * a.length | 0];
+// 画面下のチャット欄（P4 は PT マクロと自分のメモ、ほかはミスや結果）
+const LOG = { lines:[] as { text:string; cls:string }[], ver:0 };
+function logLine(text: string, cls = ''){ LOG.lines.push({ text, cls }); if (LOG.lines.length > 200) LOG.lines.shift(); LOG.ver++; }
+function logClear(){ LOG.lines.length = 0; LOG.ver++; }
 
-export { S, keys, stickVec, shuffle, pick };
+export { S, keys, stickVec, shuffle, pick, LOG, logLine, logClear };

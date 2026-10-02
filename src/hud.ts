@@ -205,8 +205,8 @@ function drawButtons(){
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');
-let lastMsg = '';
-function resetMsg(){ lastMsg = ''; }
+let lastMsg: string | null = null;
+function resetMsg(){ lastMsg = null; } // 次の setMsg で必ず書き換える（メニューに戻ったときに結果を消す）
 function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
 function updateHud(){
   const on = S.inst && (S.phase === 'run' || S.phase === 'done');

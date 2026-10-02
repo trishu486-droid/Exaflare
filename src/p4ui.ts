@@ -10,9 +10,6 @@ function renderP4Panel(){
   const on = !!S.inst?.chat && S.phase !== 'menu';
   const panel = $('p4panel');
   if (panel.classList.contains('off') === on){ panel.classList.toggle('off', !on); $('game').classList.toggle('p4on', on); }
-  // ランプ：押した状態
-  const st = on ? S.inst.memoState?.() ?? {} : {};
-  panel.querySelectorAll('.key').forEach(b => b.classList.toggle('on', !!st[b.dataset.say]));
   if (LOG.ver === shownVer) return;
   shownVer = LOG.ver;
   const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[c]);

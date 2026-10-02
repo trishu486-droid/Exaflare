@@ -102,7 +102,7 @@ window.addEventListener('touchstart', () => document.body.classList.add('touch')
 const stick = $('stick'), knob = $('knob');
 let stickId = null;
 let stickO = null;
-const STICK_DEAD = .55, STICK_MAX = 44; // 倒し幅 44px のうち 55% までは動かない
+const STICK_DEAD = .55, STICK_MAX = 36; // 倒し幅 36px のうち 55% までは動かない
 function stickMove(e){
   let dx = e.clientX - stickO.x, dz = e.clientY - stickO.y;
   const d = Math.hypot(dx, dz);

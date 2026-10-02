@@ -361,7 +361,6 @@ const P4 = (() => {
           else return;
           chat.push({ text:'（自分）' + text, cls:'mine' }); chatVer++; logLine(text, 'me'); sfx.cursor();
         },
-        memoState: () => ({ early:memo.early, late:memo.late, stop:memo.bomb === 'stop', move:memo.bomb === 'move' }),
         marker:'',
         setMarker(m){ this.marker = m; sfx.cursor(); },
         mySpot: t => { const st = stepAt(t); return st && t >= st.from ? st.spot(me) : null; },

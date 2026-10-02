@@ -22,10 +22,10 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--px);padding:max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));display:flex;justify-content:center;align-items:flex-start;
+body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--px);padding:max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));display:flex;justify-content:center;align-items:flex-start;
   -webkit-user-select:none;user-select:none;overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 
-.gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px}
+.gb{width:100%;max-width:640px;display:flex;flex-direction:column;gap:6px}
 .top{display:flex;align-items:center;gap:6px}
 .top h1{margin:0;font:400 16px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
 .top h1 b{color:var(--ab);font-weight:400}
@@ -33,7 +33,7 @@ body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--
 .mini .crown{width:22px;height:18px;display:block;margin:auto}
 .mini{font:16px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
-.screen{position:relative;isolation:isolate;color:var(--ink);background:#1c1a3c;overflow:hidden;border:10px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
+.screen{position:relative;isolation:isolate;color:var(--ink);background:#1c1a3c;overflow:hidden;border:8px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
 canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
 canvas:focus{outline:none}
 
@@ -121,16 +121,14 @@ canvas:focus{outline:none}
 @keyframes dmgSelf{0%{opacity:1;margin-top:6px}15%{margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-34px}}
 
 /* ===== 操作部 ===== */
-.p4panel{display:flex;justify-content:center;gap:clamp(10px,4vw,22px)}
-.p4panel .grp{display:flex;gap:6px;padding:5px 6px;border-radius:6px;background:#c8c6bc;box-shadow:inset 0 0 0 2px #b0aea4}
-.p4panel .key{display:flex;flex-direction:column;align-items:center;gap:3px;width:clamp(58px,17vw,76px);padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;font:inherit}
-.p4panel .key s{display:block;width:9px;height:9px;border-radius:50%;background:#4a1a1a;box-shadow:inset 0 0 0 1px #000}
-.p4panel .key.on s{background:#ff4a4a;box-shadow:0 0 6px #ff4a4a}
-.p4panel .key.g.on s{background:#5aff7a;box-shadow:0 0 6px #5aff7a}
-.p4panel .key span{display:flex;align-items:center;justify-content:center;width:100%;height:28px;border-radius:4px;background:#3a3870;color:#ece8ff;font-size:12px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+.p4panel{display:flex;justify-content:center;gap:8px}
+.p4panel .grp{display:flex;flex:1;gap:5px;padding:3px 4px;border-radius:6px;background:#c8c6bc;box-shadow:inset 0 0 0 2px #b0aea4}
+.p4panel .key{display:block;flex:1;padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;font:inherit}
+.p4panel .key span{display:flex;align-items:center;justify-content:center;width:100%;height:22px;box-sizing:border-box;border-radius:3px;background:#2a2850;border:1px solid #4c4a88;color:#d8d4ff;font-size:11px}
+.p4panel .key.g span{background:#24384a;border-color:#3e6a80}
 .p4panel .key:active span{transform:translateY(1px)}
 /* P4 以外：同じ場所に置くだけ（割り当てなし） */
-.p4panel.off .key{pointer-events:none}.p4panel.off .key span{background:#8a8898;color:transparent}.p4panel.off .key s{background:#6a6a72}
+.p4panel.off .key{pointer-events:none}.p4panel.off .key span{background:#8a8898;border-color:#8a8898;color:transparent}
 /* 結果画面：上の帯（デバフ・敵視／HP）は消して、フィールドは暗く */
 .gb.over .side{visibility:hidden}
 .gb.over .field canvas{filter:brightness(.3) saturate(.6)}
@@ -187,8 +185,7 @@ canvas:focus{outline:none}
 .gb{--chat-fs:clamp(8px,2.45vw,10.5px);--chat-h:calc(11 * 1.15 * var(--chat-fs) + 9px)}
 .status{position:relative;height:var(--status-h);margin:2px 8px 0}
 /* スマホ：背の低い画面では全体を少し細くして1画面に収める */
-@media (pointer:coarse){.gb{max-width:min(640px,calc(100svh * .44))}}
-@media (pointer:coarse) and (max-height:740px){.gb{max-width:calc(100svh * .395)}}
+@media (pointer:coarse){.gb{max-width:min(640px,calc((100svh - 24px) * .45))}}
 .chatlog{height:var(--chat-h);box-sizing:border-box}
 /* チャット欄：左7割＝システム（マクロ・ミス・結果）、右3割＝自分で打ったメモ */
 .gb.p4on .chatlog{display:grid;grid-template-columns:7fr 3fr;background:#0c0a18;border-top:3px solid var(--gb-bezel);line-height:1.15;color:#8adcff}
@@ -198,10 +195,10 @@ canvas:focus{outline:none}
 .chatlog .rule{color:#5a8ab0}.chatlog .dim{color:#6a6490}.chatlog .miss{color:#ff6a7a}.chatlog .ok{color:#7aff9a}
 .buff .bufrow .gly{display:flex;align-items:center;justify-content:center;width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);font-size:clamp(13px,4vw,17px);color:#fff;border:2px solid #101018;text-shadow:1px 1px 0 #000}
 .buff .bufrow .pxi{display:block;width:clamp(24px,7vw,32px);height:auto;image-rendering:pixelated;filter:drop-shadow(0 1px 0 #000)}
-.controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
-.stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
-.knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
-.ab{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,54px);margin-right:2px;position:relative}
+.controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
+.stick{position:relative;width:104px;height:104px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
+.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
+.ab{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,42px);margin-right:2px;position:relative}
 /* 通しのタンク：ホットバー切替の予告（3秒前から）と、切り替わった直後の点滅 */
 .ab.soon::before{content:attr(data-soon);position:absolute;left:50%;top:-20px;transform:translateX(-50%);white-space:nowrap;font-size:13px;color:#fff;background:#6d1840;border:2px solid var(--gold);padding:0 6px;border-radius:3px;animation:swapBlink .5s steps(2) infinite;z-index:2}
 .ab.swapped .abw.b .round,.ab.swapped .abw.x .round,.ab.swapped .abw.y .round{animation:swapFlash .3s steps(2) 4}
@@ -212,7 +209,7 @@ canvas:focus{outline:none}
 @keyframes swapNote{0%{opacity:0}8%{opacity:1}80%{opacity:1}100%{opacity:0}}
 .abw{display:flex;align-items:center;justify-content:center}
 .abw.x{grid-area:1/2}.abw.y{grid-area:2/1}.abw.a{grid-area:2/3}.abw.b{grid-area:3/2}
-.round{--p:0;width:56px;height:56px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
+.round{--p:0;width:50px;height:50px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
   background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}

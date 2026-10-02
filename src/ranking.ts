@@ -27,6 +27,7 @@ const val = f => f == null ? null : 'stringValue' in f ? f.stringValue : 'intege
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
   if (!RANK_ON) return 'off';
+  if (S.inst?.hpGate) return 'P4 は開発中のため登録できません';
   if (S.hits) return '被弾0でクリアしたときだけ登録できます';
   if (opt.speed !== 1) return 'ゲーム速度100%のときだけ登録できます';
   if (opt.safe || opt.path || opt.spots) return '安地表示・補助表示・立ち位置ガイドがすべてOFFのときだけ登録できます';
@@ -39,7 +40,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;'
 const cleanName = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
 // P5 通しは隠しステージ。解放前は「？？？」として並べ、中身は見せない
 const unlockedRun = () => store.get('p5', false);
-const mechs = () => [...MECHS, RUN];
+const mechs = () => [...MECHS.filter(m => m.id !== 'p4'), RUN];
 const mechLabel = m => m.id === RUN.id && !unlockedRun() ? '？？？' : m.name;
 
 let view = { mech:'', job:'' };

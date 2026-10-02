@@ -116,6 +116,15 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;image-rendering:pix
 @keyframes dmgSelf{0%{opacity:1;margin-top:6px}15%{margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-34px}}
 
 /* ===== 操作部 ===== */
+.p4panel{display:flex;flex-direction:column;gap:6px}
+.p4chat{height:9.6em;overflow-y:auto;background:#0c0a18;border:2px solid #2a2650;padding:4px 6px;font-size:11px;line-height:1.2;white-space:pre;color:#8adcff;-webkit-user-select:text;user-select:text}
+.p4chat .rule{color:#5a8ab0}.p4chat .mine{color:#ffe070}.p4chat .dim{color:#6a6490}
+.p4btns{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.p4btns.mk{grid-template-columns:repeat(5,1fr)}
+.p4btns button{font:12px var(--px);color:#ece8ff;background:#2a2650;border:2px solid #4a4480;border-radius:3px;height:32px;padding:0;cursor:pointer;touch-action:manipulation}
+.p4btns button:active{transform:translateY(1px);background:#3a3470}
+.p4btns.mk button{background:#3a1e2a;border-color:#7a3a52}
+.buff .bufrow .gly{display:flex;align-items:center;justify-content:center;width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);font-size:clamp(13px,4vw,17px);color:#fff;border:2px solid #101018;text-shadow:1px 1px 0 #000}
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px 0}
 .stick{position:relative;width:128px;height:128px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
 .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}

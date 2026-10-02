@@ -9,6 +9,7 @@ import { needOrchN, openJobs } from './menu.js';
 import { titleOn } from './title.js';
 import { sfx } from './audio.js';
 import { REG_BTN, rankBlock, rankPrepare } from './ranking.js';
+import { renderP4Panel } from './p4ui.js';
 
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
@@ -185,7 +186,7 @@ function drawButtons(){
   hpDraw(); enmityDraw();
   // 左上はバフ・デバフのアイコンだけ。上段＝デバフ（ギミックで付くもの）、下段＝バフ（自分で使ったもの）
   const icon = (art, name, n) => `<i title="${name}">${buffIcon(art)}<b>${n}</b></i>`;
-  const debuffs = st.filter(x => x && x.art).map(x => icon(x.art, x.name, x.sec)).join('');
+  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');
@@ -203,14 +204,17 @@ function updateHud(){
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   const bossHp = S.phase !== 'menu' && S.inst?.bossHp;
   $('bossHp').hidden = !bossHp;
-  if (bossHp){ const left = Math.max(0, 1 - A.dmg / bossHp); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `ケフカ ${(left * 100).toFixed(1)}%`; }
+  if (bossHp){ const left = bossLeft(); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `ケフカ ${(left * 100).toFixed(1)}%`; }
   else hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') hHit.textContent = '';
+  renderP4Panel();
   if (S.phase === 'menu') setMsg('');
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(S.t0 - S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
   else if (S.phase === 'done') setMsg(S.resultHtml);
   else setMsg('');
 }
+// ボスの残りHP（割合）。P4 は 100% から始まり、bossHp ぶん削ると 25%（hpGate）
+function bossLeft(){ const g = S.inst?.hpGate || 0, k = A.dmg / S.inst.bossHp; return Math.max(0, g ? 1 - (1 - g) * k : 1 - k); }
 // リザルトは終了した瞬間の内容で固定する（後から SELECT でジョブを変えても変わらない）
 function buildResult(){
   const ok = S.hits === 0, n = v => Math.round(v).toLocaleString('en-US'), rk = rankHtml();
@@ -220,7 +224,8 @@ function buildResult(){
   const rankLine = block === 'off' ? '' : block ? `<div class="sub" style="color:var(--dim);font-size:12px">ランキング：${block}</div>` : REG_BTN;
   return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rk}</div>` +
     `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
-    (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(Math.max(0, 1 - A.dmg / S.inst.bossHp) * 100).toFixed(1)}%`}</div>` : '') +
+    (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.inst.hpGate ? (S.killed ? `ケフカ ${(bossLeft() * 100).toFixed(1)}%（25%未満で P5 へ！）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%（25%未満が必要）`) : S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%`}</div>` : '') +
+    (S.inst.resultExtra?.() ?? '') +
     `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(dpsGoal())}</span></div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +
     `<div class="sub">GCD ${A.gcds}回 ／ ロス ${A.loss.toFixed(1)}秒</div>` +

@@ -99,7 +99,13 @@ function popup(text: string, cls?: string, name?: string, at?: { x:number; z:num
   fxEl.appendChild(el);
   setTimeout(() => el.remove(), 1300);
 }
+// 敵を攻撃した瞬間はボス（中央）の方を向く（実機と同じ。動けばまた進む向きに戻る）。P4 の視線の判定に効く
+function faceBoss(){
+  const r = Math.hypot(S.player.x, S.player.z);
+  if (r > .01) S.face = { x:-S.player.x / r, z:-S.player.z / r };
+}
 function dealDamage(pot, name){
+  faceBoss();
   const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);
   const crit = Math.random() < .25;
   const dmg = Math.round(pot * dmgPerPot() * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
@@ -137,7 +143,7 @@ function runGcd(k){
   A.readyAt = S.t + GCD; A.gcds++; A.actAt = S.t;
   if (ab.gcd){
     A.cds[k] = S.t + ab.cd;
-    if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k }; return; }
+    if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k }; if (!ab.buff) faceBoss(); return; }
     if (ab.cast) A.instant--;
     finishGcd(ab); return;
   }
@@ -154,7 +160,7 @@ function runGcd(k){
   }
   if (!ab.cast){ dealDamage(ab.pot, ab.name); return; }
   if (A.instant > 0){ A.instant--; dealDamage(ab.pot, ab.name); return; }
-  A.cast = { start:S.t, end:S.t + ab.cast, k };
+  A.cast = { start:S.t, end:S.t + ab.cast, k }; faceBoss(); // 詠唱の始まりにも向く
 }
 // GCD技の効果：バフが付くもの（回復・バリア）かダメージ
 function finishGcd(ab){
@@ -221,4 +227,4 @@ function drawActFx(){
   }
 }
 
-export { A, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };
+export { A, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };

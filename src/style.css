@@ -189,7 +189,7 @@ canvas:focus{outline:none}
 .gb{--chat-fs:clamp(8px,2.45vw,10.5px);--chat-h:calc(11 * 1.15 * var(--chat-fs) + 9px)}
 .status{position:relative;height:var(--status-h);margin:2px 8px 0}
 /* スマホ：背の低い画面では全体を少し細くして1画面に収める */
-@media (pointer:coarse){.gb{max-width:min(640px,calc((100svh - 24px) * .45))}}
+@media (pointer:coarse){.gb{max-width:min(640px,calc((100svh - 24px) * .43))}}
 .chatlog{height:var(--chat-h);box-sizing:border-box}
 /* チャット欄：左7割＝システム（マクロ・ミス・結果）、右3割＝自分で打ったメモ */
 .gb.p4on .chatlog{display:grid;grid-template-columns:7fr 3fr;background:#0c0a18;border-top:3px solid var(--gb-bezel);line-height:1.15;color:#8adcff}
@@ -200,9 +200,9 @@ canvas:focus{outline:none}
 .buff .bufrow .gly{display:flex;align-items:center;justify-content:center;width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);font-size:clamp(13px,4vw,17px);color:#fff;border:2px solid #101018;text-shadow:1px 1px 0 #000}
 .buff .bufrow .pxi{display:block;width:clamp(24px,7vw,32px);height:auto;image-rendering:pixelated;filter:drop-shadow(0 1px 0 #000)}
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
-.stick{position:relative;width:104px;height:104px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
-.knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
-.ab{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,42px);margin-right:2px;position:relative}
+.stick{position:relative;width:114px;height:114px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
+.knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
+.ab{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,46px);margin-right:2px;position:relative}
 /* 通しのタンク：ホットバー切替の予告（3秒前から）と、切り替わった直後の点滅 */
 .ab.soon::before{content:attr(data-soon);position:absolute;left:50%;top:-20px;transform:translateX(-50%);white-space:nowrap;font-size:13px;color:#fff;background:#6d1840;border:2px solid var(--gold);padding:0 6px;border-radius:3px;animation:swapBlink .5s steps(2) infinite;z-index:2}
 .ab.swapped .abw.b .round,.ab.swapped .abw.x .round,.ab.swapped .abw.y .round{animation:swapFlash .3s steps(2) 4}
@@ -213,7 +213,7 @@ canvas:focus{outline:none}
 @keyframes swapNote{0%{opacity:0}8%{opacity:1}80%{opacity:1}100%{opacity:0}}
 .abw{display:flex;align-items:center;justify-content:center}
 .abw.x{grid-area:1/2}.abw.y{grid-area:2/1}.abw.a{grid-area:2/3}.abw.b{grid-area:3/2}
-.round{--p:0;width:50px;height:50px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
+.round{--p:0;width:54px;height:54px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
   background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}

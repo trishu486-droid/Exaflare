@@ -19,13 +19,14 @@ function begin(){
   S.player = { ...(S.inst.start || m.start) };
   S.face = { x:0, z:-1 };
   hpReset();
+  bgm.use(m.id); // P4 は専用の曲
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true; applyTitle();
   sfx.unlock(); sfx.blip(660, .08);
   cv.focus({ preventScroll:true });
 }
 function openMenu(){
-  bgm.stop(); if (!titleOn) menuBgm.start();
+  bgm.stop(); bgm.use(null); if (!titleOn) menuBgm.start();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null; applyTitle();
   HP.on = false; $('hp').hidden = true;
   S.cursor = Math.max(0, menuMechs().indexOf(mech()));

@@ -40,6 +40,7 @@
 - `src/p4boss.ts`：カオス（第2版）とネオエクスデス（第3版・正面）のドット絵
 - `src/p4icons.ts`：デバフアイコン（30×33 ドット）
 - `src/p4ui.ts`：チャット欄とメモのボタン
+- `src/bgm_p4.ts`：P4 の BGM
 - `docs/research-p4.md`：P4 の調査メモ
 
 ## まだ残っていること

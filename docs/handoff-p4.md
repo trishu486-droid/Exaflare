@@ -1,13 +1,13 @@
 # P4 開発の引き継ぎメモ
 
-次のセッションで続きをやるためのメモ。P4 は `p4-dev` ブランチで開発中（本番 `claude/ff14-exaflare-trainer-3ssqps` には未反映）。
+次のセッションで続きをやるためのメモ。P4 は本番 `claude/ff14-exaflare-trainer-3ssqps` に反映済み（GitHub Pages に公開）。開発の続きは `p4-dev` ブランチで。
 
 ## 進め方のルール（ユーザーと決めたこと）
 
 - 返事は日本語。8bit の見た目を守る。BGM はオリジナル曲だけ。
 - **コミット・プッシュは「確定」してから**。途中の確認は開発版の Artifact を更新して見てもらう。
   - 開発版 Artifact：https://claude.ai/artifact/Sx4VAZmevGwWZqtZKRsE5S（`npm run build:artifact` → `dist-artifact/index.html` から Cloudflare のタグ・manifest・OGP を外し、title を「絶ケフカ P4 開発版」にして公開）
-  - 本番の Artifact（UL6qtX9MmHjywEf9mqpmQN）は P4 の内容で上書きしない。
+  - 本番の Artifact（UL6qtX9MmHjywEf9mqpmQN）は古い版のまま（本番は GitHub Pages）。
 - 見た目を変えるもの（絵・アイコン・エフェクト・ボタン）は、**まずイメージ画像で提案 → OK が出てから実装**。
 - 公式の画像は使わない。参考画像・動画を見て、色・形・配置を寄せて手描き（コードで描く）する。
 - スクリーンショットはリポジトリに保存しない。リポジトリにモデル名を書かない。
@@ -58,10 +58,14 @@
 - `src/bgm_p4.ts`：BGM「混沌への決戦」（一覧で選べる）
 - `docs/research-p4.md`：P4 の調査メモ
 
+## 名前の確認（2026-10-03）
+
+- スキル・アビリティは 7.x の日本語版（レベル100）の名前。敵の攻撃名は cactbot の日本語データ（ゲームのデータ由来、`ui/raidboss/data/07-dt/ultimate/dancing_mad.ts`）に合わせた。
+
 ## まだ残っていること
 
 - ケフカの絵（方向が未定。参考画像があれば寄せる）
 - 混沌の水「タケノコ」の演出は動画がないので予測で作った。動画があれば合わせる
 - アイコン：死の超越・加速度爆弾・アラガンフィールドは見本をドット単位で写した描き起こし（grid4）。フォーク・混沌の炎・混沌の水も見本に寄せて描き直し済み。死者の傷・生者の傷・呪詛の叫声は、はっきりした画像があればもっと寄せられる
 - 検索結果のサイト名が「GitHub Pages documentation」になる件（`trishu486-droid.github.io` リポジトリを作る案。あとで考える）
-- 確定したら `p4-dev` を本番ブランチへ入れる（そのときにコミットを整理する）
+- P4 のランキング登録：Firestore のルール（`docs/firestore.rules` の mech 一覧）に p4 を足して Firebase に反映しないと登録できない。今は「対象外」と表示

@@ -60,7 +60,7 @@
 
 ## 名前の確認（2026-10-03）
 
-- スキル・アビリティは 7.x の日本語版（レベル100）の名前。敵の攻撃名は cactbot の日本語データ（ゲームのデータ由来、`ui/raidboss/data/07-dt/ultimate/dancing_mad.ts`）に合わせた。
+- スキル・アビリティは公式のジョブガイド（https://jp.finalfantasyxiv.com/jobguide/）の名前で確認済み（レベル100）。英語名をカタカナにしただけの名前（エッジ・オブ・シャドウ等）は使わない。敵の攻撃名は cactbot の日本語データ（ゲームのデータ由来、`ui/raidboss/data/07-dt/ultimate/dancing_mad.ts`）に合わせた。
 
 ## まだ残っていること
 

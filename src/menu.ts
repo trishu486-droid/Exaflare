@@ -10,7 +10,7 @@ import { applyTitle } from './hud.js';
 import { begin } from './game.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
-const PHASES = [['p4', 'P4', 'おちょくりソウル'], ['p5', 'P5', '混沌の終末ほか'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
+const PHASES = [['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
   const list = $('menuList');

@@ -10,11 +10,11 @@ import { ARENA_R, BOSS_R } from './config.js';
 // ギミック3：スリースターズ（属性の塔 × 3セット + 二択のカタストロフ）
 // =====================================================================
 const CELES = (() => {
-  // 時計回りに ファイア→サンダー→ブリザド の3本ずつ（北から20°、40°刻み、半径10）
+  // 時計回りに 火（ファイガ）→雷（サンダガ）→氷（ブリザガ） の3本ずつ（北から20°、40°刻み、半径10）
   const EL = [
-    { name:'ファイア', color:'#ff6a3a', icon:['..x..','.xx..','.xxx.','xxxxx','.xxx.'] },
-    { name:'サンダー', color:'#c08cff', icon:['..xx.','.xx..','xxxx.','..xx.','.xx..'] },
-    { name:'ブリザド', color:'#6ad8ff', icon:['x.x.x','.xxx.','xxxxx','.xxx.','x.x.x'] },
+    { name:'火', spell:'ファイガ', color:'#ff6a3a', icon:['..x..','.xx..','.xxx.','xxxxx','.xxx.'] },
+    { name:'雷', spell:'サンダガ', color:'#c08cff', icon:['..xx.','.xx..','xxxx.','..xx.','.xx..'] },
+    { name:'氷', spell:'ブリザガ', color:'#6ad8ff', icon:['x.x.x','.xxx.','xxxxx','.xxx.','x.x.x'] },
   ];
   const RING = 10, SOAK = 3, OFFSET = [1, 2, 0];
   const TOWER_ON = [6.1, 14.4, 20.6], RESOLVE = [14.18, 20.5, 26.34], OFF = [14.3, 20.6, 26.44];
@@ -53,7 +53,7 @@ const CELES = (() => {
         casts,
         progress: t => `SET ${Math.max(0, setAt(t) + 1)}/3`,
         status(t){
-          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => ({ art:['fireDown', 'thunderDown', 'iceDown'][d.el], name:`${EL[d.el].name}耐性低下`, sec:Math.ceil(d.until - t) }));
+          const on = debuffs.filter(d => t >= d.from && t < d.until).map(d => ({ art:['fireDown', 'thunderDown', 'iceDown'][d.el], name:`${EL[d.el].name}属性耐性低下`, sec:Math.ceil(d.until - t) }));
           return on;
         },
         tick(t){

@@ -1,3 +1,4 @@
+import { p4Key } from './p4ui.js';
 import { closeRank } from './ranking.js';
 import { $, opt, store } from './store.js';
 import { S, keys, stickVec } from './state.js';
@@ -39,6 +40,7 @@ window.addEventListener('keydown', e => {
   if (!$('info').hidden){ if (act === 'menu' || act === 'b' || act === 'y' || e.key === 'Escape') closeInfo(); return; }
   // Y：メニューではカーソルのギミック、リザルトではいまのギミックの解説
   if (act === 'y' && !e.repeat && infoTarget()){ openInfo(infoTarget()); e.preventDefault(); return; }
+  if ((S.phase === 'run' || S.phase === 'count') && !e.repeat && p4Key(e.key)){ e.preventDefault(); return; } // P4 のメモ・マーカー
   if (!act) return;
   if (S.phase === 'menu'){
     e.preventDefault();
@@ -100,7 +102,7 @@ window.addEventListener('touchstart', () => document.body.classList.add('touch')
 const stick = $('stick'), knob = $('knob');
 let stickId = null;
 let stickO = null;
-const STICK_DEAD = .55, STICK_MAX = 44; // 倒し幅 44px のうち 55% までは動かない
+const STICK_DEAD = .55, STICK_MAX = 40; // 倒し幅 40px のうち 55% までは動かない
 function stickMove(e){
   let dx = e.clientX - stickO.x, dz = e.clientY - stickO.y;
   const d = Math.hypot(dx, dz);

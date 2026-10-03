@@ -1,4 +1,6 @@
 import { EXTRA_TRACKS } from './bgm_tracks.js';
+import { p4Battle } from './bgm_p4.js';
+import { rush } from './bgm_rush.js';
 import { opt } from './store.js';
 
 // ===== 効果音（8bit矩形波） =====
@@ -171,6 +173,15 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       o.connect(g).connect(master); o.start(t); o.stop(t + 1.45);
     });
   }
+  // ピアノ：はじいて速く減衰する
+  function keys(ac, t, f){
+    ([['triangle', 1, .07, .45], ['square', 2, .012, .15]] as [string, number, number, number][]).forEach(([type, m, v, len]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type as OscillatorType; o.frequency.setValueAtTime(f * m, t);
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0005, t + len);
+      o.connect(g).connect(master); o.start(t); o.stop(t + len + .02);
+    });
+  }
   function play(ac, e, t){
     const dur = (e.l || 1) * stepDur[e.s], f = e.n && hz(e.n);
     switch (e.ch){
@@ -203,6 +214,33 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       case 'choir2': voice(ac, t, 'triangle', f, dur, .055, .35, master, .01); voice(ac, t, 'triangle', f * 1.008, dur, .04, .4, master, .012); voice(ac, t, 'sine', f * 2, dur, .012, .4); break;
       // 金管：のこぎり波と1オクターブ下の矩形。短く立ち上がる
       case 'brass': voice(ac, t, 'sawtooth', f, dur * .92, .045, .03, master, .006); voice(ac, t, 'square', f / 2, dur * .92, .02, .03); break;
+      // ===== P4 の曲用（16bit のプログレ風） =====
+      // シンセブラス：少しずらした2本のノコギリ波＋1オクターブ下の矩形＋倍音のパルス。少しふくらませて立ち上げ、長い音はビブラート
+      case 'sbrass': voice(ac, t, 'sawtooth', f, dur * .95, .042, .025, master, .008); voice(ac, t, 'sawtooth', f * 1.007, dur * .95, .03, .03, master, .008);
+                     voice(ac, t, 'square', f / 2, dur * .95, .014, .025); voice(ac, t, 'pulse', f * 2, dur * .9, .01, .02); break;
+      // 控えめなブラス（ハモリ・持続）
+      case 'sbrass2': voice(ac, t, 'sawtooth', f, dur * .95, .02, .04, master, .006); voice(ac, t, 'sawtooth', f * .994, dur * .95, .016, .05); break;
+      // スラップベース：アタックの強いノコギリ波＋かすかな高い矩形（弦をはじく音）
+      case 'slap':  voice(ac, t, 'sawtooth', f, dur * .85, .075, .002); voice(ac, t, 'square', f * 2, Math.min(dur, .05), .025, .001); break;
+      // ポップ（オクターブ上をはじく）：短く明るい
+      case 'pop':   voice(ac, t, 'pulse', f, dur * .55, .05, .001); voice(ac, t, 'square', f * 2, Math.min(dur * .4, .04), .018, .001); break;
+      // ロックオルガン：矩形＋2倍・3倍の正弦波（ドローバー風）＋頭のクリック
+      case 'rorg':  voice(ac, t, 'square', f, dur * .8, .016, .004); voice(ac, t, 'sine', f * 2, dur * .8, .014, .004); voice(ac, t, 'sine', f * 3, dur * .8, .008, .004);
+                    voice(ac, t, 'sine', f * 4, .03, .012, .001); break;
+      // オルガンの速いアルペジオ用（軽め）
+      case 'rorgA': voice(ac, t, 'square', f, dur * .75, .02, .002); voice(ac, t, 'sine', f * 2, dur * .75, .012, .002); break;
+      // オーケストラヒット：ノコギリ波の和音を短く強く（ノイズは譜面側でシンバルを重ねる）
+      // ===== 疾走ロック（紅き疾走）用 =====
+      // リフ：歪ませた単音（根音＋オクターブ上）。ギターとベースのユニゾン
+      case 'riff':  [1, 2].forEach((m, i) => voice(ac, t, 'sawtooth', f * 2 * m, dur * .75, [.055, .03][i], .002, drive)); break;
+      // バイオリン：少しずらした2本のノコギリ波＋倍音。やわらかく立ち上がり、長い音は深めのビブラート
+      case 'violin': voice(ac, t, 'sawtooth', f, dur * .96, .07, .03, master, .014); voice(ac, t, 'sawtooth', f * 1.005, dur * .96, .044, .04, master, .014); voice(ac, t, 'triangle', f * 2, dur * .9, .02, .03); break;
+      case 'violin2': voice(ac, t, 'sawtooth', f, dur * .96, .032, .05, master, .01); voice(ac, t, 'triangle', f, dur * .96, .026, .05); break;
+      // ピアノ：叩いてすぐ減衰する三角波＋矩形の倍音
+      case 'piano': keys(ac, t, f); break;
+      // シンセのソロ：矩形＋少しずらしたノコギリ波。速弾き向けに短く立ち上げる
+      case 'syn':   voice(ac, t, 'square', f, dur * .9, .045, .002, master, .01); voice(ac, t, 'sawtooth', f * 1.006, dur * .9, .025, .002); break;
+      case 'ohit':  voice(ac, t, 'sawtooth', f, Math.min(dur, .3), .045, .002); voice(ac, t, 'sawtooth', f * 2, Math.min(dur, .22), .025, .002); voice(ac, t, 'triangle', f / 2, Math.min(dur, .35), .05, .002); break;
     }
   }
   function tick(){
@@ -332,9 +370,15 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
 });
 
 // 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
-const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) }))];
+// P4 は専用の曲「紅き疾走」（設定の一覧の最後にも入れて、試聴できるように）
+const RUSH_TRACK = { name:'紅き疾走（ホ短調・疾走ロック・P4 の曲）', player:makePlayer(.1, rush) };
+const P4_TRACK = RUSH_TRACK;
+const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })),
+  { name:'混沌への決戦（ト短調・16bit プログレ）', player:makePlayer(.21, p4Battle) }, RUSH_TRACK]; // 混沌への決戦は音数が少ない分、音量を上げる
+let forced = null; // ギミックで決まった曲（P4）。null なら設定で選んだ曲
 const bgm = {
-  start(){ (BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
+  use(id: string | null){ forced = id === 'p4' ? P4_TRACK : null; },
+  start(){ (forced || BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
   stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },
 };
 function applyBgmVol(){ menuBgm.setVol(); BGM_TRACKS.forEach(t => t.player.setVol()); }

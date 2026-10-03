@@ -11,7 +11,7 @@ import { P, PPY, hurt, px, rect, ring } from './gfx.js';
 // =====================================================================
 // 隠しステージ：P5 通し（ターゲット可能 → ミッシング・ゼロの詠唱まで）
 // 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0。開始はターゲット可能になる 33 秒）。練習用の5ギミックを実際の時刻に並べ、
-// 間に 連続アルテマ・魔撃（AA）・終末の渦 を入れる
+// 間に 連続アルテマ・魔撃（AA）・混沌の渦 を入れる
 // AA：ヘイト1位・ヒーラー1人・DPS1人に頭割り（被魔法ダメージ増加つき。2つ受けると即死）
 //   タンク＝A（ボスの北）、ヒーラー＝4（南西）、DPS＝3（南東）で受ける
 //   オーケストラ直後のAAは、ヘイト1位（ホーリー役）がボス前で無敵のまま1人で受ける（soloN 発。1回目は2発とも無敵の10秒に収まる）。残りはタンク2人で頭割り
@@ -58,7 +58,7 @@ const RUN = (() => {
       let entX = 0, entZ = 0;
       const inK = k => Math.hypot(S.player.x - HOME[k].x, S.player.z - HOME[k].z) <= AA_R[k];
       const exa = segs[3], orch2 = segs[4];
-      // ギミックの間の目安：AA の位置。混沌の終末の後は終末の渦の散開位置
+      // ギミックの間の目安：AA の位置。混沌の終末の後は混沌の渦の散開位置
       const spreadAt = t => t >= exa.end && t < ENTROPY.at + .3;
       // フレア役のタンクは、オーケストラ直後の1発目のAAの間だけ A の外（北）で待つ
       const holyOf = n => n === 1 ? 'ST' : 'MT';
@@ -73,7 +73,7 @@ const RUN = (() => {
         end: ENRAGE.at,
         casts:[
           ...REPEAT.map(r => ({ name:'連続アルテマ', start:r.cast, len:4 })),
-          { name:'終末の渦', start:ENTROPY.cast, len:ENTROPY.len },
+          { name:'混沌の渦', start:ENTROPY.cast, len:ENTROPY.len },
           ...segs.flatMap(s => s.inst.casts.filter(c => c.name !== 'ミッシング・ゼロ').map(c => ({ ...c, start:c.start + s.at }))),
           { name:'ミッシング・ゼロ', start:ENRAGE.at - ENRAGE.len, len:ENRAGE.len }],
         // 混沌の終末の予兆はフィールドの外に出るので、その間だけ引く。3秒かけてゆっくり引いて、ゆっくり戻す
@@ -130,13 +130,13 @@ const RUN = (() => {
           if (!fired.swirl && t >= ENTROPY.at - 1.2){ fired.swirl = true; fxAdd('swirl', 0, 0, { r:9, cols:FXC.void, dur:1.2, inward:true }); } // 渦がボスに集まる
           if (!fired.ent && t >= ENTROPY.at){
             fired.ent = true; sfx.big(); entX = S.player.x; entZ = S.player.z;
-            // 終末の渦：全員の位置で爆発、画面が白く飛んで岩が散る
+            // 混沌の渦：全員の位置で爆発、画面が白く飛んで岩が散る
             FXK.flare(entX, entZ, ENTROPY.r, true);
             Object.entries(ORCH.SPREAD).forEach(([k, q]) => { if (k !== me) fxAdd('burst', q.x, q.z, { r:ENTROPY.r, cols:FXC.flare, dur:.6 }); });
             fxFlash('#fff4d0', .7, .25); fxParts(30, 0, 0, { cols:['#3a2a1a', '#6a4a2a', '#1a1010'], speed:12, up:12, life:.9, size:3, spread:24 });
             const near = Object.entries(ORCH.SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
-            if (near) hurt('終末の渦が重なった');
-            healerHit(ENTROPY.dmg, '終末の渦');
+            if (near) hurt('混沌の渦が重なった');
+            healerHit(ENTROPY.dmg, '混沌の渦');
           }
           segs.forEach(s => {
             if (t < s.at || s.done) return;
@@ -153,7 +153,7 @@ const RUN = (() => {
         },
         guide(t){
           const s = seg(t);
-          // 終末の渦の詠唱が始まったら、エクサを避けながら向かう散開位置も出しておく
+          // 混沌の渦の詠唱が始まったら、エクサを避けながら向かう散開位置も出しておく
           if (s && t >= ENTROPY.cast && t < ENTROPY.at){ const q = ORCH.SPREAD[me]; ring(px(q.x), px(q.z), Math.round(2 * PPY), '#ff9a3a'); }
           if (s) return s.inst.guide?.(t - s.at);
           const g = spot(t); ring(px(g.x), px(g.z), Math.round(2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white);
@@ -163,7 +163,7 @@ const RUN = (() => {
           const s = seg(t); s?.inst.draw(t - s.at);
           const blink = (Math.floor(performance.now() / 160) & 1) === 0;
           // AA：実機と同じく予兆なし（詠唱もマーカーも出ない）。着弾の演出は FX（マゼンタの柱）
-          // 終末の渦：詠唱中は自分のまわりに散開の輪
+          // 混沌の渦：詠唱中は自分のまわりに散開の輪
           if (t >= ENTROPY.cast && t < ENTROPY.at) ring(px(S.player.x), px(S.player.z), Math.round(ENTROPY.r * PPY), blink ? '#ff9a3a' : P.white);
         },
       };

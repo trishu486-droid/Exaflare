@@ -1,7 +1,7 @@
 {
-  "name": "絶ケフカP5トレーナー",
-  "short_name": "P5トレーナー",
-  "description": "絶妖星乱舞（絶ケフカ）P5 のイメトレ用シミュレーター（非公式ファンメイド）",
+  "name": "絶妖星乱舞シミュレーター",
+  "short_name": "絶妖星乱舞シミュ",
+  "description": "絶妖星乱舞（絶ケフカ）P4・P5 のイメトレ用シミュレーター（非公式ファンメイド）",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

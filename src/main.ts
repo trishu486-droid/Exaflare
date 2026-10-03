@@ -16,6 +16,8 @@ import './mech_orch.js';
 import './mechs.js';
 import './omake.js';
 import './mech_run.js';
+import './mech_p4.js';
+import './p4ui.js';
 import './hud.js';
 import './ranking.js';
 import './action.js';

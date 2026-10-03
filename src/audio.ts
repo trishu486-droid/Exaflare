@@ -234,8 +234,8 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       // リフ：歪ませた単音（根音＋オクターブ上）。ギターとベースのユニゾン
       case 'riff':  [1, 2].forEach((m, i) => voice(ac, t, 'sawtooth', f * 2 * m, dur * .75, [.055, .03][i], .002, drive)); break;
       // バイオリン：少しずらした2本のノコギリ波＋倍音。やわらかく立ち上がり、長い音は深めのビブラート
-      case 'violin': voice(ac, t, 'sawtooth', f, dur * .96, .045, .03, master, .014); voice(ac, t, 'sawtooth', f * 1.005, dur * .96, .028, .04, master, .014); voice(ac, t, 'triangle', f * 2, dur * .9, .012, .03); break;
-      case 'violin2': voice(ac, t, 'sawtooth', f, dur * .96, .022, .05, master, .01); voice(ac, t, 'triangle', f, dur * .96, .018, .05); break;
+      case 'violin': voice(ac, t, 'sawtooth', f, dur * .96, .07, .03, master, .014); voice(ac, t, 'sawtooth', f * 1.005, dur * .96, .044, .04, master, .014); voice(ac, t, 'triangle', f * 2, dur * .9, .02, .03); break;
+      case 'violin2': voice(ac, t, 'sawtooth', f, dur * .96, .032, .05, master, .01); voice(ac, t, 'triangle', f, dur * .96, .026, .05); break;
       // ピアノ：叩いてすぐ減衰する三角波＋矩形の倍音
       case 'piano': keys(ac, t, f); break;
       // シンセのソロ：矩形＋少しずらしたノコギリ波。速弾き向けに短く立ち上げる
@@ -370,10 +370,11 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
 });
 
 // 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
-// P4 は専用の曲（設定の一覧の最後にも入れて、試聴できるように）
-const P4_TRACK = { name:'混沌への決戦（ト短調・P4 の曲）', player:makePlayer(.21, p4Battle) }; // 音数が少ない分、ほかの曲と同じくらいの大きさに
-const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })), P4_TRACK,
-  { name:'紅き疾走（ホ短調・疾走ロック）', player:makePlayer(.1, rush) }];
+// P4 は専用の曲「紅き疾走」（設定の一覧の最後にも入れて、試聴できるように）
+const RUSH_TRACK = { name:'紅き疾走（ホ短調・疾走ロック・P4 の曲）', player:makePlayer(.1, rush) };
+const P4_TRACK = RUSH_TRACK;
+const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })),
+  { name:'混沌への決戦（ト短調・16bit プログレ）', player:makePlayer(.21, p4Battle) }, RUSH_TRACK]; // 混沌への決戦は音数が少ない分、音量を上げる
 let forced = null; // ギミックで決まった曲（P4）。null なら設定で選んだ曲
 const bgm = {
   use(id: string | null){ forced = id === 'p4' ? P4_TRACK : null; },

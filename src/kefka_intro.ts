@@ -63,44 +63,54 @@ function drawFace(){
   return c;
 }
 
-// ===== 笑い声：「ヒャーーッ ハッ ハッ ハッ ハッ ハッ」 =====
-// 声の元（パルス波）にフォルマント（口の形の響き）を当てて「ア」の音色にする。各「ハ」の頭に息のノイズ
+// ===== 笑い声：「ヒャー ハッ ハッ ハッ」（スーパーファミコン風のエコー付き） =====
+// 声の元（ノコギリ波）にフォルマント（口の形の響き）を当てて「ア」の音色にし、短いエコーを重ねる
+// 形：最初の「ヒャー」は短く上がる → 「ハッ」は 0.25 秒おきに、小さく始まって強く切れる（後ろにエコーが2回）
+//     ハッのたびに声が低く、響きも低い方へ移る
 let lastOut = null;
-function laugh(ac, t0, vol = .35){
-  const out = ac.createGain(); out.gain.value = vol; out.connect(ac.destination); lastOut = out;
+function laugh(ac, t0, vol = .35, count = 3){
+  const out = ac.createGain(); out.gain.value = vol; lastOut = out;
+  // 昔のゲーム機の音声のように、高い音を落とす（2.4kHz より上はほとんど無い）
+  const band = ac.createBiquadFilter(); band.type = 'lowpass'; band.frequency.value = 2400; band.Q.value = .7;
+  const band2 = ac.createBiquadFilter(); band2.type = 'lowpass'; band2.frequency.value = 2400;
+  out.connect(band).connect(band2);
+  // エコー：80ms 遅れて少しずつ弱く・こもって返ってくる
+  const dry = ac.createGain(); dry.gain.value = 1; band2.connect(dry).connect(ac.destination);
+  const dl = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter(), wet = ac.createGain();
+  dl.delayTime.value = .08; fb.gain.value = .45; lp.type = 'lowpass'; lp.frequency.value = 2000; wet.gain.value = .5;
+  band2.connect(dl); dl.connect(lp).connect(fb).connect(dl); lp.connect(wet).connect(ac.destination);
   const noise = ac.createBuffer(1, ac.sampleRate * .5, ac.sampleRate); { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   // フォルマント：F1・F2・F3 のバンドパスを並べる
-  const formants = (src, t, f1, f2, f3, f2end = f2, dur = .2) => {
-    [[f1, f1, 6, 1], [f2, f2end, 8, .7], [f3, f3, 10, .35]].forEach(([fa, fb, q, gain]) => {
+  const formants = (src, t, f1, f2, f3, f2end, dur, f1end = f1) => {
+    [[f1, f1end, 5, 1], [f2, f2end, 6, .7], [f3, f3, 9, .2]].forEach(([fa, fb2, q, gain]) => {
       const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
-      bp.frequency.setValueAtTime(fa, t); bp.frequency.linearRampToValueAtTime(fb, t + dur);
+      bp.frequency.setValueAtTime(fa, t); bp.frequency.linearRampToValueAtTime(fb2, t + dur);
       const gg = ac.createGain(); gg.gain.value = gain;
       src.connect(bp).connect(gg).connect(out);
     });
   };
-  // 1音（音節）：pitch は [始め, 終わり]、vowel は 'ia'（イ→ア）か 'a'
-  const syll = (t, dur, p0, p1, amp, vowel = 'a') => {
+  // 1音。shape：'rise'＝ふつう（立ち上がって伸びる）、'cresc'＝小さく始まって強くなり、すっと切れる
+  const syll = (t, dur, p0, p1, amp, f1, f2, f2end, shape = 'rise', breath = .5, f1end = f1) => {
     const o = ac.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(p0, t); o.frequency.exponentialRampToValueAtTime(p1, t + dur);
-    // 声の震え
-    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 7; lg.gain.value = p0 * .025; lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t + dur + .05);
     const env = ac.createGain();
-    env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(amp, t + .025); env.gain.setValueAtTime(amp, t + dur * .7); env.gain.linearRampToValueAtTime(0, t + dur);
-    o.connect(env);
-    if (vowel === 'ia') formants(env, t, 350, 2300, 3000, 1250, dur * .5); else formants(env, t, 820, 1250, 2800, 1150, dur);
+    if (shape === 'cresc'){ env.gain.setValueAtTime(amp * .15, t); env.gain.linearRampToValueAtTime(amp, t + dur * .8); env.gain.linearRampToValueAtTime(0, t + dur); }
+    else { env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(amp, t + .03); env.gain.setValueAtTime(amp, t + dur * .75); env.gain.linearRampToValueAtTime(0, t + dur); }
+    o.connect(env); formants(env, t, f1, f2, 2300, f2end, dur, f1end);
+    // 声の芯（低い成分）
+    const lo = ac.createGain(); lo.gain.value = .35; env.connect(lo).connect(out);
     o.start(t); o.stop(t + dur + .02);
-    // 「h」の息
-    const n = ac.createBufferSource(), hp = ac.createBiquadFilter(), ng = ac.createGain();
-    n.buffer = noise; hp.type = 'bandpass'; hp.frequency.value = 1800; hp.Q.value = .8;
-    ng.gain.setValueAtTime(amp * .9, t - .03); ng.gain.exponentialRampToValueAtTime(.001, t + .06);
-    n.connect(hp).connect(ng).connect(out); n.start(Math.max(0, t - .03)); n.stop(t + .08);
+    // 息（かすれ）
+    const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+    n.buffer = noise; bp.type = 'bandpass'; bp.frequency.value = f2; bp.Q.value = 1.2;
+    ng.gain.setValueAtTime(0, t); ng.gain.linearRampToValueAtTime(amp * breath, t + dur * .6); ng.gain.linearRampToValueAtTime(0, t + dur);
+    n.connect(bp).connect(ng).connect(out); n.start(t); n.stop(t + dur + .02);
   };
   let t = t0;
-  syll(t, .7, 420, 760, .9, 'ia'); t += .78;                          // ヒャーーッ（上がる）
-  const HA = [640];                                                     // ハッ
-  HA.forEach((p, i) => { syll(t, .13, p * 1.05, p * .9, .85 - i * .08); t += .17 + i * .008; });
-  syll(t + .04, .5, 500, 330, .6);                                     // 最後のハーーッ（下がって消える）
-  return t + .6 - t0;
+  syll(t, .3, 240, 300, .9, 800, 1700, 1500, 'rise', .6, 1250); t += .36;   // ヒャー（響きが 800→1250Hz へ上がる）
+  const P = [270, 245, 225, 210, 200, 190].slice(0, count);                  // ハッのたびに低く
+  P.forEach((p, i) => { const k = i / Math.max(1, P.length - 1); syll(t, .12, p * 1.05, p * .93, .95 - k * .25, 1050 - k * 230, 1600 - k * 300, 1450 - k * 300, 'cresc', .7); t += .21; });
+  return t + .3 - t0; // エコーの尾ぶん
 }
 
 // 飛ばしたときは笑い声をすぐ消す

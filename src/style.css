@@ -108,7 +108,10 @@ canvas:focus{outline:none}
 .menu button.secret{border-color:#b05aff;background:#1e1030}
 .menu .head.blink{animation:blink .3s steps(2,start) infinite}
 .menu .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(84%,360px)}
-.menu .jobgrid button{width:100%}
+.menu .jobgrid button{width:100%;position:relative;padding-left:18px}
+/* ジョブ選択はボタンが狭いので、▶ は左の余白に重ねて、名前が折り返さないように */
+.menu .jobgrid button span{white-space:nowrap}
+.menu .jobgrid button.cur::before{position:absolute;left:4px;top:50%;transform:translateY(-50%);margin:0}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
 .menu button.cur::before{content:"▶";margin-right:4px}

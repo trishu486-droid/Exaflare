@@ -107,8 +107,8 @@ function laugh(ac, t0, vol = .35, count = 3){
     n.connect(bp).connect(ng).connect(out); n.start(t); n.stop(t + dur + .02);
   };
   let t = t0;
-  syll(t, .3, 240, 300, .9, 800, 1700, 1500, 'rise', .6, 1250); t += .36;   // ヒャー（響きが 800→1250Hz へ上がる）
-  const P = [270, 245, 225, 210, 200, 190].slice(0, count);                  // ハッのたびに低く
+  syll(t, .3, 430, 560, .9, 800, 1700, 1500, 'rise', .6, 1250); t += .36;   // ヒャー（響きが 800→1250Hz へ上がる）
+  const P = [500, 455, 420, 390, 365, 345].slice(0, count);                  // ハッのたびに低く
   P.forEach((p, i) => { const k = i / Math.max(1, P.length - 1); syll(t, .12, p * 1.05, p * .93, .95 - k * .25, 1050 - k * 230, 1600 - k * 300, 1450 - k * 300, 'cresc', .7); t += .21; });
   return t + .3 - t0; // エコーの尾ぶん
 }

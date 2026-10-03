@@ -1,5 +1,6 @@
 import { EXTRA_TRACKS } from './bgm_tracks.js';
 import { p4Battle } from './bgm_p4.js';
+import { rush } from './bgm_rush.js';
 import { opt } from './store.js';
 
 // ===== 効果音（8bit矩形波） =====
@@ -172,6 +173,15 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       o.connect(g).connect(master); o.start(t); o.stop(t + 1.45);
     });
   }
+  // ピアノ：はじいて速く減衰する
+  function keys(ac, t, f){
+    ([['triangle', 1, .07, .45], ['square', 2, .012, .15]] as [string, number, number, number][]).forEach(([type, m, v, len]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type as OscillatorType; o.frequency.setValueAtTime(f * m, t);
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0005, t + len);
+      o.connect(g).connect(master); o.start(t); o.stop(t + len + .02);
+    });
+  }
   function play(ac, e, t){
     const dur = (e.l || 1) * stepDur[e.s], f = e.n && hz(e.n);
     switch (e.ch){
@@ -220,6 +230,16 @@ function makePlayer(VOL, build, REV = 0){ // REV：残響（大聖堂っぽい�
       // オルガンの速いアルペジオ用（軽め）
       case 'rorgA': voice(ac, t, 'square', f, dur * .75, .02, .002); voice(ac, t, 'sine', f * 2, dur * .75, .012, .002); break;
       // オーケストラヒット：ノコギリ波の和音を短く強く（ノイズは譜面側でシンバルを重ねる）
+      // ===== 疾走ロック（紅き疾走）用 =====
+      // リフ：歪ませた単音（根音＋オクターブ上）。ギターとベースのユニゾン
+      case 'riff':  [1, 2].forEach((m, i) => voice(ac, t, 'sawtooth', f * 2 * m, dur * .75, [.055, .03][i], .002, drive)); break;
+      // バイオリン：少しずらした2本のノコギリ波＋倍音。やわらかく立ち上がり、長い音は深めのビブラート
+      case 'violin': voice(ac, t, 'sawtooth', f, dur * .96, .045, .03, master, .014); voice(ac, t, 'sawtooth', f * 1.005, dur * .96, .028, .04, master, .014); voice(ac, t, 'triangle', f * 2, dur * .9, .012, .03); break;
+      case 'violin2': voice(ac, t, 'sawtooth', f, dur * .96, .022, .05, master, .01); voice(ac, t, 'triangle', f, dur * .96, .018, .05); break;
+      // ピアノ：叩いてすぐ減衰する三角波＋矩形の倍音
+      case 'piano': keys(ac, t, f); break;
+      // シンセのソロ：矩形＋少しずらしたノコギリ波。速弾き向けに短く立ち上げる
+      case 'syn':   voice(ac, t, 'square', f, dur * .9, .045, .002, master, .01); voice(ac, t, 'sawtooth', f * 1.006, dur * .9, .025, .002); break;
       case 'ohit':  voice(ac, t, 'sawtooth', f, Math.min(dur, .3), .045, .002); voice(ac, t, 'sawtooth', f * 2, Math.min(dur, .22), .025, .002); voice(ac, t, 'triangle', f / 2, Math.min(dur, .35), .05, .002); break;
     }
   }
@@ -352,7 +372,8 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
 // 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
 // P4 は専用の曲（設定の一覧の最後にも入れて、試聴できるように）
 const P4_TRACK = { name:'混沌への決戦（ト短調・P4 の曲）', player:makePlayer(.21, p4Battle) }; // 音数が少ない分、ほかの曲と同じくらいの大きさに
-const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })), P4_TRACK];
+const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })), P4_TRACK,
+  { name:'紅き疾走（ホ短調・疾走ロック）', player:makePlayer(.1, rush) }];
 let forced = null; // ギミックで決まった曲（P4）。null なら設定で選んだ曲
 const bgm = {
   use(id: string | null){ forced = id === 'p4' ? P4_TRACK : null; },

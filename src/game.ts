@@ -1,4 +1,4 @@
-import { mech, menuMechs } from './mechs.js';
+import { mech, menuMechs, phaseOf } from './mechs.js';
 import { S, keys, stickVec, logClear } from './state.js';
 import { fxReset } from './fx.js';
 import { ARENA_R, COUNTDOWN, PLAYER_SPEED } from './config.js';
@@ -29,6 +29,7 @@ function openMenu(){
   bgm.stop(); bgm.use(null); if (!titleOn) menuBgm.start();
   S.phase = 'menu'; S.menu = 'mech'; S.inst = null; A.cast = null; applyTitle();
   HP.on = false; $('hp').hidden = true;
+  opt.phase = phaseOf(mech().id); // 終わったギミックのフェーズの一覧へ戻る
   S.cursor = Math.max(0, menuMechs().indexOf(mech()));
   renderMenu(); $('menu').hidden = titleOn; resetMsg(); setMsg('');
 }

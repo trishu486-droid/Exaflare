@@ -1,6 +1,6 @@
-import { MECHS, menuMechs } from './mechs.js';
+import { MECHS, menuMechs, phaseOf } from './mechs.js';
 import { RUN } from './mech_run.js';
-import { $ } from './store.js';
+import { $, opt } from './store.js';
 import { sfx } from './audio.js';
 import { cv } from './gfx.js';
 import { S } from './state.js';
@@ -208,7 +208,7 @@ $('info').addEventListener('click', e => {
   if (b.dataset.act === 'close') return closeInfo();
   $('info').hidden = true;
   if (S.phase !== 'menu') openMenu();
-  S.menu = 'mech'; menuConfirm(menuMechs().findIndex(q => q.id === b.dataset.id));
+  S.menu = 'mech'; opt.phase = phaseOf(b.dataset.id); menuConfirm(menuMechs().findIndex(q => q.id === b.dataset.id));
 });
 
 export { INFO_SRC, INFO, openInfo, closeInfo };

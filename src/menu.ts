@@ -2,14 +2,15 @@ import { $, opt, store } from './store.js';
 import { S } from './state.js';
 import { JOBS, JOB_ORDER, job, mySlot } from './jobs.js';
 import { OMAKE, openOmake } from './omake.js';
-import { MECHS, mech, menuMechs } from './mechs.js';
+import { mech, menuMechs } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { titleOn } from './title.js';
 import { sfx } from './audio.js';
 import { applyTitle } from './hud.js';
 import { begin } from './game.js';
 
-// メニュー：ジョブの行（SELECT／左右で切り替え）＋ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
+// メニュー：ジョブ選択 → フェーズ選択（P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
+const PHASES = [['p4', 'P4', 'おちょくりソウル'], ['p5', 'P5', '混沌の終末ほか'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
   const list = $('menuList');
@@ -18,6 +19,12 @@ function renderMenu(){
     head.textContent = 'ジョブ選択';
     note.textContent = '十字で選んでA／STARTで決定';
     list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
+    return;
+  }
+  if (S.menu === 'phase'){
+    head.textContent = `フェーズ選択（${job().name}）`;
+    note.textContent = '十字で選んでA／STARTで決定';
+    list.innerHTML = PHASES.map(([id, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${id === 'omake' ? ' extra' : ''}"><span>${name}</span><small>${sub}</small></button>`).join('');
     return;
   }
   if (S.menu === 'omake'){
@@ -44,17 +51,20 @@ function renderMenu(){
     }).join('');
     return;
   }
-  // 2ページ：1ページ目＝ギミック（＋解放後の P5 通し）、2ページ目＝おまけ。左右で切り替え
-  const pg = S.cursor >= menuMechs().length ? 1 : 0;
-  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のページ">◀</span> ギミック選択（${job().name}） ${pg + 1}/2 <span class="pg" data-pg="1" role="button" aria-label="次のページ">▶</span>`;
-  note.textContent = pg ? 'A／STARTで開く　←→でページ' : 'A／STARTで開始　Y／iで解説　←→でページ';
+  // ギミック一覧（選んだフェーズの分）。左右で P4／P5 を切り替え
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ギミック選択（${job().name}） ${opt.phase === 'p4' ? 'P4' : 'P5'} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
+  note.textContent = 'A／STARTで開始　Y／iで解説　←→でP4・P5';
 
   const L = menuMechs();
-  $('menuList').innerHTML = pg ? `<button type="button" data-i="${L.length}" class="extra cur"><span>おまけ</span><small>陰キャと見るあたしンち</small></button>` : L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
+  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
-function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length + 1 : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : MECHS.length; }
+function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
 function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
+// フェーズ選択を開く。at：カーソルを置く項目（省略時は前に選んだフェーズ）
+function openPhases(at = opt.phase){ S.menu = 'phase'; S.cursor = Math.max(0, PHASES.findIndex(p => p[0] === at)); renderMenu(); }
+// ギミック一覧を開く（フェーズを決めて、前に選んだギミックにカーソル）
+function openMechs(phase = opt.phase){ opt.phase = phase; store.set('phase', phase); S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); renderMenu(); }
 // タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
 const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
 function openOrchN(){ S.menu = 'orchn'; S.cursor = opt.orch - 1; renderMenu(); }
@@ -62,7 +72,12 @@ function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
   if (S.menu === 'job'){
     opt.job = JOB_ORDER[i]; store.set('job', opt.job); applyTitle();
-    S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); renderMenu();
+    openPhases();
+    return;
+  }
+  if (S.menu === 'phase'){
+    if (PHASES[i][0] === 'omake'){ S.menu = 'omake'; S.cursor = 0; renderMenu(); }
+    else openMechs(PHASES[i][0]);
     return;
   }
   if (S.menu === 'slot'){
@@ -72,7 +87,6 @@ function menuConfirm(i = S.cursor){
   }
   if (S.menu === 'omake'){ openOmake(i); return; }
   const L = menuMechs();
-  if (S.menu === 'mech' && i === L.length){ S.menu = 'omake'; S.cursor = 0; renderMenu(); return; }
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
   opt.mech = L[i].id; store.set('mech', opt.mech); applyTitle();
   if (L[i].slots && job().slots.length > 1){
@@ -84,8 +98,8 @@ function menuConfirm(i = S.cursor){
 }
 function menuBack(){
   if (S.menu === 'job') return;
-  if (S.menu === 'mech'){ openJobs(); sfx.unlock(); sfx.back(); return; }
-  if (S.menu === 'omake'){ S.menu = 'mech'; S.cursor = menuMechs().length; renderMenu(); sfx.unlock(); sfx.back(); return; }
+  if (S.menu === 'phase'){ openJobs(); sfx.unlock(); sfx.back(); return; }
+  if (S.menu === 'mech' || S.menu === 'omake'){ openPhases(S.menu === 'omake' ? 'omake' : opt.phase); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
   else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
@@ -102,23 +116,17 @@ function kin(tok){
 }
 function unlockRun(){
   store.set('p5', true); sfx.unlock(); sfx.clear();
+  opt.phase = 'p5'; store.set('phase', 'p5');
   S.cursor = menuMechs().indexOf(RUN); renderMenu();
   const head = $('menu').querySelector('.head'); head.textContent = '隠しステージ解放！'; head.classList.add('blink');
   setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') renderMenu(); }, 1200); // メニューに出すだけ（始めるのは自分で選んでから）
 }
 function moveCursor(d, horiz = false){
   if (!horiz) kin(d < 0 ? 'u' : 'd');
-  if (S.menu === 'mech'){ // 今のページの中だけで上下
-    const n = menuMechs().length;
-    if (S.cursor < n) S.cursor = (S.cursor + d + n) % n;
-  }
-  else { if (S.menu === 'job' && !horiz) d *= 2; S.cursor = (S.cursor + d + menuCount()) % menuCount(); }
+  if (S.menu === 'job' && !horiz) d *= 2;
+  S.cursor = (S.cursor + d + menuCount()) % menuCount();
   renderMenu(); sfx.unlock(); sfx.cursor(); }
-// ギミック選択のページ切り替え（2ページなので左右どちらでも反対のページへ）
-function flipPage(){
-  const n = menuMechs().length;
-  S.cursor = S.cursor >= n ? Math.max(0, menuMechs().indexOf(mech())) : n;
-  renderMenu(); sfx.unlock(); sfx.cursor();
-}
+// ギミック一覧で左右：P4 と P5 を切り替え
+function flipPage(){ openMechs(opt.phase === 'p4' ? 'p5' : 'p4'); sfx.unlock(); sfx.cursor(); }
 
-export { renderMenu, menuCount, infoTarget, openJobs, needOrchN, openOrchN, menuConfirm, menuBack, KONAMI, kbuf, kin, unlockRun, moveCursor, flipPage };
+export { renderMenu, menuCount, infoTarget, openJobs, openPhases, openMechs, needOrchN, openOrchN, menuConfirm, menuBack, KONAMI, kbuf, kin, unlockRun, moveCursor, flipPage };

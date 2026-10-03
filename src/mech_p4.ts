@@ -46,7 +46,7 @@ const P4 = (() => {
   const cross = (s1, s2) => (!s1 || !s2) ? null : (Math.max(s1[0], s2[0]) <= Math.min(s1[1], s2[1]) ? [Math.max(s1[0], s2[0]), Math.min(s1[1], s2[1])] : null);
 
   return {
-    id:'p4', name:'P4 通し', sub:'おちょくりソウル（開発中）', view:24, start:{ x:0, z:4 }, slots:true,
+    id:'p4', name:'P4 通し', sub:'おちょくりソウル', view:24, start:{ x:0, z:4 }, slots:true,
     gen(){
       // なぞなぞマジック5回分（0〜2：通常、3：ため（サンダガ74秒・ブリザガ92秒）、4：マジックアウト）
       const mystery = Array.from({ length:5 }, () => ({ iceTrue:Math.random() < .5, iceOff:pick([0, 1]), thTrue:Math.random() < .5, thOff:pick([0, 1]), thO:pick([1, -1]) }));

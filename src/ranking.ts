@@ -27,7 +27,7 @@ const val = f => f == null ? null : 'stringValue' in f ? f.stringValue : 'intege
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
   if (!RANK_ON) return 'off';
-  if (S.inst?.hpGate) return 'P4 は開発中のため登録できません';
+  if (S.inst?.hpGate) return 'P4 はランキングの対象外です';
   if (S.hits) return '被弾0でクリアしたときだけ登録できます';
   if (opt.speed !== 1) return 'ゲーム速度100%のときだけ登録できます';
   if (opt.safe || opt.path || opt.spots) return '安地表示・補助表示・立ち位置ガイドがすべてOFFのときだけ登録できます';

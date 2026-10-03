@@ -18,13 +18,6 @@ function frame4(P, fill){
     else { const c = fill((x - 3) / 23, (y - 3) / 25, x, y); if (c) P.px(x, y, c); }
   }
 }
-// 立っている人影（u,v は 0〜1）
-const person4 = (u, v, cx = .5, top = .15, s = 1) => { const dx = (u - cx) / s, dy = (v - top) / s;
-  return Math.hypot(dx * 2.2, dy - .05) < .075 || (Math.abs(dx) < .07 && dy > .1 && dy < .48) || (Math.abs(dx) < .16 && dy > .12 && dy < .17) || (Math.abs(Math.abs(dx) - .14) < .035 && dy > .14 && dy < .42) || (Math.abs(Math.abs(dx) - .045) < .03 && dy > .46 && dy < .8); };
-// 手足を広げた人（星形）：頭・胴・斜め上の腕・斜め下の脚
-const star = (dx, dy, k = 1) => { dx /= k; dy /= k;
-  const seg = (x0, y0, x1, y1, w) => { const vx = x1 - x0, vy = y1 - y0, t = Math.max(0, Math.min(1, ((dx - x0) * vx + (dy - y0) * vy) / (vx * vx + vy * vy))); return Math.hypot(dx - x0 - vx * t, dy - y0 - vy * t) < w; };
-  return Math.hypot(dx, dy + .3) < .085 || seg(0, -.2, 0, .12, .07) || seg(0, -.16, -.3, -.36, .045) || seg(0, -.16, .3, -.36, .045) || seg(0, .1, -.22, .42, .05) || seg(0, .1, .22, .42, .05); };
 // なめらかなまだら模様（値ノイズ）。x,y はドット、0〜1 を返す
 const hash4 = (x, y, s) => { const n = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return n - Math.floor(n); };
 const noise4 = (x, y, s = 0) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
@@ -40,12 +33,13 @@ const body4 = (u, v, top = .1, h = .78, spread = 1) => { const dx = Math.abs(u -
   if (t >= .24 && t < .62 && Math.abs(dx - (.125 + (t - .24) * .14 * spread)) < .035) return true; // 腕
   if (t >= .56 && dx < .085 + (t - .56) * .2 * spread && dx > Math.max(0, (t - .62) * .3)) return true; // 脚（股のあいだを空ける）
   return false; };
-// 五芒星（頂点が上、辺はまっすぐ）。R＝外の半径、ri＝内のくぼみの半径
-const star5 = (dx, dy, R, ri = R * .42) => { const pts = [];
-  for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? ri : R; pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
-  let inside = false;
-  for (let i = 0, j = 9; i < 10; j = i++){ const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > dy) !== (yj > dy) && dx < (xj - xi) * (dy - yi) / (yj - yi) + xi) inside = !inside; }
-  return inside; };
+// 少ない色で描いたドット絵（文字＝色）を、アイコンの中の大きさに合わせて広げる（となりの色となめらかにつなぐ）
+const grid4 = (rows, pal) => (u, v) => {
+  const H = rows.length, W = rows[0].length, gx = Math.max(0, Math.min(W - 1, u * W - .5)), gy = Math.max(0, Math.min(H - 1, v * H - .5));
+  const x0 = Math.floor(gx), y0 = Math.floor(gy), x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1), fx = gx - x0, fy = gy - y0;
+  const c = (x, y) => hex(pal[rows[y][x]]);
+  const k = [[c(x0, y0), (1 - fx) * (1 - fy)], [c(x1, y0), fx * (1 - fy)], [c(x0, y1), (1 - fx) * fy], [c(x1, y1), fx * fy]];
+  return '#' + [0, 1, 2].map(i => Math.round(k.reduce((a, [q, w]) => a + q[i] * w, 0)).toString(16).padStart(2, '0')).join(''); };
 const ICONS4 = {
   dead:{ name:'死者の傷', draw(P){ frame4(P, (u, v) => {
     const dx = u - .5;
@@ -61,35 +55,12 @@ const ICONS4 = {
     const r = Math.hypot(dx * 1.05, (v - .2) * 1.1);
     if (v > .35){ if (Math.abs(r - .52) < .05) return '#e84ae8'; if (Math.abs(r - .64) < .05) return '#8a3ae8'; if (Math.abs(r - .76) < .07) return '#3a2ae8'; if (r > .82) return '#4a3ad8'; }
     return mix('#1a0a1a', '#020208', v); }); } },
-  field:{ name:'アラガンフィールド', draw(P){ frame4(P, (u, v) => {
-    const dx = u - .5, dy = v - .5;
-    if (star(dx, dy, 1.15)) return '#000000';
-    const a = Math.atan2(dy, dx), r = Math.hypot(dx, dy);
-    const k = ((a / (Math.PI * 2) * 8 + .5) % 1 + 1) % 1, ray = r > .12 && Math.abs(k - .5) < .13 + r * .12;
-    if (v > .6 && Math.abs(dx) > .18 && !ray) return mix('#8a2a1a', '#5a1010', v);
-    if (v > .86 && Math.abs(dx) < .12) return '#e8c83a';
-    if (v < .1) return '#4a4a3a';
-    return ray ? mix('#fff05a', '#e8c020', r * 1.4) : mix('#2a2410', '#14100a', v); }); } },
-  beyond:{ name:'死の超越', draw(P){ frame4(P, (u, v, x) => {
-    const dx = u - .5;
-    // 黒い影の人：大きめの頭（白い2つの目）＋肩幅の広いマントが下いっぱいに広がる
-    if (Math.hypot(dx * 1.15, v - .38) < .17){ if (v > .35 && v < .42 && Math.abs(Math.abs(dx) - .08) < .035) return '#ffffff'; return '#1a0418'; }
-    const w = v < .5 ? 0 : .22 + (v - .5) * 1.1;
-    if (v >= .5 && Math.abs(dx) < w){ if (Math.abs(Math.abs(dx) - w) < .06 && v < .75) return '#c84ad8'; return v > .7 ? '#4a0a3a' : '#2a0628'; }
-    if (v > .78 && Math.abs(dx) > .34) return '#c8b8ff';
-    const st = Math.sin(x * 1.6) > .2;
-    if (v < .55) return st ? mix('#c08aff', '#8a4ae8', v * 2) : mix('#6a3ac8', '#3a1a8a', v * 2);
-    return mix('#7a2ab8', '#3a0a6a', v); }); } },
-  bomb:{ name:'加速度爆弾', draw(P){ frame4(P, (u, v) => {
-    const dx = u - .5, dy = v - .45, r = Math.hypot(dx, dy);
-    if (r < .11) return '#ffffff'; if (r < .19) return mix('#ffffff', '#e8f0ff', (r - .11) * 10);
-    if (u < .1) return mix('#1a2a4a', '#0a1430', v);
-    if (v > .82) return Math.abs(dx) < .3 ? '#7a0a2a' : '#3a0a24';
-    const diag = (u - v);                       // 右上が＋
-    if (diag > .15 && v < .55) return mix('#9af8d8', '#3ab8a0', v * 1.8);          // 右上：青緑
-    if (u < .5 && v < .5) return mix('#f8d8f8', '#a868c8', r * 2.2);               // 左上：白っぽいピンク〜紫
-    if (Math.abs(diag + .05) < .12 && v > .5) return mix('#f0a8e8', '#c86ab8', r);  // 右下へのピンクのすじ
-    return mix('#7a4aa8', '#4a1a5a', v); }); } },
+  field:{ name:'アラガンフィールド', draw(P){ frame4(P, grid4(['nggwgggwwgggwggn', 'ggggggnggngggngg', 'ggnnggbggbggnnng', 'ggnnnyYYgYygnngg', 'nYYnnYybnYYnnYYn', 'nnyyYYynkYyYyyYn', 'YbnbbYbdknbbbnnY', 'YYYbndkkkkknnYYY', 'bYYyyYkkkkbyyYYY', 'dBBBYynkkdYybBBB', 'BBbYYynkkdYyYbBB', 'BoobbYdkkkYYbYob', 'gbBbYYkkkknYbBbo', 'BBBbynkdnkkYYBBB', 'bbboykkbYkkYYbbb', 'BbbYYkdYynknyggB', 'ddbgYknyYYdnwgdd'],
+    { y:'#f0e440', Y:'#b0a828', o:'#d08030', b:'#8a3018', B:'#5a2010', k:'#080800', n:'#3a3a18', g:'#8a8a68', w:'#f0f0a0', d:'#1a1a10' })); } },
+  beyond:{ name:'死の超越', draw(P){ frame4(P, grid4(['PLLLLLLLLLLLLLLLLL', 'PllPPPPPllBlPPPPPP', 'PPPPPPPllPllVPPlPP', 'lPlPPPPPPPllVPPPPP', 'PPVVPPPPPPPVVPvVPP', 'PvvVvvvVVVmVVVvvVP', 'PDDvvDvVVVVVvvvvVv', 'PDDVvvVvDvvDvvvPlP', 'HDvVvvVvDHHxDVVlBV', 'HDvVVDVDDxKKDVVBBV', 'HDVmVvVvExKEDVVlBP', 'DvVmmVmvHKKHHmmEBV', 'vVmmVVVvHKKHvVVVEm', 'PmVvvvHHKKKKxHvPvV', 'PvHHKKKKKKKKKKKKHH', 'PHKKKKKKKKKKKKKKKK', 'HKKPPKKKKKKKKKKPvx', 'KvlBBDxxxHHxxHDlEE', 'PEBBBPHHHHHHHHvllB', 'HlBBBlDHHHHHHHllBB'],
+    { L:'#c8bcd8', l:'#8a70b0', P:'#6a4a88', V:'#8030a8', v:'#5a1080', D:'#3a0058', K:'#1a0018', m:'#a850d8', B:'#a8a0e8', E:'#d8a8e8', H:'#4a0a48', x:'#201828' })); } },
+  bomb:{ name:'加速度爆弾', draw(P){ frame4(P, grid4(['sMMMMMMMMMMMMMMm', 'lssMMMmmmmmmmmmg', 'lsMMsMsmmmmmmmmt', 'lsssMsllmmmmtmmt', 'lpsMpplllmmttttt', 'lkpspssllmgttttg', 'kpssslspMslgTTtt', 'kllllsWWWWsguTTt', 'lluulsWWWWsluTtg', 'uuuulsWWWWpluTTg', 'uuTulMWWWWpluTTu', 'rTTglsMWWpsluruu', 'nnTgmllllspluuuu', 'nnTgguuuulsslslu', 'nnnTnnnrrRupklpl', 'durnnnrrrRRukksu'],
+    { W:'#ffffff', M:'#c4ecdc', m:'#78ecd0', t:'#3a9a84', T:'#2a6a64', p:'#e8d4ea', s:'#c4c4d0', l:'#a890b0', u:'#6a5a7a', g:'#5a8a98', n:'#1a2a40', r:'#5a2048', R:'#9a1a58', k:'#f4d4f4', d:'#0a1a1a' })); } },
   water:{ name:'水属性圧縮', draw(P){ frame4(P, (u, v) => {
     const dx = u - .5;
     const drop = v > .12 && v < .88 && (v > .55 ? Math.hypot(dx, v - .62) < .24 : Math.abs(dx) < (v - .12) * .52);

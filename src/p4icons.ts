@@ -25,6 +25,27 @@ const person4 = (u, v, cx = .5, top = .15, s = 1) => { const dx = (u - cx) / s, 
 const star = (dx, dy, k = 1) => { dx /= k; dy /= k;
   const seg = (x0, y0, x1, y1, w) => { const vx = x1 - x0, vy = y1 - y0, t = Math.max(0, Math.min(1, ((dx - x0) * vx + (dy - y0) * vy) / (vx * vx + vy * vy))); return Math.hypot(dx - x0 - vx * t, dy - y0 - vy * t) < w; };
   return Math.hypot(dx, dy + .3) < .085 || seg(0, -.2, 0, .12, .07) || seg(0, -.16, -.3, -.36, .045) || seg(0, -.16, .3, -.36, .045) || seg(0, .1, -.22, .42, .05) || seg(0, .1, .22, .42, .05); };
+// なめらかなまだら模様（値ノイズ）。x,y はドット、0〜1 を返す
+const hash4 = (x, y, s) => { const n = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return n - Math.floor(n); };
+const noise4 = (x, y, s = 0) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = hash4(xi, yi, s), b = hash4(xi + 1, yi, s), c = hash4(xi, yi + 1, s), d = hash4(xi + 1, yi + 1, s);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy; };
+// 正面向きに立つ人影（腕を少し開き、足を少し開く）。top＝頭のてっぺん、h＝全体の高さ（u,v は 0〜1）
+const body4 = (u, v, top = .1, h = .78, spread = 1) => { const dx = Math.abs(u - .5), t = (v - top) / h;
+  if (t < 0 || t > 1) return false;
+  if (Math.hypot(dx * 1.1, t - .09) < .085) return true;                                  // 頭
+  if (t > .16 && t < .2 && dx < .05) return true;                                         // 首
+  if (t >= .19 && t < .27 && dx < .07 + (t - .19) * .6) return true;                       // 肩
+  if (t >= .26 && t < .58 && dx < .1 - (t - .26) * .06) return true;                     // 胴
+  if (t >= .24 && t < .62 && Math.abs(dx - (.125 + (t - .24) * .14 * spread)) < .035) return true; // 腕
+  if (t >= .56 && dx < .085 + (t - .56) * .2 * spread && dx > Math.max(0, (t - .62) * .3)) return true; // 脚（股のあいだを空ける）
+  return false; };
+// 五芒星（頂点が上、辺はまっすぐ）。R＝外の半径、ri＝内のくぼみの半径
+const star5 = (dx, dy, R, ri = R * .42) => { const pts = [];
+  for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? ri : R; pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
+  let inside = false;
+  for (let i = 0, j = 9; i < 10; j = i++){ const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > dy) !== (yj > dy) && dx < (xj - xi) * (dy - yi) / (yj - yi) + xi) inside = !inside; }
+  return inside; };
 const ICONS4 = {
   dead:{ name:'死者の傷', draw(P){ frame4(P, (u, v) => {
     const dx = u - .5;
@@ -75,23 +96,36 @@ const ICONS4 = {
     if (drop) return Math.hypot(dx + .02, v - .6) < .14 ? '#ffffff' : mix('#f0ffff', '#8ae8ff', Math.hypot(dx, v - .55) * 3);
     return mix('#4ab8c8', '#0a3a6a', v * 1.1); }); } },
   fork:{ name:'フォークライトニング', draw(P){ frame4(P, (u, v, x, y) => {
-    // 斜めに走る白い光（左下→右上）
-    const d = Math.abs((u - .5) + (v - .5) * 1.1 - Math.sin(v * 9) * .06);
-    if (d < .06) return '#ffffff'; if (d < .11) return '#e8f0ff';
-    const n = Math.sin(x * .9 + 1.3) + Math.cos(y * .8 - .7) + Math.sin((x + y) * .4);
-    if (n > 1.2) return '#ff6a9a'; if (n > .4) return '#c84ab8';
-    if (n < -1.1) return '#4a6ae8'; if (n < -.3) return '#8a5ae8';
-    return '#b878e0'; }); } },
-  flame:{ name:'混沌の炎', draw(P){ frame4(P, (u, v, x) => {
-    if (person4(u, v, .5, .1, 1)) return '#120404';
-    const st = Math.sin(x * 1.9) > .35;
-    if (v > .62) return st ? mix('#ff6a4a', '#d83a2a', v) : mix('#c82a2a', '#7a1010', v);
-    return st ? mix('#ffa080', '#ff6a5a', v) : mix('#ff5a4a', '#e8303a', v); }); } },
-  wave:{ name:'混沌の水', draw(P){ frame4(P, (u, v, x) => {
-    if (person4(u, v, .5, .04, 1)) return '#020a10';
-    const st = Math.sin(x * 1.9 + 1) > .45;
-    if (v > .62) return st ? '#c8f8ff' : mix('#5ad8f0', '#2a8ab0', v);
-    return st ? mix('#8af0ff', '#4ac8e0', v) : mix('#1a4a5a', '#2a6a8a', v); }); } },
+    // 右上→左下に走るギザギザの稲妻と、まわりの白い光
+    const path = vv => .78 - vv * .62 + (hash4(Math.floor(vv * 7), 0, 9) - .5) * .14;
+    const d = Math.abs(u - path(v));
+    const br = Math.min(Math.abs(u - (.36 - (v - .3) * .9)) + (v < .18 || v > .42 ? 1 : 0), Math.abs(u - (.66 + (v - .62) * .7)) + (v < .58 || v > .82 ? 1 : 0)); // 枝
+    if (d < .05 || br < .03) return '#ffffff';
+    if (d < .12 || br < .07) return '#f0e8ff';
+    const glow = Math.max(0, .36 - d) * 2.2;
+    const n = noise4(x * .2, y * .2, 1), m = noise4(x * .3 + 9, y * .3, 2);
+    let c = n > .62 ? '#e83a7a' : n > .45 ? '#c040b0' : n > .3 ? '#8a3ad8' : '#4a50e0';
+    if (m > .8) c = '#ffe0f4'; else if (m > .68) c = '#ff8ac8'; else if (m < .18) c = '#3a3ab8';
+    return mix(c, '#ffffff', glow * glow); }); } },
+  flame:{ name:'混沌の炎', draw(P){ frame4(P, (u, v, x, y) => {
+    // 下から燃え上がる炎の地（上は暗い赤、下ほど明るいピンクがかった赤）
+    const f = noise4(x * .5, y * .12 + 3, 5) + (1 - v) * -.2;
+    let bg = mix('#7a0a14', '#e8303a', Math.min(1, v * 1.3));
+    if (v > .55) bg = mix(bg, '#ff9a8a', (v - .55) * 1.8);
+    if (f > .55) bg = mix(bg, '#ffb090', .45); else if (f < .2) bg = mix(bg, '#5a0408', .35);
+    // 人影は暗い赤。足もとは炎に溶ける
+    if (body4(u, v, .1, .76, .8)) return v > .72 ? mix('#5a0810', bg, (v - .72) * 4) : '#4a050c';
+    return bg; }); } },
+  wave:{ name:'混沌の水', draw(P){ frame4(P, (u, v, x, y) => {
+    // 上から落ちる水の筋（暗い紺〜青緑）、下は明るい水しぶき
+    const fall = noise4(x * .7, y * .08, 7);
+    let bg = mix('#0a1a2a', '#1a4a6a', v * 1.2);
+    if (fall > .6 && v < .7) bg = mix('#9ac8e0', bg, .25 + v * .6); else if (fall > .45) bg = mix(bg, '#3a7a9a', .4);
+    const surf = .78 + Math.sin(x * .9) * .03;
+    if (v > surf) bg = mix('#c8f4ff', '#5ac8f0', (v - surf) * 3 + noise4(x * .8, y * .8, 8) * .4);
+    else if (v > surf - .06) bg = '#e8ffff';
+    if (body4(u, v, .07, .8, 1.2)) return v > surf ? mix('#0a2030', bg, .35) : '#02060c';
+    return bg; }); } },
   shriek:{ name:'呪詛の叫声', draw(P){ frame4(P, (u, v) => {
     const r = Math.hypot(u - .5, (v - .38) * 1.05);
     if (r < .38 && r > .28) return r > .34 ? '#e8701a' : '#ff9a3a';

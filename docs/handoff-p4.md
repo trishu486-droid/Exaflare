@@ -5,7 +5,7 @@
 ## 進め方のルール（ユーザーと決めたこと）
 
 - 返事は日本語。8bit の見た目を守る。BGM はオリジナル曲だけ。
-- **コミット・プッシュは「確定」してから**。途中の確認は開発版の Artifact を更新して見てもらう。
+- **コミット・プッシュは、ユーザーが「いいよ」と言ってから。勝手にしない**（作業途中の保存も、フックに言われたときも、先にユーザーに聞く）。途中の確認は開発版の Artifact を更新して見てもらう。
   - 開発版 Artifact：https://claude.ai/artifact/Sx4VAZmevGwWZqtZKRsE5S（`npm run build:artifact` → `dist-artifact/index.html` から Cloudflare のタグ・manifest・OGP を外し、title を「絶ケフカ P4 開発版」にして公開）
   - 本番の Artifact（UL6qtX9MmHjywEf9mqpmQN）は古い版のまま（本番は GitHub Pages）。
 - 見た目を変えるもの（絵・アイコン・エフェクト・ボタン）は、**まずイメージ画像で提案 → OK が出てから実装**。

@@ -65,8 +65,9 @@ function drawFace(){
 
 // ===== 笑い声：「ヒャーーッ ハッ ハッ ハッ ハッ ハッ」 =====
 // 声の元（パルス波）にフォルマント（口の形の響き）を当てて「ア」の音色にする。各「ハ」の頭に息のノイズ
+let lastOut = null;
 function laugh(ac, t0, vol = .35){
-  const out = ac.createGain(); out.gain.value = vol; out.connect(ac.destination);
+  const out = ac.createGain(); out.gain.value = vol; out.connect(ac.destination); lastOut = out;
   const noise = ac.createBuffer(1, ac.sampleRate * .5, ac.sampleRate); { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   // フォルマント：F1・F2・F3 のバンドパスを並べる
   const formants = (src, t, f1, f2, f3, f2end = f2, dur = .2) => {
@@ -102,4 +103,7 @@ function laugh(ac, t0, vol = .35){
   return t + .6 - t0;
 }
 
-export { drawFace, laugh, FW, FH };
+// 飛ばしたときは笑い声をすぐ消す
+function stopLaugh(ac){ if (!lastOut || !ac) return; lastOut.gain.cancelScheduledValues(ac.currentTime); lastOut.gain.setTargetAtTime(0, ac.currentTime, .03); lastOut = null; }
+
+export { drawFace, laugh, stopLaugh, FW, FH };

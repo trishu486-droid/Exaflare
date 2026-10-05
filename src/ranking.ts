@@ -22,7 +22,10 @@ const col = (mech: string, job = '') => `rank_${mech}${job ? '_' + job : ''}`;
 const rankKey = e => e.score * 1e6 + e.dps;
 const str = (v: string | null) => v == null ? { nullValue:null } : { stringValue:v };
 const int = (v: number) => ({ integerValue:String(v) });
-const val = f => f == null ? null : 'stringValue' in f ? f.stringValue : 'integerValue' in f ? Number(f.integerValue) : null;
+const val = f => f == null ? null : 'stringValue' in f ? f.stringValue : 'integerValue' in f ? Number(f.integerValue) : 'timestampValue' in f ? f.timestampValue : null;
+// 登録日時（日本時間）。一覧は月日だけ、押すと分まで
+const jst = (ts: string) => { const d = new Date(new Date(ts).getTime() + 9 * 3600e3), p = (n: number) => String(n).padStart(2, '0');
+  return { md:`${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())}`, full:`${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}` }; };
 
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
@@ -70,9 +73,11 @@ async function load(){
       .filter(x => { const k = x.name + '/' + x.job; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, TOP);
     if (JSON.stringify(view) !== my) return; // 読み込み中に切り替えた
     if (!rows.length){ list.innerHTML = '<li class="dim">まだ記録がありません</li>'; return; }
-    list.innerHTML = '<li class="hd"><b>#</b><span>名前</span><span></span><span class="dp">DPS</span><span class="pf">Perf</span></li>' + rows.map((x, i) =>
+    list.innerHTML = '<li class="hd"><b>#</b><span>名前</span><span></span><span class="dp">DPS</span><span class="pf">Perf</span><span class="dp">日付</span></li>' + rows.map((x, i) =>
       `<li><b>${i + 1}</b><span class="nm">${esc(x.name)}</span><span class="jb" title="${esc(JOBS[x.job]?.name || x.job)}">${JOBS[x.job] ? jobIconSvg(x.job) : ''}</span>` +
-      `<span class="dp">${Number(x.dps).toLocaleString('en-US')}</span><span class="pf" data-i="${i}">…</span></li>`).join('');
+      `<span class="dp">${Number(x.dps).toLocaleString('en-US')}</span><span class="pf" data-i="${i}">…</span>` +
+      (x.created_at ? `<button type="button" class="dt" data-when="${esc(x.name)}：${jst(x.created_at).full}">${jst(x.created_at).md}</button>` : '<span></span>') + '</li>').join('');
+    $('rankWhen').textContent = '';
     // Perf は後から埋める（ジョブごとの件数を数えるので少し遅れる）
     rows.forEach((x, i) => perfOf(view.mech, x.job, x.dps).then(v => {
       if (JSON.stringify(view) !== my) return;
@@ -134,6 +139,7 @@ if (RANK_ON){
   $('rank').addEventListener('click', e => { if ((e.target as HTMLElement).id === 'rank') closeRank(); });
   $('rankMech').addEventListener('change', e => { view.mech = (e.target as HTMLSelectElement).value; renderForm(); load(); });
   $('rankJob').addEventListener('change', e => { view.job = (e.target as HTMLSelectElement).value; load(); });
+  $('rankList').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('.dt') as HTMLElement; if (b) $('rankWhen').textContent = `登録日時　${b.dataset.when}`; });
   $('rankForm').addEventListener('click', e => { if ((e.target as HTMLElement).id === 'rankSend') send(); });
   $('rankForm').addEventListener('keydown', e => { if ((e as KeyboardEvent).key === 'Enter' && (e.target as HTMLElement).id === 'rankName') send(); });
 }

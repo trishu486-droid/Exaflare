@@ -20,6 +20,8 @@ import './mech_p4.js';
 import './p4ui.js';
 import './hud.js';
 import './ranking.js';
+import './news.js';
+import './contact.js';
 import './action.js';
 import './game.js';
 import './menu.js';

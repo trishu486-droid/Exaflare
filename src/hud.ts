@@ -259,7 +259,7 @@ function rankHtml(){
 }
 function applyTitle(){
   document.querySelector<HTMLElement>('.top h1').style.visibility = S.phase === 'menu' ? 'hidden' : '';
-  $('mechName').textContent = mech().name;
+  $('mechName').textContent = mech().id === 'orch' ? 'オーケストラ' : mech().name; // 上の欄は狭いので「狂気の」を省く
   $('jobName').textContent = job().name + (job().slots.length > 1 && mech().slots ? ` ${mySlot()}` : '') + (needOrchN() ? ` ${opt.orch}回目` : '');
 }
 function selectJob(d = 1){

@@ -1,5 +1,7 @@
 import { p4Key } from './p4ui.js';
 import { closeRank } from './ranking.js';
+import { closeNews } from './news.js';
+import { closeMail } from './contact.js';
 import { $, opt, store } from './store.js';
 import { S, keys, stickVec } from './state.js';
 import { flipPage, infoTarget, menuBack, menuConfirm, moveCursor } from './menu.js';
@@ -35,6 +37,8 @@ function syncSafe(){ $('oSafe').checked = opt.safe; }
 function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
 window.addEventListener('keydown', e => {
   if (!$('rank').hidden){ if (e.key === 'Escape') closeRank(); return; } // ランキング（名前の入力中はゲームの操作を止める）
+  if (!$('news').hidden){ if (e.key === 'Escape') closeNews(); return; }
+  if (!$('mail').hidden){ if (e.key === 'Escape') closeMail(); return; } // お問い合わせ（入力中はゲームの操作を止める）
   if (!$('sheet').hidden) { if (keyWait) return; if (e.key === 'Escape') closeSheet(); return; }
   const act = keyOf[e.key.toLowerCase()];
   if (!$('info').hidden){ if (act === 'menu' || act === 'b' || act === 'y' || e.key === 'Escape') closeInfo(); return; }

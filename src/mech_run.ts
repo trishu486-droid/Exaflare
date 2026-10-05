@@ -9,7 +9,7 @@ import { FXC, FXK, fxAdd, fxFlash, fxParts, fxShake } from './fx.js';
 import { P, PPY, hurt, px, rect, ring } from './gfx.js';
 
 // =====================================================================
-// 隠しステージ：P5 通し（ターゲット可能 → ミッシング・ゼロの詠唱まで）
+// P5 通し（ターゲット可能 → ミッシング・ゼロの詠唱まで）
 // 時刻は cactbot のタイムライン（どきどきアルテマの2秒前を 0。開始はターゲット可能になる 33 秒）。練習用の5ギミックを実際の時刻に並べ、
 // 間に 連続アルテマ・魔撃（AA）・混沌の渦 を入れる
 // AA：ヘイト1位・ヒーラー1人・DPS1人に頭割り（被魔法ダメージ増加つき。2つ受けると即死）
@@ -42,7 +42,7 @@ const RUN = (() => {
   const roleOf = slot => slot[0] === 'M' || slot[0] === 'S' ? 'T' : slot[0];
   const fmt = t => { const s = Math.max(0, Math.floor(t)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
   return {
-    id:'p5', name:'P5 通し', sub:'隠しステージ', view:24, start:HOME.T, slots:true,
+    id:'p5', name:'P5 通し', sub:'P5 を最初から最後まで', view:24, start:HOME.T, slots:true,
     gen(){
       return SEGS.map(([id, at, n]) => id === 'orch' ? { me:mySlot(), n, targets:shuffle([...ORCH.NON_TANK]).slice(0, 3), t0:at } : MK(id).gen());
     },

@@ -248,6 +248,9 @@ canvas:focus{outline:none}
 /* ホーム画面のアプリ（全画面）では、時計・電波の表示や下のバーにかからないように、その分だけ余白を広げる */
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:5;
   padding:max(16px, calc(env(safe-area-inset-top) + 8px)) max(16px, env(safe-area-inset-right)) max(16px, calc(env(safe-area-inset-bottom) + 8px)) max(16px, env(safe-area-inset-left))}
+/* ホーム画面から開いたとき（全画面）：時計・電波・ダイナミックアイランドの下に、上の余白を多めにとる（.app は fit.ts が付ける） */
+html.app body{padding-top:calc(env(safe-area-inset-top) + 22px)}
+html.app .sheet{padding-top:calc(env(safe-area-inset-top) + 22px)}
 .panel{color:var(--ink);width:100%;max-width:380px;max-height:100%;overflow:auto;background:#131022;border:4px solid var(--edge);padding:16px;display:flex;flex-direction:column;gap:12px}
 .panel h2{margin:0;font:400 16px var(--px);color:var(--gold)}
 .panel h3{margin:4px 0 0;font:400 13px var(--px);color:var(--dim)}

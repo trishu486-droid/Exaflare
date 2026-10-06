@@ -6,7 +6,10 @@ import { opt } from './store.js';
 // ===== 効果音（8bit矩形波） =====
 // 指を離した・クリック・キー入力のたびに音を起こしておく（iOS は touchstart では音を鳴らせない）
 ['touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, () => sfx.unlock(), { capture:true, passive:true }));
-document.addEventListener('visibilitychange', () => { if (!document.hidden && sfx.ac) sfx.unlock(); });
+// ほかのアプリに切り替えた・ブラウザやタブを閉じた・画面を消したときは、BGM と効果音を止める（音の時計ごと一時停止）
+// 戻ってきたら止めたところから続きを鳴らす（iOS で戻ってすぐ鳴らせないときは、画面に触れたときに再開する）
+document.addEventListener('visibilitychange', () => { if (document.hidden) sfx.pause(); else if (sfx.ac) sfx.unlock(); });
+window.addEventListener('pagehide', () => sfx.pause());
 const SFX_VOL = .5; // 効果音全体の音量
 // BGMの音量（設定の「サウンド」タブ。0〜100%）。50% が以前の音量で、初期値は 25%（以前の半分）
 const bgmGain = () => Math.max(0, Math.min(100, opt.bgmVol ?? 25)) / 50;
@@ -16,12 +19,14 @@ const sfx = {
   //   audioSession を playback にすると、マナーモードでも鳴り、ほかのアプリの音に消されない（Safari 16.4 以降）
   unlock(){
     if (!opt.sound && !opt.bgm) return;
+    if (document.hidden) return; // 見えていない間は鳴らさない
     try {
       const n: any = navigator; if (n.audioSession && n.audioSession.type !== 'playback') n.audioSession.type = 'playback';
       this.ac ||= new (window.AudioContext || window.webkitAudioContext)();
       if (this.ac.state !== 'running') this.ac.resume().catch(() => {});
     } catch {}
   },
+  pause(){ try { if (this.ac && this.ac.state === 'running') this.ac.suspend().catch(() => {}); } catch {} },
   tone(freq, dur, type = 'square', vol = .06, slide = 0){
     if (!opt.sound || !this.ac) return;
     const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();

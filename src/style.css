@@ -356,10 +356,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   .p4panel .grp:first-child{grid-column:1;grid-row:3}
   .p4panel .grp:last-child{grid-column:3;grid-row:3}
   /* スティックと ABXY（横の幅が足りないので、縦向きより一回り小さく） */
-  .stick{grid-column:1;grid-row:4;justify-self:center;width:100px;height:100px}
+  /* 大きさは左右の空き（--colW）に合わせる。空きが広いときは縦向きと同じ大きさ・並び（横長のひし形）に近づける。どちらも画面寄りに置く */
+  .gb{--scrW:calc(var(--F) + 2 * var(--sideW) + 16px);--colW:calc((100cqw - var(--scrW) - 20px) / 2)}
+  .gb.p4on{--scrW:calc(var(--F2) + 2 * var(--cw) + 16px)}
+  .stick{grid-column:1;grid-row:4;justify-self:end;margin-right:4px;--st:clamp(96px, calc(var(--colW) - 16px), 114px);width:var(--st);height:var(--st)}
   .knob{width:42px;height:42px;margin:-21px 0 0 -21px}
-  .ab{grid-column:3;grid-row:4;justify-self:center;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px)}
-  .round{width:46px;height:46px}
+  .ab{grid-column:3;grid-row:4;justify-self:start;margin-left:2px;--abC:clamp(38px, calc((var(--colW) - 12px) / 3), 52px);
+    grid-template-columns:repeat(3,var(--abC));grid-template-rows:repeat(3,calc(var(--abC) * .88))}
+  .round{width:clamp(46px, calc(var(--abC) + 2px), 54px);height:clamp(46px, calc(var(--abC) + 2px), 54px)}
   .ssw:first-child{grid-column:1;grid-row:5;justify-self:center}
   .ssw:last-child{grid-column:3;grid-row:5;justify-self:center}
   /* 画面 */

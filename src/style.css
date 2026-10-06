@@ -196,7 +196,7 @@ canvas:focus{outline:none}
 .gb:not(.p4on) .chatlog{display:none}
 .gb{--chat-fs:clamp(8px,2.45vw,10.5px);--chat-h:calc(11 * 1.15 * var(--chat-fs) + 9px)}
 .status{position:relative;height:var(--status-h);margin:2px 8px 0}
-/* スマホ：背の低い画面では全体を少し細くして1画面に収める */
+/* スマホ：背の低い画面では全体を少し細くして1画面に収める（JS が動く前の仮の大きさ。ちょうどの大きさは fit.ts がその場で測って決める） */
 @media (pointer:coarse){.gb{max-width:min(640px,calc((100svh - 24px) * .43))}}
 .chatlog{height:var(--chat-h);box-sizing:border-box}
 /* チャット欄：左7割＝システム（マクロ・ミス・結果）、右3割＝自分で打ったメモ */

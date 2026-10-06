@@ -29,6 +29,7 @@ import './input.js';
 import './info.js';
 import './settings.js';
 import './title.js';
+import './fit.js';
 import { applyTitle } from './hud.js';
 import { frame, openMenu } from './game.js';
 

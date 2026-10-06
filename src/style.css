@@ -366,6 +366,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
   .screen{grid-column:2;grid-row:1 / -1;align-self:start;height:var(--Hs);width:calc(var(--F) + 2 * var(--sideW) + 16px)}
   .msg .result{width:calc(var(--F) + 2 * var(--sideW) - 24px);max-height:calc(var(--F) - 8px);overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;font-size:13px}
   .msg .result .big{font-size:26px}
+  /* メニュー（ジョブ選択・ギミック一覧）：行を詰めて、Safari のバーで背が低いときも全部入るように。入りきらなければ中でスクロール */
+  .menu{gap:4px;justify-content:safe center;overflow-y:auto;padding:6px 0;scrollbar-width:none}
+  .menu::-webkit-scrollbar{display:none}
+  .menu button{font-size:14px;padding:3px 10px}
+  .menu .head,.menu .note{font-size:14px}
+  .menu button .i{width:18px;height:18px;font-size:13px}
   /* P5 など：左右の列＋真ん中にフィールド、下に詠唱バーと HUD */
   .gb:not(.p4on) .stage{flex-wrap:nowrap;justify-content:center;height:var(--F)}
   .gb:not(.p4on) .side{order:0;width:var(--sideW);height:auto;padding:6px 0 0;align-items:center}

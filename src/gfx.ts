@@ -189,6 +189,9 @@ function hurt(reason, onBoard = reason){
   if (window.__noHurt){ (window.__hurts ||= []).push(reason); return; } // テスト用（?debug のときだけ使う）
   const now = performance.now();
   S.hits++; S.hurtT = now; sfx.hurt();
+  // 画面（ゲーム機の画面の枠の中）全体を赤く光らせる。続けて当たったら最初から光り直す
+  const scr = document.querySelector('.screen') as HTMLElement;
+  scr.classList.remove('hurt'); void scr.offsetWidth; scr.classList.add('hurt');
   // 被弾・死亡した時点で失敗（同じ瞬間の他のミスも数えるため、少しだけ待って終了）
   if (S.phase === 'run' && S.failAt == null) S.failAt = S.t + .8;
   misses.set(reason, (misses.get(reason) || 0) + 1);
@@ -202,11 +205,7 @@ function hurt(reason, onBoard = reason){
   fxEl.appendChild(el);
   setTimeout(() => el.remove(), 1450);
 }
-function drawHurtFlash(){
-  const dt = performance.now() - S.hurtT; if (dt > 400) return;
-  const a = 1 - dt / 400;
-  alpha(.22 * a, () => rect(0, 0, W, W, P.hurt));
-  alpha(a, () => { rect(0, 0, W, 4, P.hurt); rect(0, W - 4, W, 4, P.hurt); rect(0, 0, 4, W, P.hurt); rect(W - 4, 0, 4, W, P.hurt); });
-}
+// 被弾の赤い光は画面全体（style.css の .screen.hurt）に移した。フィールドには描かない
+function drawHurtFlash(){}
 
 export { W, C0, PPY, setPPY, cv, ctx, px, P, rect, disc, donut, ring, line, alpha, thickRing, fillArena, GLYPH, glyph, icon5, corner, ICON, ROLE_COLOR, jobIconSvg, drawIcon, drawField, drawBoss, drawSafe, missStack, missStackT, misses, hurt, drawHurtFlash };

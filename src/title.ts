@@ -26,7 +26,7 @@ function startIntro(){
   introTimers.push(setTimeout(() => leaveTitle(false), 1900));
 }
 ['pointerdown', 'keydown'].forEach(t => window.addEventListener(t, (e: KeyboardEvent & PointerEvent) => {
-  if (!titleOn || !$('sheet').hidden) return;
+  if (!titleOn || document.querySelector('.sheet:not([hidden])')) return; // 設定・お知らせなどを開いている間は抜けない
   if (t === 'keydown' && ['Shift','Control','Alt','Meta','Tab'].includes(e.key)) return;
   e.preventDefault(); e.stopPropagation();
   if ($('intro').hidden) startIntro(); else leaveTitle(); // 演出中にもう一度押すと飛ばす

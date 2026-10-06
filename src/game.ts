@@ -8,7 +8,7 @@ import { bgm, menuBgm, sfx } from './audio.js';
 import { $, opt } from './store.js';
 import { applyTitle, buildResult, draw, drawButtons, resetMsg, setMsg, updateHud } from './hud.js';
 import { titleOn } from './title.js';
-import { flipPage, kin, moveCursor, renderMenu } from './menu.js';
+import { flipPage, moveCursor, renderMenu } from './menu.js';
 
 // ===== 進行 =====
 function begin(){
@@ -52,7 +52,7 @@ function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   // メニューはスティックの上下でも選べる
   if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.z) > .7 && now > S.stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); S.stickRepeat = now + 280; }
-  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > S.stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else if (S.menu === 'mech'){ kin(stickVec.x > 0 ? 'r' : 'l'); flipPage(); } S.stickRepeat = now + 280; }
+  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > S.stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else if (S.menu === 'mech')flipPage(); S.stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;

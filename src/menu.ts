@@ -104,29 +104,11 @@ function menuBack(){
   else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }
-// 隠しコマンド：ギミック選択で ↑↑↓↓←→←→BA → メニューに「P5 通し」が出る（一度入れたら残る）
-const KONAMI = ['u', 'u', 'd', 'd', 'l', 'r', 'l', 'r', 'b', 'a'];
-let kbuf = [];
-function kin(tok){
-  if (titleOn || S.phase !== 'menu' || S.menu !== 'mech'){ kbuf = []; return false; }
-  kbuf.push(tok); if (kbuf.length > KONAMI.length) kbuf.shift();
-  if (tok === 'b' && kbuf.slice(-9).join() === KONAMI.slice(0, 9).join()) return true; // B で戻らない
-  if (tok === 'a' && kbuf.join() === KONAMI.join()){ kbuf = []; unlockRun(); return true; }
-  return false;
-}
-function unlockRun(){
-  store.set('p5', true); sfx.unlock(); sfx.clear();
-  opt.phase = 'p5'; store.set('phase', 'p5');
-  S.cursor = menuMechs().indexOf(RUN); renderMenu();
-  const head = $('menu').querySelector('.head'); head.textContent = '隠しステージ解放！'; head.classList.add('blink');
-  setTimeout(() => { head.classList.remove('blink'); if (S.phase === 'menu' && S.menu === 'mech') renderMenu(); }, 1200); // メニューに出すだけ（始めるのは自分で選んでから）
-}
 function moveCursor(d, horiz = false){
-  if (!horiz) kin(d < 0 ? 'u' : 'd');
   if (S.menu === 'job' && !horiz) d *= 2;
   S.cursor = (S.cursor + d + menuCount()) % menuCount();
   renderMenu(); sfx.unlock(); sfx.cursor(); }
 // ギミック一覧で左右：P4 と P5 を切り替え
 function flipPage(){ openMechs(opt.phase === 'p4' ? 'p5' : 'p4'); sfx.unlock(); sfx.cursor(); }
 
-export { renderMenu, menuCount, infoTarget, openJobs, openPhases, openMechs, needOrchN, openOrchN, menuConfirm, menuBack, KONAMI, kbuf, kin, unlockRun, moveCursor, flipPage };
+export { renderMenu, menuCount, infoTarget, openJobs, openPhases, openMechs, needOrchN, openOrchN, menuConfirm, menuBack, moveCursor, flipPage };

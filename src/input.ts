@@ -1,8 +1,10 @@
 import { p4Key } from './p4ui.js';
 import { closeRank } from './ranking.js';
+import { closeNews } from './news.js';
+import { closeMail } from './contact.js';
 import { $, opt, store } from './store.js';
 import { S, keys, stickVec } from './state.js';
-import { flipPage, infoTarget, kin, menuBack, menuConfirm, moveCursor } from './menu.js';
+import { flipPage, infoTarget, menuBack, menuConfirm, moveCursor } from './menu.js';
 import { begin, openMenu } from './game.js';
 import { closeSheet } from './settings.js';
 import { closeInfo, openInfo } from './info.js';
@@ -35,6 +37,8 @@ function syncSafe(){ $('oSafe').checked = opt.safe; }
 function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
 window.addEventListener('keydown', e => {
   if (!$('rank').hidden){ if (e.key === 'Escape') closeRank(); return; } // ランキング（名前の入力中はゲームの操作を止める）
+  if (!$('news').hidden){ if (e.key === 'Escape') closeNews(); return; }
+  if (!$('mail').hidden){ if (e.key === 'Escape') closeMail(); return; } // お問い合わせ（入力中はゲームの操作を止める）
   if (!$('sheet').hidden) { if (keyWait) return; if (e.key === 'Escape') closeSheet(); return; }
   const act = keyOf[e.key.toLowerCase()];
   if (!$('info').hidden){ if (act === 'menu' || act === 'b' || act === 'y' || e.key === 'Escape') closeInfo(); return; }
@@ -46,10 +50,10 @@ window.addEventListener('keydown', e => {
     e.preventDefault();
     if (act === 'up') moveCursor(-1);
     else if (act === 'down') moveCursor(1);
-    else if (act === 'a' || act === 'start'){ if (!kin('a')) menuConfirm(); }
-    else if (act === 'b' || act === 'menu'){ if (!kin('b')) menuBack(); }
-    else if (act === 'left'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech'){ kin('l'); flipPage(); } }
-    else if (act === 'right'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech'){ kin('r'); flipPage(); } }
+    else if (act === 'a' || act === 'start'){ menuConfirm(); }
+    else if (act === 'b' || act === 'menu'){ menuBack(); }
+    else if (act === 'left'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech')flipPage(); }
+    else if (act === 'right'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech')flipPage(); }
     else if (act === 'select') selectJob(1);
     return;
   }
@@ -137,7 +141,7 @@ function holdButton(el, fn, onUp){
 KEYS.forEach(k => holdButton(BTN[k], () => {
   if (k === 'y' && infoTarget()){ openInfo(infoTarget()); return; }
   if (S.phase === 'menu' && S.menu === 'omake' && k === 'a'){ S.omakePending = true; return; }
-  if (S.phase === 'menu'){ if (k === 'a'){ if (!kin('a')) menuConfirm(); } else if (k === 'b'){ if (!kin('b')) menuBack(); } return; }
+  if (S.phase === 'menu'){ if (k === 'a'){ menuConfirm(); } else if (k === 'b'){ menuBack(); } return; }
   held[k] = true; pressKey(k);
 }, () => { held[k] = false; if (k === 'a' && S.omakePending){ S.omakePending = false; if (S.phase === 'menu' && S.menu === 'omake') menuConfirm(); } }));
 $('btnStart').addEventListener('click', pressStart);

@@ -30,7 +30,12 @@ body{margin:0;background:var(--gb-body);color:var(--gb-ink);font:16px/1.5 var(--
 .top h1{margin:0;font:400 16px/1.2 var(--px);letter-spacing:.06em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gb-dim)}
 .top h1 b{color:var(--ab);font-weight:400}
 .top h1 span{color:var(--gb-ink)}
+/* ボタンが5つ並ぶので、ギミック名とジョブを2行に分ける（高さはボタンと同じ） */
+.top h1{display:flex;flex-direction:column;justify-content:center;height:32px;font-size:13px;line-height:1.15;letter-spacing:0}
+.top h1 b,.top h1 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini .crown{width:22px;height:18px;display:block;margin:auto}
+.mini .bell{width:22px;height:18px;display:block;margin:auto}.mini .mailicon{width:24px;height:17px;display:block;margin:auto}
+#bNews{position:relative}#bNews.dot::after{content:'';position:absolute;top:2px;right:3px;width:7px;height:7px;background:#ff3a4a;border:1px solid #1e1d24}
 .mini{font:16px var(--px);color:#e8e6f0;background:var(--gb-dark);border:2px solid #1e1d24;border-radius:4px;min-width:36px;height:32px;padding:0 8px;cursor:pointer;touch-action:manipulation}
 .mini.on{background:#2f6b3f;border-color:#1e4a2a;color:#d8ffe0}
 .screen{position:relative;isolation:isolate;color:var(--ink);background:#1c1a3c;overflow:hidden;border:8px solid var(--gb-bezel);border-radius:8px 8px 28px 8px}
@@ -284,7 +289,7 @@ canvas:focus{outline:none}
 .rank input{font-size:16px} /* iPhone で入力時に拡大されないよう16px */
 .rank .row .close{flex:0 0 auto;padding:0 14px}
 .rlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;font-variant-numeric:tabular-nums}
-.rlist li{display:grid;grid-template-columns:2em 1fr 16px 5em 2.6em;gap:6px;align-items:center;padding:3px 4px;background:rgba(255,255,255,.04)}
+.rlist li{display:grid;grid-template-columns:1.6em 1fr 16px 4.6em 2.4em 3.2em;gap:6px;align-items:center;padding:3px 4px;background:rgba(255,255,255,.04)}
 .rlist li.hd{background:none;color:var(--dim);font-size:11px;padding-bottom:0}.rlist li.hd b{color:var(--dim)}
 .rlist li:nth-child(1) b{color:#ffcf4a}.rlist li:nth-child(2) b{color:#d8d8e8}.rlist li:nth-child(3) b{color:#e0a060}
 .rlist b{font-weight:400;text-align:right;color:var(--dim)}
@@ -297,6 +302,20 @@ canvas:focus{outline:none}
 .rlist li.dim{display:block;color:var(--dim);background:none}
 .rlist li.secret{text-align:center;padding:14px 4px;line-height:1.8;color:#b05aff}
 .rank .note.ok{color:var(--green)}.rank .note.ng{color:var(--red)}
+.rlist .dt{color:var(--dim);font-size:12px;text-align:right;cursor:pointer;background:none;border:0;padding:0;font-family:inherit}
+.rlist .dt:hover{color:var(--ink)}
+/* お知らせ・お問い合わせ */
+.nlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.6}
+.nlist li{border-bottom:1px solid #2e2a48;padding-bottom:8px}
+.nlist .at{font-size:12px;color:var(--gold)}.nlist .at b{color:#ff5a6a;font-weight:400}
+.mail input,.mail textarea{font:16px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:8px;border-radius:0;resize:none;-webkit-user-select:text;user-select:text}
+.mail .cnt{text-align:right;margin-top:-8px}
+.mail .note.ok{color:var(--green)}.mail .note.ng{color:var(--red)}
+.mail .note:empty{display:none}
+.close.sub{color:var(--dim);border-color:var(--edge)}
+.close:disabled{opacity:.5;cursor:default}
 .guide .row .close{flex:1}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){.msg .blink{animation:none}.ab.soon::before,.ab.swapped .round,.swapnote{animation:none}.dmg,.dmg.self{animation-duration:.01s}}
+/* 幅の狭いスマホ（iPhone SE 初代など）は上のボタンを少し細くして、名前の幅を空ける */
+@media (max-width:359px){ .top{gap:4px} .top .mini{min-width:30px;padding:0 4px} }

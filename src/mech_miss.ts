@@ -9,9 +9,10 @@ import { P, PPY, alpha, disc, glyph, hurt, px, rect, ring } from './gfx.js';
 // ギミック4：ミッシング（紫の穴が2か所ずつ × 4ラウンド + オレンジのAOE）
 // 紫の穴：予兆の約5.65秒後に床が消え、以後そこに入ると即死。出方の規則（実戦ログ・raidplan・ヤーン速報の4例から）
 //   1回目 中央＋斜めX → 2回目 Xの反対側＋Xから反時計回り90°の斜め → 3回目 残りの斜め＋東西南北（2択） → 4回目 残りの東西南北から2つ
+//   北（A）が消えるのは4回目だけ（3回目には出ない）。なので処理は最後まで時計回りで回れる
 // オレンジ：頭割りのたびに、パーティに一番近いマーカー位置へ置かれるAOE。穴と同時に着弾して消える
 // 処理法：ヤーン速報の脳死法。2の内側 → 頭割りが見えたら時計回りに 3 → 4 → 1 の内側
-//   4回目は安地の東西南北が遠いことがあるので、隣の数字マーカーの内側（隙間。穴は届かない）へ逃げる
+//   4回目も時計回りに 2 の内側へ。北の予兆が出ていても、着弾前に通り抜ければ大丈夫
 // =====================================================================
 const MISS = (() => {
   const G = 13.5, HOLE_R = 8, ORANGE_R = 8, IN = 6.75;
@@ -31,11 +32,9 @@ const MISS = (() => {
     id:'miss', name:'ミッシング', sub:'P5 時間切れ前', view:24, start:{ x:IN, z:-IN },
     gen(){
       const x = pick(['NE', 'SE', 'SW', 'NW']);
-      const c3 = rot(x, pick([135, -135])), left = shuffle(['N', 'E', 'S', 'W'].filter(c => c !== c3));
+      const c3 = pick([rot(x, 135), rot(x, -135)].filter(c => c !== 'N')), left = shuffle(['N', 'E', 'S', 'W'].filter(c => c !== c3));
       const rounds = [['MID', x], [rot(x, 180), rot(x, -90)], [rot(x, 90), c3], [left[0], left[1]]];
-      // 4回目の逃げ先：北が残っていれば時計回りに 2 の内側、北が消えていれば 4 の内側へ戻る
-      const last = c3 === 'N' ? 'SW' : 'NE';
-      return { rounds:rounds.map(r => r.map(cell)), route:['NE', 'SE', 'SW', 'NW', last] };
+      return { rounds:rounds.map(r => r.map(cell)), route:['NE', 'SE', 'SW', 'NW', 'NE'] }; // 4回目も時計回りで 2 の内側へ
     },
     create(d){
       const gone = [], warn = [], oranges = [];

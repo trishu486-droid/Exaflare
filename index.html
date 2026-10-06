@@ -29,9 +29,11 @@
 <body>
 <div class="gb" id="game">
   <div class="top">
-    <h1><b id="mechName">絶妖星乱舞</b> <span id="jobName">ナイト</span></h1>
+    <h1><b id="mechName">絶妖星乱舞</b><span id="jobName">ナイト</span></h1>
     <button class="mini" id="bMenu" type="button" aria-label="ギミック選択に戻る">≡</button>
     <button class="mini" id="bRank" type="button" aria-label="ランキング" hidden><svg class="crown" viewBox="0 0 11 9" shape-rendering="crispEdges" aria-hidden="true"><path fill="#ffcf4a" d="M0 2h1v1h1v1h1V2h1V1h1V0h1v1h1v1h1v2h1V3h1V2h1v7H0z"/><path fill="#ff5a6a" d="M5 5h1v2H5z"/><path fill="#5ab0ff" d="M2 6h1v1H2zM8 6h1v1H8z"/><path fill="#b8862a" d="M0 8h11v1H0z"/></svg></button>
+    <button class="mini" id="bNews" type="button" aria-label="お知らせ"><svg class="bell" viewBox="0 0 11 9" shape-rendering="crispEdges" aria-hidden="true"><path fill="#b8862a" d="M4 0h2v1H4zM3 1h1v1H3zM6 1h1v1H6zM2 2h1v1H2zM7 2h1v1H7zM2 3h1v1H2zM7 3h1v1H7zM2 4h1v1H2zM7 4h1v1H7zM1 5h1v1H1zM8 5h1v1H8zM0 6h1v1H0zM9 6h1v1H9z"/><path fill="#ffcf4a" d="M4 1h2v1H4zM3 2h4v1H3zM3 3h4v1H3zM3 4h4v1H3zM2 5h6v1H2zM1 6h8v1H1z"/><path fill="#8a5a1a" d="M0 7h10v1H0z"/><path fill="#ffe8a0" d="M4 8h2v1H4z"/></svg></button>
+    <button class="mini" id="bMail" type="button" aria-label="お問い合わせ"><svg class="mailicon" viewBox="0 0 13 9" shape-rendering="crispEdges" aria-hidden="true"><path fill="#5a5680" d="M0 0h13v1H0zM0 1h1v1H0zM12 1h1v1H12zM0 2h1v1H0zM12 2h1v1H12zM0 3h1v1H0zM12 3h1v1H12zM0 4h1v1H0zM12 4h1v1H12zM0 5h1v1H0zM12 5h1v1H12zM0 6h1v1H0zM12 6h1v1H12zM0 7h1v1H0zM12 7h1v1H12zM0 8h13v1H0z"/><path fill="#e8e6f0" d="M1 1h11v1H1zM2 2h9v1H2zM1 3h1v1H1zM3 3h7v1H3zM11 3h1v1H11zM1 4h2v1H1zM4 4h5v1H4zM10 4h2v1H10zM1 5h3v1H1zM5 5h3v1H5zM9 5h3v1H9zM1 6h4v1H1zM8 6h4v1H8zM1 7h11v1H1z"/><path fill="#8a86a8" d="M1 2h1v1H1zM11 2h1v1H11zM2 3h1v1H2zM10 3h1v1H10zM3 4h1v1H3zM9 4h1v1H9zM4 5h1v1H4zM8 5h1v1H8zM5 6h3v1H5z"/></svg></button>
     <button class="mini" id="bOpt" type="button" aria-label="設定">⚙</button>
   </div>
 
@@ -148,12 +150,35 @@
   </div>
 </div>
 
+<div class="sheet" id="news" hidden>
+  <div class="panel news" role="dialog" aria-label="お知らせ">
+    <h2>お知らせ</h2>
+    <ul class="nlist" id="newsList"></ul>
+    <button class="close" id="newsClose" type="button">とじる</button>
+  </div>
+</div>
+
+<div class="sheet" id="mail" hidden>
+  <div class="panel mail" role="dialog" aria-label="お問い合わせ">
+    <h2>お問い合わせ</h2>
+    <p class="note">不具合・要望などをどうぞ。返信はしていません（対応したものは「お知らせ」に載せます）。</p>
+    <input id="mailName" maxlength="12" placeholder="ニックネーム（なくてもOK）" autocomplete="nickname">
+    <textarea id="mailBody" maxlength="1000" rows="7" placeholder="内容（1000文字まで）"></textarea>
+    <p class="note cnt" id="mailCount">0/1000</p>
+    <p class="note">送ると、使っていたジョブ・ギミック・端末の種類も一緒に届きます（不具合の確認用）。</p>
+    <p class="note" id="mailNote"></p>
+    <button class="close" id="mailSend" type="button">送信</button>
+    <button class="close sub" id="mailClose" type="button">とじる</button>
+  </div>
+</div>
+
 <div class="sheet" id="rank" hidden>
   <div class="panel rank" role="dialog" aria-label="ランキング">
     <h2>みんなのランキング</h2>
     <div class="row"><select id="rankMech" aria-label="ギミック"></select><select id="rankJob" aria-label="ジョブ"></select></div>
     <ol class="rlist" id="rankList"></ol>
-    <p class="note">DPS 順（1人につき一番いい記録）。Perf＝同じギミック・同じジョブの記録の中での位置（1位が100）。被弾0・速度100%・補助表示なしの記録だけ。</p>
+    <p class="note" id="rankWhen"></p>
+    <p class="note">DPS 順（1人につき一番いい記録）。日付は登録した日（押すと時刻も出ます）。Perf＝同じギミック・同じジョブの記録の中での位置（1位が100）。被弾0・速度100%・補助表示なしの記録だけ。</p>
     <div id="rankForm"></div>
     <button class="close" id="rankClose" type="button">とじる</button>
   </div>

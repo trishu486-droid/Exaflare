@@ -9,11 +9,20 @@ document.documentElement.classList.toggle('app', standalone);
 const touch = matchMedia('(pointer:coarse)');
 const MIN = 225, MAX = 640; // 下限より小さくすると横がはみ出す（iPhone SE で Safari のバーが出ているときなどは、これでも少しスクロールが出る。前と同じ）
 
+// 使える画面の高さ。iPhone のホーム画面のアプリでは、時計の表示の分だけ短く返ってくることがあり、本体が小さく出て下が空く。
+// 全画面で開いている（幅が端末の画面の幅と同じ）ときは、端末の画面の高さを使う（screen は縦向きの値なので、横向きなら入れ替える）
+function viewH(){
+  const vh = window.visualViewport?.height ?? innerHeight;
+  if ((navigator as any).standalone !== true) return vh;
+  const port = innerHeight >= innerWidth, sw = port ? screen.width : screen.height, sh = port ? screen.height : screen.width;
+  return Math.abs(innerWidth - sw) < 2 ? Math.max(vh, sh) : vh;
+}
+
 function fit(){
   gb.style.setProperty('--grow', '0px');
   if (!touch.matches){ gb.style.maxWidth = ''; return; }
   const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
-  const vh = window.visualViewport?.height ?? innerHeight;
+  const vh = viewH();
   const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
   let lo = MIN, hi = MAX;
   // いちばん大きくしても収まる（横幅で決まる）：余った高さは画面（.screen）を縦に伸ばして使う

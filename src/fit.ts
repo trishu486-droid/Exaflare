@@ -7,6 +7,8 @@ const gb = document.getElementById('game') as HTMLElement;
 const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 document.documentElement.classList.toggle('app', standalone);
 const touch = matchMedia('(pointer:coarse)');
+// スマホの横向き（style.css の横向きの作りと同じ条件）：本体は画面いっぱい。画面の高さだけ測って --landH に入れる
+const land = matchMedia('(pointer:coarse) and (orientation:landscape) and (max-height:540px) and (min-width:700px)');
 const MIN = 225, MAX = 640; // 下限より小さくすると横がはみ出す（iPhone SE で Safari のバーが出ているときなどは、これでも少しスクロールが出る。前と同じ）
 
 // 使える画面の高さ。iPhone のホーム画面のアプリでは、時計の表示の分だけ短く返ってくることがあり、本体が小さく出て下が空く。
@@ -21,6 +23,13 @@ function viewH(){
 function fit(){
   gb.style.setProperty('--grow', '0px');
   if (!touch.matches){ gb.style.maxWidth = ''; return; }
+  if (land.matches){
+    gb.style.maxWidth = ''; gb.style.removeProperty('--landH');
+    const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+    gb.style.setProperty('--landH', Math.floor(viewH() - gb.getBoundingClientRect().top - bodyPad) + 'px');
+    return;
+  }
+  gb.style.removeProperty('--landH');
   const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
   const vh = viewH();
   const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
@@ -38,6 +47,7 @@ addEventListener('resize', later);
 addEventListener('orientationchange', later);
 window.visualViewport?.addEventListener('resize', later);
 touch.addEventListener?.('change', later);
+land.addEventListener?.('change', later);
 document.fonts?.ready.then(later); // 文字の大きさが決まってから測り直す
 // 開いた直後は画面の高さが決まりきっていないことがある（ホーム画面のアプリなど）。少しあとと、戻ってきたときにも測り直す
 [300, 1000].forEach(ms => setTimeout(later, ms));

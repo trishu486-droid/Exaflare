@@ -10,12 +10,14 @@ const touch = matchMedia('(pointer:coarse)');
 const MIN = 225, MAX = 640; // 下限より小さくすると横がはみ出す（iPhone SE で Safari のバーが出ているときなどは、これでも少しスクロールが出る。前と同じ）
 
 function fit(){
+  gb.style.setProperty('--grow', '0px');
   if (!touch.matches){ gb.style.maxWidth = ''; return; }
   const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
   const vh = window.visualViewport?.height ?? innerHeight;
   const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
   let lo = MIN, hi = MAX;
-  if (fits(hi)){ return; } // いちばん大きくしても収まる（横幅で決まる）
+  // いちばん大きくしても収まる（横幅で決まる）：余った高さは画面（.screen）を縦に伸ばして使う
+  if (fits(hi)){ gb.style.setProperty('--grow', Math.max(0, Math.floor(vh - gb.getBoundingClientRect().bottom - bodyPad)) + 'px'); return; }
   if (!fits(lo)){ return; } // いちばん小さくしても収まらない（そのまま小さく出す）
   for (let i = 0; i < 9; i++){ const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; } // 0.8px まで詰める
   gb.style.maxWidth = Math.floor(lo) + 'px';

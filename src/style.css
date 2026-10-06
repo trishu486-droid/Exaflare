@@ -85,8 +85,10 @@ canvas:focus{outline:none}
 .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap}
 .msg .big{font-size:32px;line-height:1.1}
 .msg .sub{font-size:16px;line-height:1.25;color:var(--ink);margin-top:2px}
-/* リザルト：暗い枠の中に出して、フィールドと重ならないように */
-.msg .result{background:rgba(10,8,24,.9);border:3px solid var(--edge);box-shadow:0 0 0 2px #000;padding:10px 12px 12px;white-space:normal;width:min(300px,82vw);box-sizing:border-box}
+/* リザルト：暗い枠の中に出して、フィールドと重ならないように（横は画面いっぱい近くまで。行が折り返さないように） */
+.msg .result{background:rgba(10,8,24,.9);border:3px solid var(--edge);box-shadow:0 0 0 2px #000;padding:10px 12px 12px;white-space:normal;width:min(calc(100cqw - 40px),480px);box-sizing:border-box;font-size:min(16px,4.2cqw)}
+/* 幅の狭いスマホ（iPhone SE など）では、見出しも小さくして「FAILED RANK D」が折り返さないように */
+.msg .result .big{font-size:min(32px,8.5cqw)}
 .msg .blink{animation:blink 1s steps(2,start) infinite}
 /* リザルトの「ランキングに登録する」：ここだけ押せる */
 .msg .rankreg{pointer-events:auto;display:block;margin:8px auto 2px;font:15px var(--px);color:var(--gold);background:#1d1930;border:2px solid var(--gold);padding:5px 12px;cursor:pointer;box-shadow:0 2px 0 #000}
@@ -147,7 +149,7 @@ canvas:focus{outline:none}
 .gb.over .status .cast,.gb.over .castmore{visibility:hidden}
 .msg{z-index:6}
 /* P4 は結果の行が多いので、フィールドの高さまでにして、はみ出す分は枠の中でスクロール */
-.gb.p4on .msg .result{max-height:calc(var(--stage-h) - 12px);overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;font-size:.9em}
+.gb.p4on .msg .result{max-height:calc(var(--stage-h) - 12px);overflow-y:auto;overscroll-behavior:contain;pointer-events:auto}
 /* 画面の大きさは全ギミック共通。
    P4：左右の細い列（左＝バフ・デバフ、右＝敵視／HP）＋真ん中にフィールド、下にチャット欄。
    ほか（P5 など）：上の帯（左＝バフ・デバフ、右＝敵視／HP）＋横いっぱいのフィールド。チャット欄はなし。
@@ -164,9 +166,9 @@ canvas:focus{outline:none}
    画面の高さは P5 と同じ（横幅 − 2 × --side ＋ 詠唱・HUD の段 ＋ --chat-h） */
 .gb{--p4band:calc(var(--status-h) + 2px);--p4fs:calc(var(--chat-fs) - .5px);--p4chat:calc(10 * 1.15 * var(--p4fs) + 9px)}
 /* 画面の高さは全ギミック共通（横幅 − 2 × --side ＋ 詠唱・HUD の段 ＋ --chat-h） */
-.screen{display:flex;flex-direction:column;height:calc(100cqw - 2 * var(--side) + var(--status-h) + 2px + var(--chat-h))}
+.screen{display:flex;flex-direction:column;height:calc(100cqw - 2 * var(--side) + var(--status-h) + 2px + var(--chat-h) + var(--grow,0px))}
 .stage,.status,.chatlog{flex:none}
-.gb.p4on .stage{flex:1;min-height:0;display:block;overflow:hidden;--stage-h:calc(100cqw - 20px - 2 * var(--side) + var(--chat-h) - var(--p4chat))}
+.gb.p4on .stage{flex:1;min-height:0;display:block;overflow:hidden;--stage-h:calc(100cqw - 20px - 2 * var(--side) + var(--chat-h) - var(--p4chat) + var(--grow,0px))}
 /* フィールド：上の帯の下から詠唱・HUD の段の上までの高さに、闘技場の円（キャンバスの 40/48）と
    外周の少し内側に立つボスがちょうど収まる大きさ（キャンバスの 43/48 が見える）で、その高さの真ん中に置く */
 .gb.p4on .stage{overflow:hidden;--p4area:calc(var(--stage-h) - var(--p4band))}
@@ -188,7 +190,7 @@ canvas:focus{outline:none}
 /* P5 など：上の帯＋横いっぱいのフィールド */
 .gb:not(.p4on) .stage{flex-wrap:wrap;justify-content:space-between}
 /* フィールドが画面の高さのど真ん中に来るように、上の帯＝(画面の高さ − 横幅) ÷ 2 */
-.gb:not(.p4on) .side{width:auto;height:calc((var(--chat-h) - 2 * var(--side) + var(--status-h) + 2px) / 2);padding:5px 8px 0;align-items:flex-start}
+.gb:not(.p4on) .side{width:auto;height:calc((var(--chat-h) - 2 * var(--side) + var(--status-h) + 2px + var(--grow,0px)) / 2);padding:5px 8px 0;align-items:flex-start}
 .gb:not(.p4on) .side.l .buff{flex-direction:row;gap:6px}
 .gb:not(.p4on) .side.r{order:1;align-items:flex-end}
 .gb:not(.p4on) .field{order:2;width:100%}

@@ -403,3 +403,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .screen::after{content:'';position:absolute;inset:0;z-index:8;pointer-events:none;opacity:0;background:rgba(255,42,58,.22);box-shadow:inset 0 0 0 4px #ff2a3a}
 .screen.hurt::after{animation:hurtFlash .4s linear}
 @keyframes hurtFlash{from{opacity:1}to{opacity:0}}
+/* 攻撃の光：画面（枠の中）全体を一瞬光らせ、3段階で消える（色・濃さ・長さは fx.ts の fxFlash が入れる）。赤は被弾だけ */
+.screen::before{content:'';position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0;background:var(--flash,#fff)}
+.screen.flash::before{animation:fxFlash var(--flash-d,.15s) step-end}
+@keyframes fxFlash{0%{opacity:var(--flash-a,.5)}34%{opacity:calc(var(--flash-a,.5) * .55)}67%{opacity:calc(var(--flash-a,.5) * .25)}100%{opacity:0}}

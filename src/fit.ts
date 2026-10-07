@@ -1,7 +1,7 @@
-// ===== スマホ：本体を画面の高さにちょうど収まる大きさにする =====
-// 本体の高さは幅に比例しない（ボタンや余白は大きさが決まっている）ので、機種ごとの数字ではなく、その場で測って決める
-// 開いたとき・向きを変えたとき・Safari のバーが出たり引っ込んだりしたときに、
-// 「今の画面の高さに収まる一番大きい幅」を二分探索で探す（CSS の max-width は JS が動く前の仮の大きさ）
+// ===== スマホ：本体を画面の幅いっぱいに出し、高さは画面（.screen）の縦の長さで合わせる =====
+// 本体の幅は画面いっぱい（上限 640px）。高さが余れば画面を縦に伸ばし（--grow がプラス）、足りなければ縮める（マイナス）。
+// ボタンや文字の大きさは変えないので、アプリ内ブラウザなど背の低い画面でもはみ出さない（フィールドが小さくなる）。
+// 開いたとき・向きを変えたとき・Safari のバーが出たり引っ込んだりしたときに測り直す（CSS の max-width は JS が動く前の仮の大きさ）
 const gb = document.getElementById('game') as HTMLElement;
 // ホーム画面に追加して開いたとき（全画面）は html に .app を付ける。上の余白を多めにとる（style.css）
 const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
@@ -9,7 +9,7 @@ document.documentElement.classList.toggle('app', standalone);
 const touch = matchMedia('(pointer:coarse)');
 // スマホの横向き（style.css の横向きの作りと同じ条件）：本体は画面いっぱい。画面の高さだけ測って --landH に入れる
 const land = matchMedia('(pointer:coarse) and (orientation:landscape) and (max-height:540px) and (min-width:700px)');
-const MIN = 225, MAX = 640; // 下限より小さくすると横がはみ出す（iPhone SE で Safari のバーが出ているときなどは、これでも少しスクロールが出る。前と同じ）
+const MAX = 640;
 
 // 使える画面の高さ。iPhone のホーム画面のアプリでは、時計の表示の分だけ短く返ってくることがあり、本体が小さく出て下が空く。
 // 全画面で開いている（幅が端末の画面の幅と同じ）ときは、端末の画面の高さを使う（screen は縦向きの値なので、横向きなら入れ替える）
@@ -37,12 +37,13 @@ function fit(){
   const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
   const vh = viewH();
   const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
-  let lo = MIN, hi = MAX;
+  const hi = MAX;
   // いちばん大きくしても収まる（横幅で決まる）：余った高さは画面（.screen）を縦に伸ばして使う
   if (fits(hi)){ gb.style.setProperty('--grow', Math.max(0, Math.floor(vh - gb.getBoundingClientRect().bottom - bodyPad)) + 'px'); return; }
-  if (!fits(lo)){ return; } // いちばん小さくしても収まらない（そのまま小さく出す）
-  for (let i = 0; i < 9; i++){ const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; } // 0.8px まで詰める
-  gb.style.maxWidth = Math.floor(lo) + 'px';
+  // 高さが足りない：本体の幅は画面いっぱいのまま、足りない分だけ画面（.screen）を縦に縮める（--grow をマイナスに）。
+  // フィールドの一辺が 200px を切るほど足りないときは、そこで止めて縦にスクロールさせる
+  const r = gb.getBoundingClientRect();
+  gb.style.setProperty('--grow', Math.floor(Math.max(vh - r.bottom - bodyPad, 216 - r.width)) + 'px');
 }
 
 let raf = 0;

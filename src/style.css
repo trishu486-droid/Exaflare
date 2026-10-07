@@ -104,7 +104,7 @@ canvas:focus{outline:none}
 .intro.out img{opacity:0;transition:opacity .8s ease-in,transform .8s}
 .title .push{font-size:16px;color:var(--ink);animation:blink 1s steps(2,start) infinite}
 /* ギミック選択メニュー */
-.menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
+.menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;overflow-y:auto;scrollbar-width:none;gap:clamp(6px,2vw,10px);background:rgba(0,0,0,.72)}
 .menu .head{font-size:16px;color:var(--gold)}
 .menu .head .pg{display:inline-block;padding:0 6px;cursor:pointer;touch-action:manipulation}
 .menu .note{font-size:16px;color:var(--dim)}
@@ -190,10 +190,13 @@ canvas:focus{outline:none}
 /* P5 など：上の帯＋横いっぱいのフィールド */
 .gb:not(.p4on) .stage{flex-wrap:wrap;justify-content:space-between}
 /* フィールドが画面の高さのど真ん中に来るように、上の帯＝(画面の高さ − 横幅) ÷ 2 */
-.gb:not(.p4on) .side{width:auto;height:calc((var(--chat-h) - 2 * var(--side) + var(--status-h) + 2px + var(--grow,0px)) / 2);padding:5px 8px 0;align-items:flex-start}
+.gb:not(.p4on) .side{width:auto;height:calc((var(--chat-h) - 2 * var(--side) + var(--status-h) + 2px + max(0px, var(--grow,0px))) / 2);padding:5px 8px 0;align-items:flex-start}
 .gb:not(.p4on) .side.l .buff{flex-direction:row;gap:6px}
 .gb:not(.p4on) .side.r{order:1;align-items:flex-end}
 .gb:not(.p4on) .field{order:2;width:100%}
+/* 高さが足りずに画面を縮めたとき（--grow がマイナス）：上下の帯はそのままで、フィールドをその分だけ小さくして真ん中に置く */
+.gb:not(.p4on) .field{--shr:calc(min(0px, var(--grow,0px)) / -2);padding:0 var(--shr)}
+.gb:not(.p4on) .field .fx{left:var(--shr);right:var(--shr)}
 .gb:not(.p4on) .side .hp{width:clamp(110px,34vw,200px);text-align:right}
 .gb:not(.p4on) .chatlog{display:none}
 .gb{--chat-fs:clamp(8px,2.45vw,10.5px);--chat-h:calc(11 * 1.15 * var(--chat-fs) + 9px)}

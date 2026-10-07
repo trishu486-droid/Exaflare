@@ -24,6 +24,10 @@ function fit(){
   gb.style.setProperty('--grow', '0px');
   if (!touch.matches){ gb.style.maxWidth = ''; return; }
   if (land.matches){
+    // カメラの出っ張り（ダイナミックアイランド／ノッチ）がある側だけ余白を残し、反対側は詰める（style.css の html[data-notch]）。
+    // 端末を左に倒した（window.orientation が 90）ときは出っ張りが左、右に倒した（-90）ときは右
+    const ang = typeof (window as any).orientation === 'number' ? (window as any).orientation : (screen.orientation?.angle ?? 0);
+    document.documentElement.dataset.notch = ang === 90 ? 'l' : (ang === -90 || ang === 270) ? 'r' : '';
     gb.style.maxWidth = ''; gb.style.removeProperty('--landH');
     const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
     gb.style.setProperty('--landH', Math.floor(viewH() - gb.getBoundingClientRect().top - bodyPad) + 'px');

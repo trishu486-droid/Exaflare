@@ -1,6 +1,7 @@
 import { $ } from './store.js';
 import { S, LOG } from './state.js';
 import { cv } from './gfx.js';
+import { fit } from './fit.js';
 
 // ===== P4：PT チャット（マクロが流れてくる）と、自分で押すメモ・頭上マーカーのボタン =====
 // マクロの行は味方が流す（ギミックの真偽が分かった順）。自分の指示は自分でボタンを押して流す／頭上に付ける
@@ -9,7 +10,7 @@ let shownVer = -1;
 function renderP4Panel(){
   const on = !!S.inst?.chat && S.phase !== 'menu';
   const panel = $('p4panel');
-  if (panel.classList.contains('off') === on){ panel.classList.toggle('off', !on); $('game').classList.toggle('p4on', on); }
+  if (panel.classList.contains('off') === on){ panel.classList.toggle('off', !on); $('game').classList.toggle('p4on', on); fit(); } // P4 と P5 で画面の作りが違うので大きさを測り直す
   if (LOG.ver === shownVer) return;
   shownVer = LOG.ver;
   const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' })[c]);

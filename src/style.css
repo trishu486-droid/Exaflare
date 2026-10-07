@@ -194,6 +194,16 @@ canvas:focus{outline:none}
 .gb:not(.p4on) .side.l .buff{flex-direction:row;gap:6px}
 .gb:not(.p4on) .side.r{order:1;align-items:flex-end}
 .gb:not(.p4on) .field{order:2;width:100%}
+/* 高さが足りないとき（fit.ts が .short を付ける。アプリ内ブラウザや Safari のバーが出ているときなど）：フィールドを大きく出すために画面の中を詰める
+   P5 など：上下の帯をなくし、デバフ・バフ（左）と HP・敵視（右）はフィールドの上の角に重ねる（角は闘技場の円の外で空いている） */
+.gb.short:not(.p4on) .screen{height:calc(100cqw + var(--status-h) + 4px + var(--grow,0px))}
+.gb.short:not(.p4on) .side{position:absolute;top:0;height:auto;z-index:3}
+.gb.short:not(.p4on) .side.l{left:0}.gb.short:not(.p4on) .side.r{right:0}
+/* P4：チャット欄の文字と行の間を詰め（10行分の高さを縮める）、フィールドを上の帯（デバフ・HP）に半分重ねる */
+.gb.short{--p4fs:8.5px;--p4chat:calc(10 * 1.05 * 8.5px + 9px)}
+.gb.short.p4on .chatlog{line-height:1.05}
+.gb.short.p4on .stage{--p4area:calc(var(--stage-h) - var(--p4band) * .5)}
+.gb.short.p4on .field{top:calc(var(--p4band) * .5 + var(--p4area) / 2)}
 /* 高さが足りずに画面を縮めたとき（--grow がマイナス）：上下の帯はそのままで、フィールドをその分だけ小さくして真ん中に置く */
 .gb:not(.p4on) .field{--shr:calc(min(0px, var(--grow,0px)) / -2);padding:0 var(--shr)}
 .gb:not(.p4on) .field .fx{left:var(--shr);right:var(--shr)}

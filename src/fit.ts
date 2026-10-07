@@ -21,7 +21,7 @@ function viewH(){
 }
 
 function fit(){
-  gb.style.setProperty('--grow', '0px');
+  gb.style.setProperty('--grow', '0px'); gb.classList.remove('short');
   if (!touch.matches){ gb.style.maxWidth = ''; return; }
   if (land.matches){
     // カメラの出っ張り（ダイナミックアイランド／ノッチ）がある側だけ余白を残し、反対側は詰める（style.css の html[data-notch]）。
@@ -39,8 +39,13 @@ function fit(){
   const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
   const hi = MAX;
   // いちばん大きくしても収まる（横幅で決まる）：余った高さは画面（.screen）を縦に伸ばして使う
-  if (fits(hi)){ gb.style.setProperty('--grow', Math.max(0, Math.floor(vh - gb.getBoundingClientRect().bottom - bodyPad)) + 'px'); return; }
-  // 高さが足りない：本体の幅は画面いっぱいのまま、足りない分だけ画面（.screen）を縦に縮める（--grow をマイナスに）。
+  const grow = () => gb.style.setProperty('--grow', Math.max(0, Math.floor(vh - gb.getBoundingClientRect().bottom - bodyPad)) + 'px');
+  if (fits(hi)){ grow(); return; }
+  // 高さが足りない：まず画面の中を詰める（.short：P5 は上下の帯をなくしてデバフ・HP をフィールドの角に重ね、
+  // P4 はチャット欄を詰めてフィールドを上の帯に重ねる。style.css）。それで収まればそのまま
+  gb.classList.add('short');
+  if (fits(hi)){ grow(); return; }
+  // それでも足りない：本体の幅は画面いっぱいのまま、足りない分だけ画面（.screen）を縦に縮める（--grow をマイナスに）。
   // フィールドの一辺が 200px を切るほど足りないときは、そこで止めて縦にスクロールさせる
   const r = gb.getBoundingClientRect();
   gb.style.setProperty('--grow', Math.floor(Math.max(vh - r.bottom - bodyPad, 216 - r.width)) + 'px');

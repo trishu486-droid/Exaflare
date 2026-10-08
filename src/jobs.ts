@@ -23,6 +23,9 @@ const BUFFS = {
   galv:    { name:'鼓舞', dur:30, heal:20, shield:25, color:'#8ae05a' },
   div:     { name:'ディヴィネーション', dur:20, dmg:1.06, color:'#ffd84a' },
   exped:   { name:'疾風怒濤の計', dur:20, mit:true, color:'#9ae07a' },
+  // P3 じしん＆ブラックホールだけ：パーティリストで選んだ1人を回復（single）。自分のバフ欄にはほぼ残らない
+  b2:      { name:'ベネフィラ', dur:.3, single:true, heal:70, color:'#ffd84a' },
+  adlo:    { name:'鼓舞激励の策', dur:.3, single:true, heal:60, shield:20, color:'#8ae05a' },
 };
 // step：コンボの段（1→2→3の順に押すとフル威力、順番を外すと low の威力）
 const JOBS = {
@@ -87,6 +90,8 @@ function idealPps(j){
 const dmgPerPot = () => { const j = JOBS[opt.job]; return TARGET_DPS[opt.job] / (idealPps(j.role === 'tank' ? { ...j, ...j.atk } : j) * CRIT_AVG); };
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
 const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true }; // ニュートラルセクト中に1回だけ
+// P3 じしん＆ブラックホール：ヒーラーの Y は単体回復（パーティリストで選んだ人へ）
+const SINGLE_HEAL = { ast:{ name:'ベネフィラ', gcd:true, cd:0, cast:1.5, buff:'b2' }, sch:{ name:'鼓舞激励の策', gcd:true, cd:0, cast:2.0, buff:'adlo' } };
 const KEYS = ['a', 'b', 'x', 'y'];
 // GCD を使うボタン（A・コンボの段・GCD技）か
 const isGcd = (j, k) => k === 'a' || !!j[k].step || !!j[k].gcd;
@@ -94,16 +99,18 @@ const GCD = 2.5, QUEUE = 0.5, MELEE = 3, SLIDECAST = 0.5;
 
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
-const tankRole = () => mech().id === 'p5' ? (S.inst?.tankRole?.(S.t) ?? 'atk') : mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
+// P3 前半（バウル・オブ・アゴニー）の MT は、エクスデスの強攻撃を無敵で受けるので Y が無敵
+const tankRole = () => mech().id === 'p3a' ? (mySlot() === 'MT' ? 'inv' : 'atk') : mech().id === 'p5' ? (S.inst?.tankRole?.(S.t) ?? 'atk') : mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
 const jobCache: Record<string, any> = {};
 const job = () => {
   const j = JOBS[opt.job];
+  if (j.role === 'healer' && mech().id === 'p3c') return jobCache[opt.job + 'p3c'] ||= { ...j, y:SINGLE_HEAL[opt.job] };
   // 占星：ニュートラルセクト中は Y がサンサインに変わる（1回だけ）
   if (opt.job === 'ast'){ let sun = false; try { sun = hasBuff('ns') && !A.sunUsed; } catch {} return sun ? (jobCache.astSun ||= { ...j, y:SUNSIGN }) : j; }
   if (j.role !== 'tank') return j;
   const key = opt.job + tankRole();
   // オーケストラ以外はバフ・ヘイト管理なし：B・X・Y は攻撃アビリティ
-  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
+  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'inv' ? { ...j, ...j.atk, y:j.invuln } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
 };
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };

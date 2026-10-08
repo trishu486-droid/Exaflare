@@ -8,8 +8,8 @@ import { sfx } from './audio.js';
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
             gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9,
-            provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null } as {
-  readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
+            provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
+  tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
   gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number;
   provoke:number | null; shirk:number | null; sunUsed:boolean;
@@ -28,6 +28,7 @@ function hpReset(){
 function onBuff(id){
   if (!HP.on || S.phase !== 'run' && S.phase !== 'count') return;
   const b = BUFFS[id], ns = hasBuff('ns');
+  if (S.inst?.party){ S.inst.party.heal(id, ns); return; } // P3 じしん＆ブラックホール：回復は8人ぶんギミック側で計算（自分の HP も）
   if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); HP.healed += HP.hp - before; popup(Math.round((HP.hp - before) * MAX_HP / 100).toLocaleString('en-US'), 'healnum self', BUFFS[id].name, S.player); }
   if (b.shield) HP.shield = Math.max(HP.shield, b.shield);
   if (id === 'helios' && ns) HP.shield = Math.max(HP.shield, 25); // ニュートラルセクト中のヘリオスはバリアも付く
@@ -46,7 +47,7 @@ function healerHit(raw, name?: string){
 }
 function hpTick(dt){
   if (!HP.on) return;
-  Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); HP.healed += HP.hp - before; } });
+  Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen && S.inst?.party){ S.inst.party.regen(BUFFS[id].regen * dt); return; } if (hasBuff(id) && BUFFS[id].regen){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); HP.healed += HP.hp - before; } });
   if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
 }
 let enmityHtml = '';
@@ -67,7 +68,7 @@ function hpDraw(){
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
+  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
   fxEl.innerHTML = '';
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
@@ -75,8 +76,18 @@ const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id
 const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
 const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
 // ボスがターゲット不可の間（P5 通しの開幕）は攻撃できない
-const canHit = () => S.inst?.targetable?.(S.t) ?? true;
-function inRange(){ return !job().melee || Math.hypot(S.player.x, S.player.z) <= BOSS_R + MELEE; }
+// P3 の決戦中は、自分の組のボスにしか攻撃が通らない（ボスの attackable）
+const canHit = () => (S.inst?.targetable?.(S.t) ?? true) && (curBoss().attackable?.(S.t) ?? true);
+// 決戦中に自分の組ではないボスを殴った：技は出る（GCD も回る）が、ダメージは通らず INVULNERABLE。コンボも進まない
+const invuln = () => (S.inst?.targetable?.(S.t) ?? true) && !(curBoss().attackable?.(S.t) ?? true);
+// 攻撃する相手。ボスが2体いるギミック（P3）は inst.bosses と A.tgt（ターゲット）。いなければ中央のボス
+function curBoss(){ const L = S.inst?.bosses?.(S.t); return L?.length ? L.find(b => b.id === A.tgt) || L[0] : { x:0, z:0, r:BOSS_R }; }
+// ターゲットを次のボスへ（P3 のターゲット切替ボタン）
+function switchTarget(){
+  const L = S.inst?.bosses?.(S.t); if (!L?.length) return;
+  A.tgt = L[(L.findIndex(b => b.id === curBoss().id) + 1) % L.length].id; sfx.cursor();
+}
+function inRange(){ const b = curBoss(); return !job().melee || Math.hypot(S.player.x - b.x, S.player.z - b.z) <= b.r + MELEE; }
 function isMoving(){ return keys.size > 0 || stickVec.x !== 0 || stickVec.z !== 0; }
 // 行動中か：移動・詠唱中・スキルを使った直後（実機の硬直 約0.6秒）。加速度爆弾の判定に使う
 const ACT_LOCK = .6;
@@ -92,20 +103,22 @@ function popup(text: string, cls?: string, name?: string, at?: { x:number; z:num
   if (at){ // 自キャラの頭の少し上から、上へ流れる（FF14 の被ダメージ・回復の出方）
     el.style.left = (px(at.x) / W * 100 + (Math.random() * 6 - 3)) + '%';
     el.style.top = ((px(at.z) - 40) / W * 100) + '%';
-  } else {
-    el.style.left = (50 + (Math.random() * 16 - 8)) + '%';
-    el.style.top = (37 + Math.random() * 4) + '%';
+  } else { // ターゲットのボスの少し上（中央のボスなら画面の真ん中あたり）
+    const b = curBoss();
+    el.style.left = (px(b.x) / W * 100 + (Math.random() * 16 - 8)) + '%';
+    el.style.top = ((px(b.z) - 37.44) / W * 100 + Math.random() * 4) + '%';
   }
   fxEl.appendChild(el);
   setTimeout(() => el.remove(), 1300);
 }
-// 敵を攻撃した瞬間はボス（中央）の方を向く（実機と同じ。動けばまた進む向きに戻る）。P4 の視線の判定に効く
+// 敵を攻撃した瞬間はターゲットのボスの方を向く（実機と同じ。動けばまた進む向きに戻る）。P4 の視線の判定に効く
 function faceBoss(){
-  const r = Math.hypot(S.player.x, S.player.z);
-  if (r > .01) S.face = { x:-S.player.x / r, z:-S.player.z / r };
+  const b = curBoss(), dx = b.x - S.player.x, dz = b.z - S.player.z, r = Math.hypot(dx, dz);
+  if (r > .01) S.face = { x:dx / r, z:dz / r };
 }
 function dealDamage(pot, name){
   faceBoss();
+  if (invuln()){ popup('INVULNERABLE', 'inv', name); sfx.no(); return; }
   const up = Object.keys(A.buffs).reduce((m, id) => m * (hasBuff(id) && BUFFS[id].dmg ? BUFFS[id].dmg : 1), 1);
   const crit = Math.random() < .25;
   const dmg = Math.round(pot * dmgPerPot() * up * (.95 + Math.random() * .1) * (crit ? 1.5 : 1));
@@ -131,7 +144,7 @@ function pressKey(k){
   }
   if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
   if (A.cast){ A.q[k] = true; return; } // 詠唱中に押したら、詠唱が終わってから発動
-  if (ab.pot && (!inRange() || !canHit())){ fail(); return; }
+  if (ab.pot && (!inRange() || (!canHit() && !invuln()))){ fail(); return; }
   A.cds[k] = S.t + ab.cd; A.actAt = S.t;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
   else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
@@ -149,13 +162,13 @@ function runGcd(k){
   }
   if (ab.chain){ // タンクの A：押すたびに 1→2→3段目と進む（途切れない）
     const c = ab.chain[A.combo % ab.chain.length];
-    dealDamage(c.pot, c.name); A.combo = (A.combo + 1) % ab.chain.length;
+    const inv = invuln(); dealDamage(c.pot, c.name); if (!inv) A.combo = (A.combo + 1) % ab.chain.length;
     return;
   }
   if (ab.step){ // コンボ：前の段に続けて押すとフル威力
     const ok = ab.step === 1 || A.combo === ab.step - 1;
-    dealDamage(ok ? ab.pot : ab.low, ab.name);
-    A.combo = ok && ab.step < 3 ? ab.step : 0;
+    const inv = invuln(); dealDamage(ok ? ab.pot : ab.low, ab.name);
+    if (!inv) A.combo = ok && ab.step < 3 ? ab.step : 0;
     return;
   }
   if (!ab.cast){ dealDamage(ab.pot, ab.name); return; }
@@ -208,7 +221,7 @@ function actTick(dt){
   if (A.queued){
     const k = A.queued; A.queued = null;
     if (j[k].gcd && S.t < A.cds[k]) return;
-    if (!inRange() || (!canHit() && !j[k].buff)){ fail(); return; }
+    if (!inRange() || (!canHit() && !invuln() && !j[k].buff)){ fail(); return; }
     runGcd(k);
     return;
   }
@@ -216,7 +229,7 @@ function actTick(dt){
 }
 function drawActFx(){
   const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
-  if (job().melee && S.phase !== 'menu') alpha(.45, () => ring(C0, C0, Math.round((BOSS_R + MELEE) * PPY), '#c9a2ff'));
+  if (job().melee && S.phase !== 'menu'){ const b = curBoss(); alpha(.45, () => ring(px(b.x), px(b.z), Math.round((b.r + MELEE) * PPY), '#c9a2ff')); }
   if (now - A.failT < 500){ // 射程外・詠唱中断
     line(X - 3, Z - 14, X + 3, Z - 8, P.hurt); line(X + 3, Z - 14, X - 3, Z - 8, P.hurt);
     line(X - 2, Z - 14, X + 4, Z - 8, P.hurt); line(X + 4, Z - 14, X - 2, Z - 8, P.hurt);
@@ -227,4 +240,4 @@ function drawActFx(){
   }
 }
 
-export { A, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };
+export { A, curBoss, switchTarget, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };

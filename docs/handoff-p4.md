@@ -1,6 +1,6 @@
 # P4 開発の引き継ぎメモ
 
-次のセッションで続きをやるためのメモ。P4 は本番 `claude/ff14-exaflare-trainer-3ssqps` に反映済み（GitHub Pages に公開）。開発の続きは `p4-dev` ブランチで。
+次のセッションで続きをやるためのメモ。どのコンテンツにも共通の決まりは `docs/common-spec.md` にまとめている（先に読む）。P4 は本番 `claude/ff14-exaflare-trainer-3ssqps` に反映済み（GitHub Pages に公開）。開発の続きは `p4-dev` ブランチで。
 
 ## 進め方のルール（ユーザーと決めたこと）
 

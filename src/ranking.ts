@@ -1,7 +1,7 @@
 import { FB_BASE, FB_KEY, FB_PROJECT, RANK_ON } from './ranking_config.js';
 import { $, opt, store } from './store.js';
 import { S } from './state.js';
-import { MECHS } from './mechs.js';
+import { MECHS, P3_MECHS, mech } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { JOBS, JOB_ORDER } from './jobs.js';
 import { sfx } from './audio.js';
@@ -31,6 +31,7 @@ const jst = (ts: string) => { const d = new Date(new Date(ts).getTime() + 9 * 36
 function rankBlock(){
   if (!RANK_ON) return 'off';
   if (S.inst?.hpGate) return 'P4 はランキングの対象外です';
+  if (P3_MECHS.includes(mech())) return 'P3 はランキングの対象外です'; // Firestore のルールに入れるまで
   if (S.hits) return '被弾0でクリアしたときだけ登録できます';
   if (opt.speed !== 1) return 'ゲーム速度100%のときだけ登録できます';
   if (opt.safe || opt.path || opt.spots) return '安地表示・補助表示・立ち位置ガイドがすべてOFFのときだけ登録できます';
@@ -41,7 +42,7 @@ function rankPrepare(entry){ S.rankEntry = entry; S.rankSent = false; }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const cleanName = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
-const mechs = () => [...MECHS.filter(m => m.id !== 'p4'), RUN];
+const mechs = () => [...MECHS.filter(m => m.id !== 'p4' && !P3_MECHS.includes(m)), RUN];
 const mechLabel = m => m.name;
 
 let view = { mech:'', job:'' };

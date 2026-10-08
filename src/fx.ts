@@ -18,7 +18,14 @@ const fxStep = (k, n) => Math.min(n - 1, Math.floor(k * n)); // 0〜1 の進み�
 function fxReset(){ FX.list.length = 0; FX.parts.length = 0; FX.flash = null; FX.shakeUntil = -9; }
 function fxAdd(kind, x, z, o = {}){ FX.list.push({ kind, x, z, at:S.t, dur:.5, ...o }); }
 function fxShake(a, dur = .25){ if (!opt.fx) return; FX.shakeA = FX.shakeUntil > S.t ? Math.max(FX.shakeA, a) : a; FX.shakeUntil = S.t + dur; }
-function fxFlash(color, a = .55, dur = .15){ if (!opt.fx) return; FX.flash = { color, a, at:S.t, dur }; }
+// 攻撃の光：画面（ゲーム機の画面の枠の中）全体を光らせる（style.css の .screen.flash）。3段階で消える。
+// 赤は被弾（.screen.hurt）だけに使う決まりなので、ここでは赤い色を使わない
+function fxFlash(color, a = .55, dur = .15){
+  if (!opt.fx) return;
+  const scr = document.querySelector('.screen') as HTMLElement;
+  scr.style.setProperty('--flash', color); scr.style.setProperty('--flash-a', String(a)); scr.style.setProperty('--flash-d', (dur / (opt.speed || 1)) + 's');
+  scr.classList.remove('flash'); void scr.offsetWidth; scr.classList.add('flash');
+}
 // 粒：n 個。speed は y/秒、up は上向きの初速（重力で落ちる）
 function fxParts(n, x, z, { cols = FXC.flare, speed = 8, up = 6, life = .6, size = 2, spread = 0, grav = 18 } = {}){
   for (let i = 0; i < n && FX.parts.length < 500; i++){
@@ -84,11 +91,7 @@ function fxDraw(){
     rect(px(x) - (p.size >> 1), Math.round(px(z) - h * PPY) - (p.size >> 1), p.size, p.size, p.cols[fxStep(a / p.life, p.cols.length)]);
   });
 }
-function fxFlashDraw(){
-  const f = FX.flash; if (!f || !opt.fx) return;
-  const k = (S.t - f.at) / f.dur; if (k < 0 || k >= 1) return;
-  alpha(f.a * (k < .34 ? 1 : k < .67 ? .55 : .25), () => rect(0, 0, W, W, f.color)); // 3段階で消える
-}
+function fxFlashDraw(){} // 攻撃の光は画面全体（fxFlash）に移した。フィールドには描かない
 // よく使う組み合わせ
 const FXK = {
   holy(x, z, r){ fxAdd('burst', x, z, { r, cols:FXC.holy, dur:.55 }); fxAdd('ring', x, z, { r:r * 1.3, cols:FXC.holy, dur:.4 }); fxParts(10, x, z, { cols:FXC.holy, speed:6, up:8, life:.6 }); },

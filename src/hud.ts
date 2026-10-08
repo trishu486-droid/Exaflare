@@ -214,7 +214,7 @@ function updateHud(){
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   const bossHp = S.phase !== 'menu' && S.inst?.bossHp;
   $('bossHp').hidden = !bossHp;
-  if (bossHp){ const left = bossLeft(); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `ケフカ ${(left * 100).toFixed(1)}%`; }
+  if (bossHp){ const left = bossLeft(); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `${S.inst.bossName || 'ケフカ'} ${(left * 100).toFixed(1)}%`; }
   else hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') hHit.textContent = '';
   renderP4Panel();
@@ -234,7 +234,7 @@ function buildResult(){
   const rankLine = block === 'off' ? '' : block ? `<div class="sub" style="color:var(--dim);font-size:12px">ランキング：${block}</div>` : REG_BTN;
   return `<div class="result"><div class="big"><span style="color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? 'CLEAR!' : 'FAILED'}</span> ${rk}</div>` +
     `<div class="sub">${job().name}　スコア ${Math.round(S.score * 100)}%</div>` +
-    (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.inst.hpGate ? (S.killed ? `ケフカ ${(bossLeft() * 100).toFixed(1)}%（25%未満で P5 へ！）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%（25%未満が必要）`) : S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%`}</div>` : '') +
+    (S.inst.bossHp ? `<div class="sub" style="color:${S.killed ? 'var(--gold)' : 'var(--dim)'}">${S.inst.bossName ? (S.killed ? `${S.inst.bossName} 撃破！` : `${S.inst.bossName} 残り ${(bossLeft() * 100).toFixed(1)}%`) : S.inst.hpGate ? (S.killed ? `ケフカ ${(bossLeft() * 100).toFixed(1)}%（25%未満で P5 へ！）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%（25%未満が必要）`) : S.killed ? `ケフカ撃破！（P5 ${Math.floor((S.endT - S.t0) / 60)}:${String(Math.floor(S.endT - S.t0) % 60).padStart(2, '0')}）` : `ケフカ 残り ${(bossLeft() * 100).toFixed(1)}%`}</div>` : '') +
     (S.inst.resultExtra?.() ?? '') +
     `<div class="sub">DPS ${n(fightDps())} <span style="color:var(--dim)">／ 目標 ${n(dpsGoal())}</span></div>` +
     (HP.on && HP.taken ? `<div class="sub">回復・軽減 ${Math.round(healRatio() * 100)}%</div>` : '') +

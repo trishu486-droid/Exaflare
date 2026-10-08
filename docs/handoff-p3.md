@@ -13,6 +13,7 @@ P4 の細かい経緯は `docs/handoff-p4.md`、P4 の調査メモは `docs/rese
   - 本番ブランチにプッシュすると、GitHub Actions が自動で GitHub Pages に公開する（`.github/workflows/deploy.yml`）。つまり **本番ブランチへのプッシュ＝公開**。
   - 開発は別ブランチ（例：`p3-dev`、本番ブランチから作る）で行う。本番に出すときはコミットを整理して（まとめて）入れる。
 - 途中の確認は、**開発版の Artifact** を更新して見てもらう（コミットは不要）。作り方は §6。
+- **作業に取り掛かる前に、必ず本番ブランチに変更が入っていないか確認する**（`git fetch origin` → `git log --oneline p3-dev..origin/claude/ff14-exaflare-trainer-3ssqps`）。入っていたら、取り込んでから作業する。本番の小さな修正は別のセッション（`docs/handoff-main.md`）が担当している。
 - **「確定」でコミットするたびに、`src/news.ts` の `NEWS` のいちばん上にお知らせを1件足す**（日本時間・分まで。遊ぶ人向けの短い言葉で）。P3 を本番に出すときは「P3（…）を追加」の1件を足す。
 
 ### 見た目・音

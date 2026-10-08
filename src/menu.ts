@@ -9,8 +9,8 @@ import { sfx } from './audio.js';
 import { applyTitle } from './hud.js';
 import { begin } from './game.js';
 
-// メニュー：ジョブ選択 → フェーズ選択（P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
-const PHASES = [['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
+// メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
+const PHASES = [['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
   const list = $('menuList');
@@ -51,12 +51,12 @@ function renderMenu(){
     }).join('');
     return;
   }
-  // ギミック一覧（選んだフェーズの分）。左右で P4／P5 を切り替え
-  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ギミック選択（${job().name}） ${opt.phase === 'p4' ? 'P4' : 'P5'} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
-  note.textContent = 'A／STARTで開始　Y／iで解説　←→でP4・P5';
+  // ギミック一覧（選んだフェーズの分）。左右で P3／P4／P5 を切り替え
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ギミック選択（${job().name}） ${opt.phase.toUpperCase()} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
+  note.textContent = 'A／STARTで開始　Y／iで解説　←→でフェーズ切替';
 
   const L = menuMechs();
-  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
+  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
 function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
@@ -88,6 +88,7 @@ function menuConfirm(i = S.cursor){
   if (S.menu === 'omake'){ openOmake(i); return; }
   const L = menuMechs();
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
+  if ((L[i] as any).wip){ sfx.back(); return; } // まだ作っていない（P3 の開発中）
   opt.mech = L[i].id; store.set('mech', opt.mech); applyTitle();
   if (L[i].slots && job().slots.length > 1){
     S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu();
@@ -108,7 +109,8 @@ function moveCursor(d, horiz = false){
   if (S.menu === 'job' && !horiz) d *= 2;
   S.cursor = (S.cursor + d + menuCount()) % menuCount();
   renderMenu(); sfx.unlock(); sfx.cursor(); }
-// ギミック一覧で左右：P4 と P5 を切り替え
-function flipPage(){ openMechs(opt.phase === 'p4' ? 'p5' : 'p4'); sfx.unlock(); sfx.cursor(); }
+// ギミック一覧で左右：P3 → P4 → P5 → P3 の順に切り替え（d＝1 で右、-1 で左）
+const PAGES = ['p3', 'p4', 'p5'];
+function flipPage(d = 1){ const i = Math.max(0, PAGES.indexOf(opt.phase)); openMechs(PAGES[(i + d + PAGES.length) % PAGES.length]); sfx.unlock(); sfx.cursor(); }
 
 export { renderMenu, menuCount, infoTarget, openJobs, openPhases, openMechs, needOrchN, openOrchN, menuConfirm, menuBack, moveCursor, flipPage };

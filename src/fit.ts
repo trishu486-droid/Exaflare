@@ -1,0 +1,68 @@
+// ===== スマホ：本体を画面の幅いっぱいに出し、高さは画面（.screen）の縦の長さで合わせる =====
+// 本体の幅は画面いっぱい（上限 640px）。高さが余れば画面を縦に伸ばし（--grow がプラス）、足りなければ縮める（マイナス）。
+// ボタンや文字の大きさは変えないので、アプリ内ブラウザなど背の低い画面でもはみ出さない（フィールドが小さくなる）。
+// 開いたとき・向きを変えたとき・Safari のバーが出たり引っ込んだりしたときに測り直す（CSS の max-width は JS が動く前の仮の大きさ）
+const gb = document.getElementById('game') as HTMLElement;
+// ホーム画面に追加して開いたとき（全画面）は html に .app を付ける。上の余白を多めにとる（style.css）
+const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+document.documentElement.classList.toggle('app', standalone);
+const touch = matchMedia('(pointer:coarse)');
+// スマホの横向き（style.css の横向きの作りと同じ条件）：本体は画面いっぱい。画面の高さだけ測って --landH に入れる
+const land = matchMedia('(pointer:coarse) and (orientation:landscape) and (max-height:540px) and (min-width:700px)');
+const MAX = 640;
+
+// 使える画面の高さ。iPhone のホーム画面のアプリでは、時計の表示の分だけ短く返ってくることがあり、本体が小さく出て下が空く。
+// 全画面で開いている（幅が端末の画面の幅と同じ）ときは、端末の画面の高さを使う（screen は縦向きの値なので、横向きなら入れ替える）
+function viewH(){
+  const vh = window.visualViewport?.height ?? innerHeight;
+  if ((navigator as any).standalone !== true) return vh;
+  const port = innerHeight >= innerWidth, sw = port ? screen.width : screen.height, sh = port ? screen.height : screen.width;
+  return Math.abs(innerWidth - sw) < 2 ? Math.max(vh, sh) : vh;
+}
+
+function fit(){
+  gb.style.setProperty('--grow', '0px'); gb.classList.remove('short');
+  if (!touch.matches){ gb.style.maxWidth = ''; return; }
+  if (land.matches){
+    // カメラの出っ張り（ダイナミックアイランド／ノッチ）がある側だけ余白を残し、反対側は詰める（style.css の html[data-notch]）。
+    // 端末を左に倒した（window.orientation が 90）ときは出っ張りが左、右に倒した（-90）ときは右
+    const ang = typeof (window as any).orientation === 'number' ? (window as any).orientation : (screen.orientation?.angle ?? 0);
+    document.documentElement.dataset.notch = ang === 90 ? 'l' : (ang === -90 || ang === 270) ? 'r' : '';
+    gb.style.maxWidth = ''; gb.style.removeProperty('--landH');
+    const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+    gb.style.setProperty('--landH', Math.floor(viewH() - gb.getBoundingClientRect().top - bodyPad) + 'px');
+    return;
+  }
+  gb.style.removeProperty('--landH');
+  const bodyPad = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+  const vh = viewH();
+  const fits = (w: number) => { gb.style.maxWidth = w + 'px'; return gb.getBoundingClientRect().bottom + bodyPad <= vh + .5; };
+  const hi = MAX;
+  // いちばん大きくしても収まる（横幅で決まる）：余った高さは画面（.screen）を縦に伸ばして使う
+  const grow = () => gb.style.setProperty('--grow', Math.max(0, Math.floor(vh - gb.getBoundingClientRect().bottom - bodyPad)) + 'px');
+  if (fits(hi)){ grow(); return; }
+  // 高さが足りない：まず画面の中を詰める（.short：P5 は上下の帯をなくしてデバフ・HP をフィールドの角に重ね、
+  // P4 はチャット欄を詰めてフィールドを上の帯に重ねる。style.css）。それで収まればそのまま
+  gb.classList.add('short');
+  if (fits(hi)){ grow(); return; }
+  // それでも足りない：本体の幅は画面いっぱいのまま、足りない分だけ画面（.screen）を縦に縮める（--grow をマイナスに）。
+  // フィールドの一辺が 200px を切るほど足りないときは、そこで止めて縦にスクロールさせる
+  const r = gb.getBoundingClientRect();
+  gb.style.setProperty('--grow', Math.floor(Math.max(vh - r.bottom - bodyPad, 216 - r.width)) + 'px');
+}
+
+let raf = 0;
+const later = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); };
+addEventListener('resize', later);
+addEventListener('orientationchange', later);
+window.visualViewport?.addEventListener('resize', later);
+touch.addEventListener?.('change', later);
+land.addEventListener?.('change', later);
+document.fonts?.ready.then(later); // 文字の大きさが決まってから測り直す
+// 開いた直後は画面の高さが決まりきっていないことがある（ホーム画面のアプリなど）。少しあとと、戻ってきたときにも測り直す
+[300, 1000].forEach(ms => setTimeout(later, ms));
+addEventListener('pageshow', later);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) later(); });
+fit();
+
+export { fit };

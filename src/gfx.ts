@@ -1,7 +1,7 @@
 import { ARENA_R, BOSS_R, SQ2 } from './config.js';
 import { JOBS, job } from './jobs.js';
 import { opt } from './store.js';
-import { A, fxEl, hasInvuln, hasMit } from './action.js';
+import { A, curBoss, fxEl, hasInvuln, hasMit } from './action.js';
 import { S } from './state.js';
 import { sfx } from './audio.js';
 
@@ -150,7 +150,8 @@ function drawField(){
   [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => {
     alpha(.35, () => disc(px(x), px(z), 5, P.mk[i])); ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.white);
   });
-  const corners = opt.marker === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
+  // P3 はヤーンのマクロに合わせて北西始まりに固定
+  const corners = (S.inst?.fieldMarker || opt.marker) === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
   corners.forEach(([x, z], i) => {
     const X = px(x), Z = px(z), c = P.mk[i];
     alpha(.35, () => rect(X - 5, Z - 5, 11, 11, c));
@@ -161,12 +162,66 @@ function drawField(){
 
 // ボス：塗りつぶしのターゲットサークル + 正面の三角（北向き）
 function drawBoss(){
+  if (S.inst?.bosses){ drawBosses(); return; }
   const R = BOSS_R * PPY;
   alpha(.6, () => disc(C0, C0, R, P.boss));
   ring(C0, C0, R, P.bossEdge);
   alpha(.5, () => ring(C0, C0, R - 6, P.bossEdge));
   for (let i = 0; i < 5; i++) line(C0 - i, C0 - R - 4 + i, C0 + i, C0 - R - 4 + i, P.bossTip);
   if (performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
+}
+
+// ボスが2体（P3）：それぞれのターゲットサークル。ターゲット中のボスは太い枠と頭上の矢印
+// 2 体ボス（P3）のターゲットサークル：赤いリング（前後左右に切れ目）＋薄い塗り。ターゲット中は明るい赤
+const TC_ON = '#ff4a5a', TC_OFF = '#a82a3a', TC_FILL = '#e8283a', TC_GAP = 9 * Math.PI / 180;
+// 2体のボスは、ターゲットしている方を最後に（最前面に）描く
+const targetLast = list => { const id = curBoss().id; return [...list].sort((a, b) => (a.id === id ? 1 : 0) - (b.id === id ? 1 : 0)); };
+function drawBosses(){
+  const cur = curBoss(), flash = performance.now() - A.bossFlash < 90;
+  targetLast(S.inst.bosses(S.t)).forEach(b => {
+    const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id, c = on ? TC_ON : TC_OFF;
+    alpha(on ? .22 : .12, () => disc(X, Z, R, TC_FILL));
+    const f0 = b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2;
+    const n = Math.max(48, Math.round(R * 8));
+    for (let i = 0; i < n; i++){
+      const a = i / n * Math.PI * 2, d = Math.abs(((a - f0) % (Math.PI / 2) + Math.PI / 2) % (Math.PI / 2));
+      if (d < TC_GAP || d > Math.PI / 2 - TC_GAP) continue; // 前後左右の切れ目
+      const cx = Math.cos(a), cz = Math.sin(a), dot = (rr, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(X + cx * rr), Math.round(Z + cz * rr), 1, 1); };
+      if (on){ dot(R + 1, P.white); dot(R - 2, P.white); } // ターゲット中のボスだけ、リングの内と外を白で縁取る
+      for (let w = 0; w < 2; w++) dot(R - w, c);
+    }
+    // 左右の切れ目に外向きの「＾」
+    [1, -1].forEach(sd => {
+      const a = f0 + sd * Math.PI / 2, ux = Math.cos(a), uz = Math.sin(a), vx = -uz, vz = ux;
+      const tx = X + ux * (R + 2), tz = Z + uz * (R + 2);
+      for (const s of [1, -1]) line(tx, tz, tx - ux * 2 + vx * 2 * s, tz - uz * 2 + vz * 2 * s, c);
+    });
+    if (on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
+  });
+}
+
+// ボスの正面（ヘイトを持っているタンクの方）：リングの外へ突き出た細長い三角。
+// ターゲット中のボスには頭上に白いしずく型のマーカー。ボスの絵より手前に描く（ギミックの draw から呼ぶ）
+function fillTri(pts, c){
+  ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(q => ctx.lineTo(q[0], q[1])); ctx.closePath(); ctx.fill();
+}
+function drawBossFace(b){
+  const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === curBoss().id;
+  if (b.face){
+    const L = Math.hypot(b.face.x, b.face.z) || 1, fx = b.face.x / L, fz = b.face.z / L, nx = -fz, nz = fx;
+    const tri = (tip, base, hw) => [[X + fx * tip, Z + fz * tip], [X + fx * base + nx * hw, Z + fz * base + nz * hw], [X + fx * base - nx * hw, Z + fz * base - nz * hw]];
+    fillTri(tri(R + 12.5, R - 2.5, 7.5), '#101018');           // 黒ふち
+    fillTri(tri(R + 11, R - 1, 6), on ? P.white : '#ff6a7a');
+    fillTri(tri(R + 7, R + .5, 2.5), TC_FILL);
+  }
+  if (on){ // しずく型のピン（丸が上・先が下）
+    const cy = Z - R - 15;
+    fillTri([[X, cy + 9], [X - 5, cy + 1], [X + 5, cy + 1]], '#101018');
+    disc(X, cy, 5, '#101018');
+    fillTri([[X, cy + 7.5], [X - 3.5, cy + 1], [X + 3.5, cy + 1]], '#ffe8f0');
+    disc(X, cy, 4, '#ffe8f0');
+    disc(X, cy, 2, '#ff7aa8');
+  }
 }
 
 function drawSafe(){
@@ -189,6 +244,9 @@ function hurt(reason, onBoard = reason){
   if (window.__noHurt){ (window.__hurts ||= []).push(reason); return; } // テスト用（?debug のときだけ使う）
   const now = performance.now();
   S.hits++; S.hurtT = now; sfx.hurt();
+  // 画面（ゲーム機の画面の枠の中）全体を赤く光らせる。続けて当たったら最初から光り直す
+  const scr = document.querySelector('.screen') as HTMLElement;
+  scr.classList.remove('hurt'); void scr.offsetWidth; scr.classList.add('hurt');
   // 被弾・死亡した時点で失敗（同じ瞬間の他のミスも数えるため、少しだけ待って終了）
   if (S.phase === 'run' && S.failAt == null) S.failAt = S.t + .8;
   misses.set(reason, (misses.get(reason) || 0) + 1);
@@ -202,11 +260,7 @@ function hurt(reason, onBoard = reason){
   fxEl.appendChild(el);
   setTimeout(() => el.remove(), 1450);
 }
-function drawHurtFlash(){
-  const dt = performance.now() - S.hurtT; if (dt > 400) return;
-  const a = 1 - dt / 400;
-  alpha(.22 * a, () => rect(0, 0, W, W, P.hurt));
-  alpha(a, () => { rect(0, 0, W, 4, P.hurt); rect(0, W - 4, W, 4, P.hurt); rect(0, 0, 4, W, P.hurt); rect(W - 4, 0, 4, W, P.hurt); });
-}
+// 被弾の赤い光は画面全体（style.css の .screen.hurt）に移した。フィールドには描かない
+function drawHurtFlash(){}
 
-export { W, C0, PPY, setPPY, cv, ctx, px, P, rect, disc, donut, ring, line, alpha, thickRing, fillArena, GLYPH, glyph, icon5, corner, ICON, ROLE_COLOR, jobIconSvg, drawIcon, drawField, drawBoss, drawSafe, missStack, missStackT, misses, hurt, drawHurtFlash };
+export { W, C0, PPY, setPPY, cv, ctx, px, P, rect, disc, donut, ring, line, alpha, thickRing, fillArena, GLYPH, glyph, icon5, corner, ICON, ROLE_COLOR, jobIconSvg, drawIcon, drawField, drawBoss, drawBossFace, targetLast, drawSafe, missStack, missStackT, misses, hurt, drawHurtFlash };

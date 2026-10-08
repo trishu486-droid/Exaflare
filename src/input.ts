@@ -52,8 +52,8 @@ window.addEventListener('keydown', e => {
     else if (act === 'down') moveCursor(1);
     else if (act === 'a' || act === 'start'){ menuConfirm(); }
     else if (act === 'b' || act === 'menu'){ menuBack(); }
-    else if (act === 'left'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech')flipPage(); }
-    else if (act === 'right'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech')flipPage(); }
+    else if (act === 'left'){ if (S.menu === 'job') moveCursor(-1, true); else if (S.menu === 'mech') flipPage(-1); }
+    else if (act === 'right'){ if (S.menu === 'job') moveCursor(1, true); else if (S.menu === 'mech') flipPage(1); }
     else if (act === 'select') selectJob(1);
     return;
   }
@@ -150,7 +150,7 @@ $('bMenu').addEventListener('click', openMenu);
 $('oFx').checked = opt.fx;
 $('oFx').addEventListener('change', () => { opt.fx = $('oFx').checked; store.set('fx', opt.fx); });
 $('oSafe').addEventListener('change', () => { opt.safe = $('oSafe').checked; store.set('safe', opt.safe); });
-$('menu').querySelector('.head').addEventListener('click', e => { if (e.target.closest('[data-pg]') && S.menu === 'mech') flipPage(); });
+$('menu').querySelector('.head').addEventListener('click', e => { const pg = e.target.closest('[data-pg]'); if (pg && S.menu === 'mech') flipPage(Number(pg.dataset.pg)); });
 $('menuList').addEventListener('click', e => {
   const inf = e.target.closest('[data-info]'); if (inf){ openInfo(inf.dataset.info); return; }
   const b = e.target.closest('button[data-i]'); if (b) menuConfirm(Number(b.dataset.i));

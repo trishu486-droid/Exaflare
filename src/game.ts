@@ -52,7 +52,7 @@ function frame(now){
   const dt = Math.min(.05, (now - last) / 1000) * opt.speed; last = now;
   // メニューはスティックの上下でも選べる
   if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.z) > .7 && now > S.stickRepeat){ moveCursor(stickVec.z > 0 ? 1 : -1); S.stickRepeat = now + 280; }
-  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > S.stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else if (S.menu === 'mech')flipPage(); S.stickRepeat = now + 280; }
+  else if (S.phase === 'menu' && !titleOn && Math.abs(stickVec.x) > .7 && now > S.stickRepeat){ if (S.menu === 'job') moveCursor(stickVec.x > 0 ? 1 : -1, true); else if (S.menu === 'mech') flipPage(stickVec.x > 0 ? 1 : -1); S.stickRepeat = now + 280; }
   movePlayer(dt);
   if (S.phase === 'count' || S.phase === 'run'){
     const before = S.t;
@@ -68,9 +68,9 @@ function frame(now){
       // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）
       // P4（hpGate あり）は 25% 未満まで削っても最後まで続き、時間切れの時点で判定する
       const reached = S.inst.bossHp && A.dmg >= S.inst.bossHp, gate = S.inst.hpGate;
-      const killed = reached && !gate;
+      const killed = reached && !gate && (S.inst.killAfter == null || S.t >= S.inst.killAfter); // P3 通し：突出までは HP が残る（killAfter から撃破できる）
       if (killed || (gate && reached && S.t > S.inst.end)) S.killed = true;
-      if (S.inst.bossHp && !reached && S.t > S.inst.end && S.failAt == null) hurt(gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
+      if (S.inst.bossHp && !reached && S.t > S.inst.end && S.failAt == null) hurt(S.inst.enrageName ? `時間切れ（${S.inst.enrageName}）` : gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
       if (killed || S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }

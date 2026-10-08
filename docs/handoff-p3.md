@@ -177,3 +177,26 @@ const P3 = (() => {
 | `src/ranking.ts` | みんなのランキング（Firestore） |
 | `src/mech_p4.ts` ほか `p4*.ts` | P4 一式（手本） |
 | `docs/handoff-p4.md` / `docs/research-p4.md` | P4 の引き継ぎメモ・調査メモ |
+
+## 9. 今の状態（2026-10-09 本番に出した）
+
+- P3 は本番に出した。メニューのフェーズ選択は P3／P4／P5／おまけ。P3 のギミック一覧：前半（バウル・オブ・アゴニー＋アルテマブラスター）・じしん＆ブラックホール・どんどこ地団駄・P3 通し。
+- 公開先は2つ：GitHub Pages（https://trishu486-droid.github.io/Exaflare/）と Cloudflare Pages（https://dancing-mad-sim.pages.dev/）。どちらも本番ブランチへのプッシュで更新される。
+- ランキングは P3 も対象外（ユーザーの決定。数字を実機に寄せきってから入れる）。入れるときは `docs/firestore.rules` の `d.mech in [...]` に `p3a`, `p3c`, `p3d`, `p3` を足して Firebase に反映し、`src/ranking.ts` の対象外の行を消す。
+- 決まった仕様・数字は `docs/research-p3.md` の決定事項の表。ほかのコンテンツにも使う決まりは `docs/common-spec.md` の 10 章。
+
+### P3 のファイル
+
+| ファイル | 中身 |
+|---|---|
+| `src/mech_p3.ts` | 前半の部品（P3A0 バウル・オブ・アゴニー、P3B アルテマブラスター）。サンダガの円範囲（`inBusterAoe`）・サイコロ・彗星などの描画 |
+| `src/mech_p3c.ts` | じしん＆ブラックホール（線・土・泥土・ワープ、ヒーラーの単体回復） |
+| `src/mech_p3d.ts` | どんどこ地団駄（塔は東西、半径10） |
+| `src/mech_p3run.ts` | 区切りでつなぐ `chain()`、前半（P3A）、P3 通し（RUN3）。時刻は cactbot −640 |
+| `src/p4ui.ts` | パーティリスト（ヒーラーだけ）・マクロ欄・ギミックごとのボタン名 |
+| `src/p4icons.ts` | P3 のデバフアイコン14個 |
+| `src/action.ts` | 殴れないボスへの攻撃（INVULNERABLE） |
+
+### 残っていること
+- 土のタイミングで、自動プレイがまれ（6回に1回くらい）に被弾する（本番に出す前からある。実際のプレイで起きるかは未確認）。
+- AA は入れていない（ユーザーの決定で一旦なし）。

@@ -1,5 +1,6 @@
 // ホーム画面に追加したときのオフライン対応（公開サイトだけ。アーティファクトなどでは登録しない）
-if ('serviceWorker' in navigator && location.protocol === 'https:' && location.hostname.endsWith('github.io')){
+// 公開先：Cloudflare Pages（dancing-mad-sim.pages.dev）。移行の間は GitHub Pages（github.io）でも動かす
+if ('serviceWorker' in navigator && location.protocol === 'https:' && /(\.pages\.dev|\.github\.io)$/.test(location.hostname)){
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 }
 

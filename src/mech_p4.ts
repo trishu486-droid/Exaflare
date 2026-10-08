@@ -9,7 +9,7 @@ import { bossSprite } from './p4boss.js';
 import { makeP4Fx, drawRails, drawChaosGlow, drawFloodMarks, drawReleaseRings } from './p4fx.js';
 
 // =====================================================================
-// P4 通し「おちょくりソウル」（docs/research-p4.md）
+// P4 通し「おちょくりソウル」（docs/dmu/research-p4.md）
 // 時刻は「おちょくりソウル」の詠唱開始を 0 とした AnoMech の再現ログに合わせる
 // ほぼ全部に本当／嘘が付く。青い玉＝本当、？の赤い玉＝嘘。前半でデバフと本当／嘘を覚え、後半で処理する
 // 座標：x＝東、z＝南（北は -z）。方位（bearing）は北から時計回りの度

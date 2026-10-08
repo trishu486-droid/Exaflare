@@ -10,7 +10,7 @@ import { BLASTER_MACRO } from './p3macro.js';
 import { makeP3Fx, drawCrystal, drawVoid } from './p3fx.js';
 
 // =====================================================================
-// P3「エクスデス＆カオス」（docs/research-p3.md）
+// P3「エクスデス＆カオス」（docs/dmu/research-p3.md）
 // 処理法はヤーン速報（絶妖星乱舞 攻略特設）に合わせる。味方7人は画面に出さない（決まった位置に立っている扱い）
 // 座標：x＝東、z＝南（北は -z）。方位（bearing）は北から時計回りの度
 // ボス・ケフカの絵はまだ仮の形（イメージ画像で OK をもらってから差し替える）

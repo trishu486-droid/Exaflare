@@ -11,7 +11,7 @@ import { makeP3Fx } from './p3fx.js';
 import { inBusterAoe, BUSTER_R, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, numGlyph } from './mech_p3.js';
 
 // =====================================================================
-// P3 後半：じしん＆ブラックホール（ヤーン：頭上マーカー式。docs/research-p3.md §5・§9.3）
+// P3 後半：じしん＆ブラックホール（ヤーン：頭上マーカー式。docs/dmu/research-p3.md §5・§9.3）
 // 時刻は cactbot のタイムライン 768 秒（マキシマムの直前）を 0 とする
 // じしん：全員 HP1 ＋ 混沌の土（ファースト3・セカンド3・サード2）、ヒーラーと DPS 各1人に混沌の泥土
 // マーカー：ファースト＝攻撃、セカンド＝バインド、サード＝禁止（灰色ボタン 2〜4。押すとその段の空いている番号からランダム）

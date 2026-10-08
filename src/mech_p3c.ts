@@ -388,7 +388,7 @@ const P3C = {
       Object.keys(tether).forEach(d => delete tether[d]);
       // 担当が見えない味方ならその味方に、自分なら一番近い味方に付く（自分は取りに行く。その味方は取られるまで待つ）
       Object.keys(PLAN[n0]).forEach(d => { const owner = Object.keys(label).find(k => label[k] === PLAN[n0][d]);
-        if (T.sets[si].direct){ tether[d] = nearestTo(orbPos(+d), SLOTS.filter(k => !mem[k].dead)); efx.push({ k:'tetherOn', t:now(), d:+d }); return; } // 10本目：出た瞬間にその玉に一番近い人へ（タイムライン 902.7）
+        if (T.sets[si].direct){ tether[d] = nearestTo(orbPos(+d), SLOTS.filter(k => !mem[k].dead)); if (!tether[d]){ delete tether[d]; return; } efx.push({ k:'tetherOn', t:now(), d:+d }); return; } // 10本目：出た瞬間にその玉に一番近い人へ（タイムライン 902.7）
         tether[d] = owner && owner !== me && !mem[owner].dead ? owner : nearestTo(orbPos(+d), SLOTS.filter(k => k !== me && !mem[k].dead && !Object.values(tether).includes(k))); if (!tether[d]){ delete tether[d]; return; } efx.push({ k:'tetherOn', t:now(), d:+d }); const q = orbPos(+d); fxAdd('swirl', q.x, q.z, { r:3.5, cols:FXC.void, dur:.6, inward:true }); });
       sfx.ok();
     };

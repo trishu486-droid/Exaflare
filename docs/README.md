@@ -23,7 +23,7 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 |---|---|---|
 | **本番（メイン）** | https://dancing-mad-sim.pages.dev/ （Cloudflare Pages、プロジェクト名 `dancing-mad-sim`） | `main` ブランチの最新。プッシュで自動更新（1〜2分） |
 | 本番（旧住所・移行中） | https://trishu486-droid.github.io/Exaflare/ （GitHub Pages） | 移行が終わったら「移転しました」の案内だけにする |
-| **開発版** | `dev` ブランチ（Cloudflare のプレビューで `https://dev.dancing-mad-sim.pages.dev/` を予定） | 確定前の確認用 |
+| **開発版** | https://dev.dancing-mad-sim.pages.dev/ （Cloudflare のプレビュー） | `dev` ブランチの最新。確定前の確認用 |
 | リポジトリ | GitHub `trishu486-droid/Exaflare`（名前は変更予定） | 公開中。移行が終わったら非公開にする予定 |
 
 - **ブランチは `main`（本番）と `dev`（開発）の2本だけ**。ほかのブランチは作らない（2026-10-09 に整理）。
@@ -48,13 +48,12 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 
 ## 5. 片付け（2026-10-09）の残り：ユーザーの操作が要るもの
 
-1. **GitHub Pages の公開を `main` から許可する**：リポジトリの Settings → Environments → `github-pages` → Deployment branches and tags → `main` を追加（いまは旧ブランチだけ許可されていて、`main` からの公開が失敗する）。
-2. **GitHub の標準ブランチを `main` にする**：Settings → General → Default branch。
-3. **Cloudflare の本番ブランチを `main` に**：Workers & Pages → `dancing-mad-sim` → 設定 → ビルド → ブランチ コントロール → 本番ブランチを `main`、プレビュー ブランチを「カスタム」で `dev` だけに。
-4. 上の3つが済んだら、旧ブランチ（`claude/ff14-exaflare-trainer-3ssqps`・`p3-dev`・`p4-dev`）を消す（中身はすべて `main` に入っている）。
-5. 使わなくなった Artifact を消す（ユーザーの確認をもらってから）。
-6. リポジトリ名の変更（案：`dancing-mad-sim`）と、旧住所の案内用の公開リポジトリ（名前 `Exaflare`、中身は新しい住所へ飛ばす1ページだけ）。
-7. 1〜2週間たったらリポジトリを非公開にする（そのとき `.github/workflows/deploy.yml` を消す）。
+- 済んだこと：GitHub Pages を `main` から公開・標準ブランチを `main` に・Cloudflare の本番を `main`／プレビューを `dev` だけに・旧ブランチ（`claude/ff14-exaflare-trainer-3ssqps`・`p3-dev`・`p4-dev`）を削除・使わない Artifact 4つを削除。
+- この環境からはブランチを消せない（プロキシが 403 で止める）。消すときはユーザーに GitHub の画面（Code → branches → ゴミ箱）で消してもらう。
+
+1. リポジトリ名の変更（案：`dancing-mad-sim`）と、旧住所の案内用の公開リポジトリ（名前 `Exaflare`、中身は新しい住所へ飛ばす1ページだけ）。
+2. 1〜2週間たったらリポジトリを非公開にする（そのとき `.github/workflows/deploy.yml` を消す）。
+3. Google Search Console に新しい住所を登録する。
 
 ## 6. まだ残っていること（ゲームの中身）
 

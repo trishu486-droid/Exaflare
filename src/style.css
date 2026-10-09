@@ -462,3 +462,6 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .screen::before{content:'';position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0;background:var(--flash,#fff)}
 .screen.flash::before{animation:fxFlash var(--flash-d,.15s) step-end}
 @keyframes fxFlash{0%{opacity:var(--flash-a,.5)}34%{opacity:calc(var(--flash-a,.5) * .55)}67%{opacity:calc(var(--flash-a,.5) * .25)}100%{opacity:0}}
+/* 開発版の札（プレビューの住所だけ）。上の並びのいちばん左に、2行の小さな赤い札 */
+#devBadge{flex:none;align-self:center;display:flex;flex-direction:column;align-items:center;padding:1px 2px;margin-right:2px;background:#d8283a;color:#fff;font:10px/1.15 "DotGothic16",monospace;border:1px solid #fff;border-radius:3px;pointer-events:none}
+#devBadge small{font-size:7px;opacity:.9;letter-spacing:-.02em}

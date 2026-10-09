@@ -154,8 +154,8 @@ const P2M = {
     // ---- 道のり：「この時刻までにここ」の列（味方は着く時刻がギリギリになるように動き出す） ----
     const embSpot = s => s === 'MT' ? { x:-.6, z:-8.6 } : s === 'ST' ? { x:.6, z:-8.6 } : add({ x:0, z:8 }, OFF(s));
     // ミッシング前の散開：中央より少し南に縦2・横4（上の段 MT ST D1 D2、下の段 H1 H2 D3 D4。ペアは縦に並ぶ）。誰に何が付いたか見えるように
-    const STANDBY = { MT:{ x:-6, z:3 }, ST:{ x:-2, z:3 }, D1:{ x:2, z:3 }, D2:{ x:6, z:3 },
-      H1:{ x:-6, z:7 }, H2:{ x:-2, z:7 }, D3:{ x:2, z:7 }, D4:{ x:6, z:7 } };
+    const STANDBY = { MT:{ x:-6, z:2.5 }, ST:{ x:-2, z:2.5 }, D1:{ x:2, z:2.5 }, D2:{ x:6, z:2.5 },
+      H1:{ x:-6, z:7.5 }, H2:{ x:-2, z:7.5 }, D3:{ x:2, z:7.5 }, D4:{ x:6, z:7.5 } }; // 段の間は 5（下の段の頭上マークが上の段に重ならない）
     const standby = s => STANDBY[s];
     const route = s => {
       const w = p.withEmb ? [{ until:T.emb + .3, spot:embSpot(s) }, { until:T.mark0, spot:standby(s) }] : [{ until:T.mark0, spot:standby(s) }];
@@ -288,7 +288,7 @@ const P2M = {
     const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
       1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     const markOf = (s, t) => { const L = given.filter(x => x.k === s && x.t <= t); const last = L[L.length - 1]; return last && t < last.t + MARK_SHOW ? last.mark : null; };
-    const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 10, px(q.z) - 30, 20, 20); };
+    const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 8, px(q.z) - 23, 16, 16); }; // 頭のすぐ上（タイルの上端に接する）
 
     return {
       start: { ...(p.withEmb ? embSpot(me) : standby(me)) }, // ミッシングだけのときは、最初から整列している

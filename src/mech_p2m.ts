@@ -46,6 +46,35 @@ const at = (deg, r) => ({ x:Math.sin(deg * Math.PI / 180) * r, z:-Math.cos(deg *
 const add = (a, b) => ({ x:a.x + b.x, z:a.z + b.z });
 const OFF = k => at(SLOTS.indexOf(k) * 45 + 22.5, 1.1); // 固まるときの1人ずつのずれ
 
+// ---- 床（P2：外側は赤白のうず、床は暗い網目。裁きの光のあとは金色） ----
+const floorCache = {};
+const floorImg = (gold) => {
+  const key = PPY + (gold ? 'g' : 'd');
+  if (floorCache[key]) return floorCache[key];
+  const W = ctx.canvas.width, c = document.createElement('canvas'); c.width = W; c.height = W;
+  const g = c.getContext('2d'), C0 = W / 2, R = 20 * PPY;
+  g.fillStyle = gold ? '#8a6a1a' : '#2c2b44';
+  for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); g.fillRect(C0 - hw, C0 + dy, hw * 2 + 1, 1); }
+  g.fillStyle = gold ? '#a8842a' : '#3a3958';
+  for (let k = -10; k <= 10; k++){ const o = Math.round(k * 2 * PPY); if (Math.abs(o) >= R) continue; const hw = Math.floor(Math.sqrt(R * R - o * o)); g.fillRect(C0 + o, C0 - hw, 1, hw * 2 + 1); g.fillRect(C0 - hw, C0 + o, hw * 2 + 1, 1); }
+  for (let k = 1; k <= 3; k++){ const rr = Math.round(k * 5 * PPY); for (let i = 0; i < 360; i += .5){ const a = i * Math.PI / 180; g.fillRect(Math.round(C0 + Math.cos(a) * rr), Math.round(C0 + Math.sin(a) * rr), 1, 1); } }
+  return floorCache[key] = c;
+};
+// 画面全体の背景：赤白のうず（裁きの光のあとは金色）。フィールドと同じドットの大きさで、中心をそろえる
+const BG_SIZE = 900, bgCache = {};
+const bgImg = gold => {
+  if (bgCache[gold]) return bgCache[gold];
+  const c = document.createElement('canvas'); c.width = BG_SIZE; c.height = BG_SIZE;
+  const g = c.getContext('2d'), C0 = BG_SIZE / 2;
+  g.fillStyle = gold ? '#7a5a10' : '#3a0a14'; g.fillRect(0, 0, BG_SIZE, BG_SIZE);
+  g.fillStyle = gold ? '#a88428' : '#5a1020';
+  for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
+    const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
+    if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = gold ? (r > 150 ? '#c8a040' : '#a88428') : (r > 150 ? '#7a1a2a' : '#5a1020'); g.fillRect(x, y, 1, 1); }
+  }
+  return bgCache[gold] = { url:c.toDataURL(), size:BG_SIZE, color:gold ? '#7a5a10' : '#3a0a14' };
+};
+
 const P2M = {
   id:'p2m', name:'ミッシング', sub:'終末の双腕〜裁きの光（ヤーン 優先順）', view:24, start:{ x:-7, z:1 }, slots:true,
   gen(){
@@ -232,34 +261,6 @@ const P2M = {
       }],
     ].sort((a, b) => a[0] - b[0]);
 
-    // ---- 床（P2：外側は赤白のうず、床は暗い網目。裁きの光のあとは金色） ----
-    const floorCache = {};
-    const floorImg = (gold) => {
-      const key = PPY + (gold ? 'g' : 'd');
-      if (floorCache[key]) return floorCache[key];
-      const W = ctx.canvas.width, c = document.createElement('canvas'); c.width = W; c.height = W;
-      const g = c.getContext('2d'), C0 = W / 2, R = 20 * PPY;
-      g.fillStyle = gold ? '#8a6a1a' : '#2c2b44';
-      for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); g.fillRect(C0 - hw, C0 + dy, hw * 2 + 1, 1); }
-      g.fillStyle = gold ? '#a8842a' : '#3a3958';
-      for (let k = -10; k <= 10; k++){ const o = Math.round(k * 2 * PPY); if (Math.abs(o) >= R) continue; const hw = Math.floor(Math.sqrt(R * R - o * o)); g.fillRect(C0 + o, C0 - hw, 1, hw * 2 + 1); g.fillRect(C0 - hw, C0 + o, hw * 2 + 1, 1); }
-      for (let k = 1; k <= 3; k++){ const rr = Math.round(k * 5 * PPY); for (let i = 0; i < 360; i += .5){ const a = i * Math.PI / 180; g.fillRect(Math.round(C0 + Math.cos(a) * rr), Math.round(C0 + Math.sin(a) * rr), 1, 1); } }
-      return floorCache[key] = c;
-    };
-    // 画面全体の背景：赤白のうず（裁きの光のあとは金色）。フィールドと同じドットの大きさで、中心をそろえる
-    const BG_SIZE = 900, bgCache = {};
-    const bgImg = gold => {
-      if (bgCache[gold]) return bgCache[gold];
-      const c = document.createElement('canvas'); c.width = BG_SIZE; c.height = BG_SIZE;
-      const g = c.getContext('2d'), C0 = BG_SIZE / 2;
-      g.fillStyle = gold ? '#7a5a10' : '#3a0a14'; g.fillRect(0, 0, BG_SIZE, BG_SIZE);
-      g.fillStyle = gold ? '#a88428' : '#5a1020';
-      for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
-        const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
-        if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = gold ? (r > 150 ? '#c8a040' : '#a88428') : (r > 150 ? '#7a1a2a' : '#5a1020'); g.fillRect(x, y, 1, 1); }
-      }
-      return bgCache[gold] = { url:c.toDataURL(), size:BG_SIZE, color:gold ? '#7a5a10' : '#3a0a14' };
-    };
     const towerVisible = k => {
       const from = k === 1 ? T.fors + 1.2 : T.tower[k - 2] + HIT + .4;
       return S.t >= from && S.t < T.tower[k - 1] + HIT;
@@ -350,4 +351,4 @@ const P2M = {
   },
 };
 
-export { P2M };
+export { P2M, floorImg, bgImg, markCanvas };

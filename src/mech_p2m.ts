@@ -31,7 +31,7 @@ const T = {
 };
 const HIT = .6, FP_LEN = 6, LEG_LEN = 5, MARK_SHOW = 6;
 // ---- 大きさ（推定） ----
-const TOWER_R = 4, STACK_R = 5, CIRC_R = 5, FAN_LEN = 16, FAN_HALF = 45, FP_R = 5, KEFKA_R = 7, CLONE_D = 3.2, EMB_R = 3, BOT_SPEED = 24;
+const TOWER_R = 4, STACK_R = 5, CIRC_R = 5, FAN_LEN = 16, FAN_HALF = 45, FP_R = 5, CLONE_D = 3.2, EMB_R = 3, BOT_SPEED = 24;
 // ---- 立ち位置（相対：ケフカが北、塔が南。塔の中心は (±6, 6)） ----
 const TOWER_REL = [{ x:-6, z:6 }, { x:6, z:6 }];
 const ODD = { stack1:{ x:-4.6, z:5.0 }, fan:{ x:-7.2, z:8.6 }, bait:{ x:-10.5, z:8.0 }, joinL:{ x:-1.4, z:6.4 },
@@ -106,7 +106,10 @@ const P2M = {
     };
     // ---- 道のり：「この時刻までにここ」の列（味方は着く時刻がギリギリになるように動き出す） ----
     const embSpot = s => s === 'MT' ? { x:-.6, z:-8.6 } : s === 'ST' ? { x:.6, z:-8.6 } : add({ x:0, z:8 }, OFF(s));
-    const standby = s => add({ x:TH.includes(s) ? -7 : 7, z:1 }, OFF(s));
+    // ミッシング前：西にタンヒラ、東に DPS。ペアは隣どうし、ペアどうしは少し離して、誰に何が付いたか見えるように
+    const STANDBY = { MT:{ x:-6.5, z:-3 }, H1:{ x:-10, z:-3 }, ST:{ x:-6.5, z:3 }, H2:{ x:-10, z:3 },
+      D1:{ x:6.5, z:-3 }, D3:{ x:10, z:-3 }, D2:{ x:6.5, z:3 }, D4:{ x:10, z:3 } };
+    const standby = s => STANDBY[s];
     const route = s => {
       const w = [{ until:T.emb + .3, spot:embSpot(s) }, { until:T.mark0, spot:standby(s) }];
       for (let k = 1; k <= 8; k++){
@@ -236,11 +239,6 @@ const P2M = {
       if (floorCache[key]) return floorCache[key];
       const W = ctx.canvas.width, c = document.createElement('canvas'); c.width = W; c.height = W;
       const g = c.getContext('2d'), C0 = W / 2, R = 20 * PPY;
-      g.fillStyle = gold ? '#7a5a10' : '#3a0a14'; g.fillRect(0, 0, W, W);
-      for (let y = 0; y < W; y++) for (let x = 0; x < W; x++){
-        const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
-        if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = gold ? (r > 150 ? '#c8a040' : '#a88428') : (r > 150 ? '#7a1a2a' : '#5a1020'); g.fillRect(x, y, 1, 1); }
-      }
       g.fillStyle = gold ? '#8a6a1a' : '#2c2b44';
       for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); g.fillRect(C0 - hw, C0 + dy, hw * 2 + 1, 1); }
       g.fillStyle = gold ? '#a8842a' : '#3a3958';
@@ -248,12 +246,28 @@ const P2M = {
       for (let k = 1; k <= 3; k++){ const rr = Math.round(k * 5 * PPY); for (let i = 0; i < 360; i += .5){ const a = i * Math.PI / 180; g.fillRect(Math.round(C0 + Math.cos(a) * rr), Math.round(C0 + Math.sin(a) * rr), 1, 1); } }
       return floorCache[key] = c;
     };
+    // 画面全体の背景：赤白のうず（裁きの光のあとは金色）。フィールドと同じドットの大きさで、中心をそろえる
+    const BG_SIZE = 900, bgCache = {};
+    const bgImg = gold => {
+      if (bgCache[gold]) return bgCache[gold];
+      const c = document.createElement('canvas'); c.width = BG_SIZE; c.height = BG_SIZE;
+      const g = c.getContext('2d'), C0 = BG_SIZE / 2;
+      g.fillStyle = gold ? '#7a5a10' : '#3a0a14'; g.fillRect(0, 0, BG_SIZE, BG_SIZE);
+      g.fillStyle = gold ? '#a88428' : '#5a1020';
+      for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
+        const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
+        if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = gold ? (r > 150 ? '#c8a040' : '#a88428') : (r > 150 ? '#7a1a2a' : '#5a1020'); g.fillRect(x, y, 1, 1); }
+      }
+      return bgCache[gold] = { url:c.toDataURL(), size:BG_SIZE, color:gold ? '#7a5a10' : '#3a0a14' };
+    };
     const towerVisible = k => {
       const from = k === 1 ? T.fors + 1.2 : T.tower[k - 2] + HIT + .4;
       return S.t >= from && S.t < T.tower[k - 1] + HIT;
     };
     const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
-    const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
+    // 担当の文字（3×5）
+    const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
+      1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     const markOf = (s, t) => { const L = given.filter(x => x.k === s && x.t <= t); const last = L[L.length - 1]; return last && t < last.t + MARK_SHOW ? last.mark : null; };
     const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 10, px(q.z) - 30, 20, 20); };
 
@@ -268,10 +282,6 @@ const P2M = {
         ...T.leg.map(l => ({ name:'消滅の脚', start:l - LEG_LEN, len:LEG_LEN })),
         { name:'裁きの光', start:T.lojCast, len:T.loj - T.lojCast },
       ],
-      bosses: t => {
-        const L = legSrc.filter(x => x.j === T.leg.findIndex(l => t >= l - LEG_LEN && t < l + .4) && x.x === 0 && x.z === 0)[0];
-        return [{ id:'kefka', name:'ケフカ', x:0, z:0, r:KEFKA_R, face:L ? L.face : { x:0, z:-1 } }];
-      },
       progress: t => {
         const n = T.tower.findIndex(x => t < x + HIT);
         return t < T.fors ? '終末の双腕・ミッシング' : n >= 0 ? `塔 ${n + 1}／8` : t < T.loj ? '最後の消滅の脚・裁きの光' : '終了';
@@ -293,8 +303,10 @@ const P2M = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+      // ミッシングの詠唱が終わったら、画面全体の背景を赤白のうずに（それまではいつもの星空）
+      screenBg: t => t >= T.fors ? bgImg(t >= T.loj) : null,
       drawFloor(t){
-        ctx.drawImage(floorImg(t >= T.loj), 0, 0);
+        if (t >= T.fors){ ctx.clearRect(-40, -40, ctx.canvas.width + 80, ctx.canvas.height + 80); ctx.drawImage(floorImg(t >= T.loj), 0, 0); }
         // 塔：床の青い輪
         T.tower.forEach((_, i) => {
           const k = i + 1; if (!towerVisible(k)) return;
@@ -309,8 +321,8 @@ const P2M = {
         // 分身（紫の輪）と、消滅の脚の向き
         clones.filter(c => t >= c.from && t < c.until).forEach(c => { const X = px(c.x), Z = px(c.z); alpha(.35, () => disc(X, Z, 9, '#b05aff')); ring(X, Z, 9, '#d08cff'); ring(X, Z, 8, '#d08cff'); });
         legSrc.filter(L => t >= T.leg[L.j] - LEG_LEN && t < T.leg[L.j]).forEach(L => {
-          if (L.x === 0 && L.z === 0) return; // ケフカの向きはターゲットサークルの三角
-          const X = px(L.x), Z = px(L.z); for (let i = 0; i < 4; i++){ const tx = X + L.face.x * (12 - i), tz = Z + L.face.z * (12 - i); line(tx - L.face.z * i, tz + L.face.x * i, tx + L.face.z * i, tz - L.face.x * i, '#ff8af0'); }
+          const kef = L.x === 0 && L.z === 0, X = px(L.x), Z = px(L.z), r = kef ? Math.round(8 * PPY) + 6 : 12, col = kef ? '#ff5aa8' : '#ff8af0';
+          for (let i = 0; i < 5; i++){ const tx = X + L.face.x * (r - i), tz = Z + L.face.z * (r - i); line(tx - L.face.z * i, tz + L.face.x * i, tx + L.face.z * i, tz - L.face.x * i, col); }
         });
         // 自前の演出：扇・消滅の脚
         efx.forEach(e => {
@@ -325,9 +337,9 @@ const P2M = {
         });
         // 味方
         bots.forEach(b => {
-          const X = px(b.x), Z = px(b.z), r = roleOf(b.k);
-          rect(X - 4, Z - 4, 9, 9, P.white); rect(X - 3, Z - 3, 7, 7, ROLE_COL[r]);
-          const g = tileGlyph[r]; for (let i = 0; i < 15; i++) if (g[i] === '1') rect(X - 1 + (i % 3), Z - 2 + (i / 3 | 0), 1, 1, P.white);
+          const X = px(b.x), Z = px(b.z);
+          rect(X - 6, Z - 4, 13, 9, P.white); rect(X - 5, Z - 3, 11, 7, ROLE_COL[roleOf(b.k)]);
+          [...b.k].forEach((ch, i) => { const g = FONT[ch]; for (let n = 0; n < 15; n++) if (g[n] === '1') rect(X - 4 + i * 4 + (n % 3), Z - 2 + (n / 3 | 0), 1, 1, P.white); });
         });
         // 頭上の予兆（自分も）
         SLOTS.forEach(s => { const m = markOf(s, t); if (m) drawMark(pos(s), m); });

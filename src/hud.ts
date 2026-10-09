@@ -35,7 +35,21 @@ function drawPlayer(){
   drawIcon(px(S.player.x), px(S.player.z), hurtNow && (Math.floor(now / 70) & 1));
 }
 
+// 画面全体の背景（ギミックが screenBg で画像を返すとき。P2 の赤白のうず）。フィールドの中心に合わせて置く
+const screenEl = document.querySelector('.screen') as HTMLElement;
+let lastBg = '';
+function screenBgDraw(){
+  const img = S.phase !== 'menu' ? S.inst?.screenBg?.(S.t) : null;
+  let bg = '';
+  if (img){
+    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k;
+    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y = c.top - s.top + c.height / 2 - size / 2 - screenEl.clientTop;
+    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px no-repeat ${img.color}`;
+  }
+  if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
+}
 function draw(){
+  screenBgDraw();
   const v = S.inst?.view ?? mech().view;
   setPPY((W / 2) / (typeof v === 'function' ? v(S.t) : v));
   const [sx, sz] = fxShakeOffset();

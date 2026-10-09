@@ -46,33 +46,48 @@ const at = (deg, r) => ({ x:Math.sin(deg * Math.PI / 180) * r, z:-Math.cos(deg *
 const add = (a, b) => ({ x:a.x + b.x, z:a.z + b.z });
 const OFF = k => at(SLOTS.indexOf(k) * 45 + 22.5, 1.1); // 固まるときの1人ずつのずれ
 
-// ---- 床（P2：外側は赤白のうず、床は暗い網目。裁きの光のあとは金色） ----
-const floorCache = {};
-const floorImg = (gold) => {
-  const key = PPY + (gold ? 'g' : 'd');
-  if (floorCache[key]) return floorCache[key];
-  const W = ctx.canvas.width, c = document.createElement('canvas'); c.width = W; c.height = W;
-  const g = c.getContext('2d'), C0 = W / 2, R = 20 * PPY;
-  g.fillStyle = gold ? '#8a6a1a' : '#2c2b44';
-  for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); g.fillRect(C0 - hw, C0 + dy, hw * 2 + 1, 1); }
-  g.fillStyle = gold ? '#a8842a' : '#3a3958';
-  for (let k = -10; k <= 10; k++){ const o = Math.round(k * 2 * PPY); if (Math.abs(o) >= R) continue; const hw = Math.floor(Math.sqrt(R * R - o * o)); g.fillRect(C0 + o, C0 - hw, 1, hw * 2 + 1); g.fillRect(C0 - hw, C0 + o, hw * 2 + 1, 1); }
-  for (let k = 1; k <= 3; k++){ const rr = Math.round(k * 5 * PPY); for (let i = 0; i < 360; i += .5){ const a = i * Math.PI / 180; g.fillRect(Math.round(C0 + Math.cos(a) * rr), Math.round(C0 + Math.sin(a) * rr), 1, 1); } }
-  return floorCache[key] = c;
+// ---- 床：ステージはいつもの暗い床のまま。外側（星空）だけ消して、画面全体の背景（screenBg）を見せる ----
+const clearOutside = () => {
+  const W = ctx.canvas.width, C = W / 2, R = 20 * PPY + 1;
+  ctx.save(); ctx.beginPath(); ctx.rect(-40, -40, W + 80, W + 80); ctx.arc(C, C, R, 0, Math.PI * 2, true); ctx.clip('evenodd');
+  ctx.clearRect(-40, -40, W + 80, W + 80); ctx.restore();
 };
-// 画面全体の背景：赤白のうず（裁きの光のあとは金色）。フィールドと同じドットの大きさで、中心をそろえる
+// 画面全体の背景。赤白のうず（ミッシング中）と、金色の空（左上から光が差し、横に光の筋、金の羽根が舞う）
+// フィールドと同じドットの大きさで、中心をそろえる（hud.ts の screenBg）
 const BG_SIZE = 900, bgCache = {};
+const GOLD = ['#a86a10', '#c8841a', '#e0a028', '#f0bc3a', '#ffd458', '#ffe888', '#fff6c8']; // 暗い → 明るい
 const bgImg = gold => {
   if (bgCache[gold]) return bgCache[gold];
   const c = document.createElement('canvas'); c.width = BG_SIZE; c.height = BG_SIZE;
   const g = c.getContext('2d'), C0 = BG_SIZE / 2;
-  g.fillStyle = gold ? '#7a5a10' : '#3a0a14'; g.fillRect(0, 0, BG_SIZE, BG_SIZE);
-  g.fillStyle = gold ? '#a88428' : '#5a1020';
-  for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
-    const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
-    if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = gold ? (r > 150 ? '#c8a040' : '#a88428') : (r > 150 ? '#7a1a2a' : '#5a1020'); g.fillRect(x, y, 1, 1); }
+  if (!gold){
+    g.fillStyle = '#3a0a14'; g.fillRect(0, 0, BG_SIZE, BG_SIZE);
+    for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
+      const a = Math.atan2(y - C0, x - C0), r = Math.hypot(x - C0, y - C0);
+      if (Math.sin(a * 14 + r * .09) > .55){ g.fillStyle = r > 150 ? '#7a1a2a' : '#5a1020'; g.fillRect(x, y, 1, 1); }
+    }
+  } else {
+    // 明るさ：上ほど明るく、左上の光源に近いほど明るい。光源から放射状の光の帯。段ごとの色で 8bit らしく
+    const SX = C0 - 300, SY = C0 - 420;
+    for (let y = 0; y < BG_SIZE; y++) for (let x = 0; x < BG_SIZE; x++){
+      const dx = x - SX, dy = y - SY, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+      let v = 1 - y / BG_SIZE * .75 - r / 1400 + (Math.sin(a * 26) > .6 ? .12 : 0) + (((x * 7 + y * 13) % 5) - 2) * .012;
+      g.fillStyle = GOLD[Math.max(0, Math.min(GOLD.length - 1, Math.floor(v * GOLD.length)))]; g.fillRect(x, y, 1, 1);
+    }
+    // 横に流れる細い光の筋（少しだけ弧を描く）
+    let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    for (let n = 0; n < 26; n++){
+      const y0 = rnd() * BG_SIZE, x0 = rnd() * BG_SIZE * .6, len = 120 + rnd() * 380, bow = (rnd() - .5) * 30;
+      g.fillStyle = rnd() < .5 ? '#fff6c8' : '#ffe888';
+      for (let k = 0; k < len; k++){ const t = k / len; g.fillRect(Math.round(x0 + k), Math.round(y0 - bow * 4 * t * (1 - t) - k * .12), 1, 1); }
+    }
+    // 舞う金の羽根（斜めの小さなかけら）
+    for (let n = 0; n < 60; n++){
+      const x0 = Math.round(rnd() * BG_SIZE), y0 = Math.round(rnd() * BG_SIZE), L = 3 + (rnd() * 4 | 0);
+      for (let k = 0; k < L; k++){ g.fillStyle = k === 0 ? '#fff6c8' : '#c8841a'; g.fillRect(x0 + (k >> 1), y0 + k, 1, 1); g.fillStyle = '#ffd458'; g.fillRect(x0 + (k >> 1) + 1, y0 + k, 1, 1); }
+    }
   }
-  return bgCache[gold] = { url:c.toDataURL(), size:BG_SIZE, color:gold ? '#7a5a10' : '#3a0a14' };
+  return bgCache[gold] = { url:c.toDataURL(), size:BG_SIZE, color:gold ? '#c8841a' : '#3a0a14' };
 };
 
 const P2M = {
@@ -304,10 +319,9 @@ const P2M = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
-      // ミッシングの詠唱が終わったら、画面全体の背景を赤白のうずに（それまではいつもの星空）
-      screenBg: t => t >= T.fors ? bgImg(t >= T.loj) : null,
+      screenBg: t => bgImg(!(t >= T.fors && t < T.loj)), // ミッシング前と裁きの光のあとは金色、そのあいだは赤白のうず
       drawFloor(t){
-        if (t >= T.fors){ ctx.clearRect(-40, -40, ctx.canvas.width + 80, ctx.canvas.height + 80); ctx.drawImage(floorImg(t >= T.loj), 0, 0); }
+        clearOutside();
         // 塔：床の青い輪
         T.tower.forEach((_, i) => {
           const k = i + 1; if (!towerVisible(k)) return;
@@ -351,4 +365,4 @@ const P2M = {
   },
 };
 
-export { P2M, floorImg, bgImg, markCanvas };
+export { P2M, clearOutside, bgImg, markCanvas };

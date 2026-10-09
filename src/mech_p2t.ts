@@ -5,7 +5,7 @@ import { healerHit } from './action.js';
 import { sfx } from './audio.js';
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px } from './gfx.js';
-import { floorImg, bgImg } from './mech_p2m.js';
+import { clearOutside, bgImg } from './mech_p2m.js';
 
 // =====================================================================
 // P2（ゴッドケフカ）：トライン（裁きの光 〜 終末の双腕）。docs/dmu/research-p2.md §3
@@ -18,7 +18,16 @@ import { floorImg, bgImg } from './mech_p2m.js';
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
 const T = { lojCast:0, loj:5.0, trineCast:12.2, trine:16.2, spawn:[16.7, 18.7, 20.7], det:[29.1, 31.1, 33.1],
   wingCast:18.3, wing:23.3, tbCast:29.1, tb:33.4, embCast:35.6, emb:40.6, end:42.2 };
-const OUT_ANG = [11, 71, 131, 191, 251, 311], OUT_R = 15.3, TRI = 6, CIR = 5, EMB_R = 3, BOT_SPEED = 24;
+// 三角：一辺 10（中心から頂点 5.77）、向きは東か西だけ。頂点の爆発は半径 6（Splatoon のスクリプトの値）。立ち位置は 6.4 離す
+const OUT_ANG = [11, 71, 131, 191, 251, 311], OUT_R = 15.275, CIR = 6, CLEAR = 6.4, EMB_R = 3, BOT_SPEED = 24;
+const TRI_OFF = [[5.75, 0], [-3, 5], [-3, -5]]; // 東向きの三角の頂点（中心から）。西向きは x を逆に
+// 降る順のパターン（cactbot のコメントにある4つ。OUT_ANG の番号）。3回目は必ず中央も
+const PATTERNS = [
+  [[5, 3, 0], [2], [4, 1]],
+  [[2, 3, 1], [0], [4, 5]],
+  [[3, 2, 1], [5], [4, 0]],
+  [[0, 3, 5], [1], [4, 2]],
+];
 const at = (deg, r) => ({ x:Math.sin(deg * Math.PI / 180) * r, z:-Math.cos(deg * Math.PI / 180) * r }); // 北0・時計回り
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const add = (a, b) => ({ x:a.x + b.x, z:a.z + b.z });
@@ -29,30 +38,32 @@ const angOf = q => (Math.atan2(q.x, -q.z) * 180 / Math.PI + 360) % 360;
 const P2T = {
   id:'p2t', name:'トライン', sub:'裁きの光〜終末の双腕（ヤーン）', view:24, start:{ x:0, z:2 }, slots:true,
   gen(){
-    const order = shuffle([0, 1, 2, 3, 4, 5]);
-    return { me:mySlot(), sets:[order.slice(0, 3), [order[3]], [order[4], order[5], -1]], centerHead:pick([90, 270]), wingLeft:Math.random() < .5 };
+    const pt = pick(PATTERNS);
+    return { me:mySlot(), sets:[pt[0], pt[1], [...pt[2], -1]], centerHead:pick([1, -1]), wingLeft:Math.random() < .5 };
   },
   create(p){
     const me = p.me;
     // ---- 三角（-1 は中央） ----
     const tri = (i, set) => {
-      const c = i < 0 ? { x:0, z:0 } : at(OUT_ANG[i], OUT_R), head = i < 0 ? p.centerHead : OUT_ANG[i] + 180; // 外周の三角は中心を向く
-      return { i, set, c, v:[0, 120, 240].map(d => add(c, at(head + d, TRI))) };
+      // 向き：中央はくじ。外周は中心の側を向く（西側の三角は東向き、東側は西向き）※推定
+      const c = i < 0 ? { x:0, z:0 } : at(OUT_ANG[i], OUT_R), e = i < 0 ? p.centerHead : (c.x < 0 ? 1 : -1);
+      return { i, set, c, v:TRI_OFF.map(([x, z]) => ({ x:c.x + x * e, z:c.z + z })) };
     };
     const TRIS = p.sets.flatMap((L, s) => L.map(i => tri(i, s)));
     const circlesOf = sets => TRIS.filter(t => sets.includes(t.set)).flatMap(t => t.v);
-    const safeFrom = (q, sets, m = .6) => circlesOf(sets).every(v => dist(q, v) > CIR + m) && Math.hypot(q.x, q.z) < 19.3;
+    const safeFrom = (q, sets, m = CLEAR - CIR + .8) => circlesOf(sets).every(v => dist(q, v) > CIR + m) && Math.hypot(q.x, q.z) < 19.3;
     // ---- 安地：1回目の三角を、ヒーラー・DPS は南から反時計回り（南 → 東）、タンクは北から反時計回り（北 → 西）に探す ----
     const sweep = (from, skip) => TRIS.filter(t => t.set === 0 && t !== skip).sort((a, b) => ((from - OUT_ANG[a.i] + 360) % 360) - ((from - OUT_ANG[b.i] + 360) % 360))[0];
     const partyT = sweep(210), tankT = sweep(30, partyT);
-    // 三角の中で、あとの三角の円が来ない所（ふつうは三角の中心）
-    const safeIn = (t, sets) => {
-      if (safeFrom(t.c, sets)) return t.c;
-      let best = t.c, bd = 99;
-      for (let r = .5; r <= 4; r += .5) for (let a = 0; a < 360; a += 15){ const q = add(t.c, at(a, r)); if (safeFrom(q, sets) && r < bd){ bd = r; best = q; } }
-      return best;
+    // q のまわりで、指定の回の円が来ない一番近い所（6人で固まるずれ 0.7 の分も空ける）
+    const nearSafe = (q, sets, maxR = 8) => {
+      if (safeFrom(q, sets)) return q;
+      for (let r = .25; r <= maxR; r += .25) for (let a = 0; a < 360; a += 10){ const c = add(q, at(a, r)); if (safeFrom(c, sets)) return c; }
+      return q;
     };
-    const partySpot = safeIn(partyT, [0, 1, 2]), tankSpot = safeIn(tankT, [0]);
+    // 1回目が爆発するまでは三角のすぐ外（1回目の円が来ない所）で待ち、爆発したら三角の中（2・3回目の円が来ない所）へ
+    const partyPre = nearSafe(partyT.c, [0, 1, 2], 14), partySpot = nearSafe(partyT.c, [1, 2]);
+    const tankPre = nearSafe(tankT.c, [0, 1], 14);
     // MT：1回目の爆発のあと、2・3回目の円が来ないボスに近い所。ST：最外周で、2・3回目の円が来ない所（タンクの三角の方向に近い順）
     const tankDir = OUT_ANG[tankT.i], off = q => Math.abs((angOf(q) - tankDir + 540) % 360 - 180); // タンクの三角の方向からのずれ
     const ringSpots = (d, m) => [...Array(72)].map((_, k) => at(k * 5, d)).filter(q => safeFrom(q, [1, 2], m)).sort((a, b) => off(a) - off(b));
@@ -62,15 +73,15 @@ const P2T = {
     const stSpot = ringSpots(18.8, .4)[0] || at(tankDir, 18.8);
     // 破壊の翼（半面）：光る翼の側。ケフカは北を向いているので、左の翼＝西、右の翼＝東
     const hitSide = p.wingLeft ? -1 : 1;
-    const wingSafe = q => q.x * hitSide < -1 ? q : { x:-hitSide * 2.5, z:Math.max(-17, Math.min(17, q.z)) };
     // ---- 道のり ----
     const center = s => add({ x:0, z:3 }, at(SLOTS.indexOf(s) * 45, 2));
     const route = s => {
-      const t = roleOf(s) === 'T', base = t ? tankSpot : partySpot;
-      const w = [{ until:T.wing, spot:add(wingSafe(base), OFF(s)) }, { until:T.det[0] - .1, spot:add(base, OFF(s)) }];
-      if (t){ w.push({ until:T.det[0] + .05, spot:add(base, OFF(s)) }); w.push({ until:T.det[1] - .1, spot:s === 'MT' ? mtSpot : stSpot }); w.push({ until:T.tb + .1, spot:s === 'MT' ? mtSpot : stSpot }); }
-      else w.push({ until:T.tb + .1, spot:add(base, OFF(s)) });
-      const emb = t ? { x:s === 'MT' ? -.6 : .6, z:-9.5 } : add(base, OFF(s)); // 終末の双腕：タンク2人はボスの北で重なる
+      const t = roleOf(s) === 'T', pre = t ? tankPre : partyPre, o = t ? { x:0, z:0 } : OFF(s);
+      // 半面よけは全員同じ所（安全な側、少し南）。そのあと1回目の三角のすぐ外 → 爆発したら中へ
+      const w = [{ until:T.wing, spot:add({ x:-hitSide * 7, z:3 }, OFF(s)) }, { until:T.det[0] - .1, spot:add(pre, o) }, { until:T.det[0] + .05, spot:add(pre, o) }];
+      if (t){ w.push({ until:T.det[1] - .1, spot:s === 'MT' ? mtSpot : stSpot }); w.push({ until:T.tb + .1, spot:s === 'MT' ? mtSpot : stSpot }); }
+      else { w.push({ until:T.det[1] - .1, spot:add(partySpot, o) }); w.push({ until:T.tb + .1, spot:add(partySpot, o) }); }
+      const emb = t ? { x:s === 'MT' ? -.6 : .6, z:-9.5 } : add(partySpot, o); // 終末の双腕：タンク2人はボスの北で重なる
       w.push({ until:T.emb - .1, spot:emb }, { until:T.end + 9, spot:emb });
       return [{ until:T.spawn[0] + 1.5, spot:center(s) }, ...w];
     };
@@ -138,14 +149,11 @@ const P2T = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
-      // 裁きの光までは赤白のうず、そのあとは床も背景も金色
+      // 背景：裁きの光までは赤白のうず、そのあとは金色（ステージはいつもの暗い床）
       screenBg: t => bgImg(t >= T.loj),
       drawFloor(t){
-        ctx.clearRect(-40, -40, ctx.canvas.width + 80, ctx.canvas.height + 80); ctx.drawImage(floorImg(t >= T.loj), 0, 0);
-        // 三角の頂点の円（茶色の半透明）と、黄色い三角
-        triVisible(t).forEach(x => {
-          x.v.forEach(v => { alpha(.28, () => disc(px(v.x), px(v.z), Math.round(CIR * PPY), '#5a3a10')); ring(px(v.x), px(v.z), Math.round(CIR * PPY), '#7a4a0c'); });
-        });
+        clearOutside();
+        // 黄色い三角（頂点の爆発の範囲は、実機どおり爆発するまで出さない）
         triVisible(t).forEach(x => {
           const fall = Math.max(0, 1 - (t - T.spawn[x.set]) / .6); // 降ってくる（上から）
           ctx.globalAlpha = .5; ctx.fillStyle = '#ffe040'; ctx.beginPath();

@@ -5,10 +5,10 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 
 ## 0. この文書の使い方
 
-- **どのセッションも読み書きしてよい**。新しく決まったこと・わかったことは、その場で追記して育てる。
+- **どのセッション・どの AI（Claude・Gemini など）も読み書きしてよい**。新しく決まったこと・わかったことは、その場で追記して育てる。
 - 追記のしかた：
   - 該当する章に書く。どこにも合わなければ「10. 追記・すり合わせ中」に書く。
-  - 末尾に `（2026-10-08 本番セッション）` のように、日付と書いたセッションを付ける。
+  - 末尾に `（2026-10-08 本番セッション）` `（2026-10-10 Gemini P2）` のように、日付と書いたセッション（AI）を付ける。
   - ユーザーの決定は「決定」、こちらの推定・提案は「推定」「提案」と分けて書く。
 - 食い違いがあったら：**ユーザーの最新の発言 ＞ この文書 ＞ 各ゲームの引き継ぎ資料**。食い違いに気づいたら、勝手に直さずユーザーに確認してから直す。
 - 入口は `docs/README.md`（環境・作業の流れ・今の状態）。各ゲーム固有の仕様は `docs/<ゲーム>/` に書く（絶妖星乱舞なら `docs/dmu/spec.md`・`history.md`・`research-*.md`）。この文書には「どのゲームでも使う考え方」を書く。
@@ -43,10 +43,11 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 
 ### コミットと公開
 - **コミット・プッシュは、ユーザーの OK をもらってから**。途中の確認は「開発版に出していい？」と聞いて `dev` にプッシュし、開発版の住所で見てもらう。本番（`main`）へは「確定」「本番に出していい」と言われてから。
-- Stop hook の「コミットして」は、この約束の方が優先。そのたびに「まだコミットしていない理由」を1〜2行で返す。
+- 道具の側（Claude の Stop hook など）から「コミットして」と促されても、この約束の方が優先。そのたびに「まだコミットしていない理由」を1〜2行で返す。
 - `main` へのプッシュ＝公開（Cloudflare Pages。移行中は GitHub Pages も）。プッシュしたら、公開が終わったか（curl で新しいファイル名が出るか）まで確認して伝える。
 - 本番に出すたびに、お知らせ（`src/news.ts`）のいちばん上に1件足す（日本時間・分まで。遊ぶ人向けの短い言葉で）。
-- ブランチは `main`（本番）と `dev`（開発）の2本だけ。作業の前に必ず `dev` の最新を取り込む。本番に出すときは `dev` を `main` に取り込む。
+- ブランチは `main`（本番）と `dev`（開発）が基本。作業の前に必ず `dev` の最新を取り込む。本番に出すときは `dev` を `main` に取り込む。
+- 新しいフェーズを、ほかの作業と並行して長く作るときだけ、作業用のブランチ（例：`p2-dev`）を `dev` から作る。完成したら `dev` に取り込んで消す。それ以外のブランチは作らない。
 - 1つの修正 = 1つのコミット。コミットメッセージは日本語で「何をどう変えたか」。リポジトリにモデル名を書かない。
 
 ### 資料のもらい方
@@ -175,10 +176,10 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 
 - Vite + TypeScript + PWA。`npm run check`（型チェック）、`npm run build`（`dist/`）、`npm run build:artifact`（1枚の HTML、`dist-artifact/`）。
 - 公開：`main` へのプッシュで Cloudflare Pages（https://dancing-mad-sim.pages.dev/、プロジェクト `dancing-mad-sim`）が自動でビルドして公開する。移行中は GitHub Actions → GitHub Pages（https://trishu486-droid.github.io/Exaflare/）も同じ中身で更新される。
-- 開発版：`dev` へのプッシュで Cloudflare のプレビュー（`dev.dancing-mad-sim.pages.dev` の予定）に出る。Artifact は使わない方針（Artifact の中ではランキングとお問い合わせが動かない）。
+- 開発版：`dev` へのプッシュで Cloudflare のプレビュー（https://dev.dancing-mad-sim.pages.dev/ ）に出る。作業用ブランチ（`p2-dev` など）も、Cloudflare のプレビューのブランチに足せば `https://<ブランチ名>.dancing-mad-sim.pages.dev/` で見られる。Artifact は使わない方針（Artifact の中ではランキングとお問い合わせが動かない）。
 - 公開先・容量について：Cloudflare Pages の無料枠は通信量実質無制限・1サイト2万ファイル。今は約1.2MB。容量よりも、人気が出たときの Firebase の読み込み回数（1日5万回）と、コンテンツが増えたときの最初の読み込みの重さに気をつける。
 - ギミック1つ = `gen()`（毎回のランダムな問題）と `create()`（その回の進行）。`create()` は `end`・`casts`・`tick(t)`（判定）・`draw(t)`／`drawFloor(t)`（描画）・`safe()`／`guide()`（補助表示）・`status()`（デバフ）・`enmity()`（敵視）・`progress()` などを返す。通し（`mech_run.ts`）は各ギミックを実戦の時刻に並べて呼ぶ。
-- テスト用：`?debug` で `window.__T`（`S`, `opt`, `begin`, `pressKey`, `hurt` など）。Playwright は `require('/opt/node22/lib/node_modules/playwright')`、ブラウザは `/opt/pw-browsers/chromium`。外部サイトへの通信は証明書エラーになることがあるので `ignoreHTTPSErrors:true`、ランキングは `page.route` で偽のデータを返して確かめる。
+- テスト用：`?debug` で `window.__T`（`S`, `opt`, `begin`, `pressKey`, `hurt` など）。Claude のクラウド環境では、Playwright は `require('/opt/node22/lib/node_modules/playwright')`、ブラウザは `/opt/pw-browsers/chromium`。外部サイトへの通信は証明書エラーになることがあるので `ignoreHTTPSErrors:true`、ランキングは `page.route` で偽のデータを返して確かめる。
 - ランキング：Firebase（Firestore）の REST API。ルールは `docs/firestore.rules`（新しいギミック・フェーズを足すときはここにも足して Firebase に反映）。登録日時はサーバーの `created_at`。
 - お知らせ：`src/news.ts` の `NEWS`（新しい順）。未読は端末に保存した日時と比べる。
 - お問い合わせ：Google フォームへ `no-cors` で送る（`src/contact.ts`、入力欄の ID はユーザーのフォームのもの。触らない）。届くとユーザーにメールが行く。

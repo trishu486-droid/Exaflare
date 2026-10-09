@@ -1,7 +1,7 @@
 # 資料の入口
 
 FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シミュレーター」のリポジトリ。
-**どのセッションも、作業の前にこの資料を読む。** そのあと `common-spec.md` → `dmu/spec.md` の順に読む。
+**どのセッション・どの AI（Claude・Gemini など）も、作業の前にこの資料を読む。** そのあと `common-spec.md` → `dmu/spec.md` の順に読む。
 
 ## 1. 読む順番と資料の地図
 
@@ -24,9 +24,11 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 | **本番（メイン）** | https://dancing-mad-sim.pages.dev/ （Cloudflare Pages、プロジェクト名 `dancing-mad-sim`） | `main` ブランチの最新。プッシュで自動更新（1〜2分） |
 | 本番（旧住所・移行中） | https://trishu486-droid.github.io/Exaflare/ （GitHub Pages） | 移行が終わったら「移転しました」の案内だけにする |
 | **開発版** | https://dev.dancing-mad-sim.pages.dev/ （Cloudflare のプレビュー） | `dev` ブランチの最新。確定前の確認用 |
+| **P2 の作業場所** | https://p2-dev.dancing-mad-sim.pages.dev/ （Cloudflare のプレビュー。ユーザーが設定に `p2-dev` を足したら見られる） | `p2-dev` ブランチの最新。P2 ができるまでの途中経過 |
 | リポジトリ | GitHub `trishu486-droid/Exaflare`（名前は変更予定） | 公開中。移行が終わったら非公開にする予定 |
 
-- **ブランチは `main`（本番）と `dev`（開発）の2本だけ**。ほかのブランチは作らない（2026-10-09 に整理）。
+- **ブランチは `main`（本番）・`dev`（開発）と、P2 を作っている間だけの `p2-dev`**。ほかのブランチは作らない（2026-10-09 に整理・`p2-dev` を追加）。Jules がプルリクエスト用に作るブランチは、取り込んだら消す。
+- Claude のクラウド環境からはブランチを消せない（プロキシが止める）。消すときはユーザーに GitHub の画面（Code → branches → ゴミ箱）で消してもらう。
 - ランキング：Firebase（Firestore、プロジェクト `kefka-d3de5`）。お問い合わせ：Google フォーム（届くとユーザーにメール）。アクセス解析：Cloudflare Web Analytics と Google Search Console。どれも住所が変わってもそのまま動く。
 - Artifact（claude.ai）は使わない方針（開発版は Cloudflare のプレビューで見る）。Artifact の中ではランキングとお問い合わせが動かない。
 
@@ -38,8 +40,22 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 4. **「確定」をもらったら本番へ**：`src/news.ts` の `NEWS` のいちばん上にお知らせを1件足す（文書だけの変更なら不要）→ `dev` にコミット → `main` に `dev` を取り込んで（`git checkout main && git merge --ff-only dev`）プッシュ → 公開を確認。
 5. **公開の確認**：`curl -s https://dancing-mad-sim.pages.dev/ | grep -o 'assets/index-[^"]*'` が、手元の `npm run build` の `dist/assets/index-*.js` と同じ名前になるか。この環境のブラウザは外のサイトを開くと証明書エラーになることがあるので、確認は curl で。
 
-- **コミット・プッシュは、ユーザーの OK をもらってから**。Stop hook に「コミットして」と言われても、その理由を1〜2行で返して待つ。
-- **開発するセッションは同時に1つ**が基本。2つ動かすときは、作業の前に必ず `dev` の最新を取り込み、共通の部分（`style.css`・`index.html`・`menu.ts`・`input.ts`・`action.ts`・`p4ui.ts`）を大きく変えるときは先にユーザーに言う。
+- **コミット・プッシュは、ユーザーの OK をもらってから**。道具の側（Claude の Stop hook など）に「コミットして」と促されても、その理由を1〜2行で返して待つ。
+- 2つ以上の AI・セッションが同時に動くときは、作業の前に必ず最新を取り込み、共通の部分（`style.css`・`index.html`・`menu.ts`・`input.ts`・`action.ts`・`p4ui.ts`・`hud.ts`・`game.ts`）を大きく変えるときは先にユーザーに言う。
+
+### 担当（2026-10-09〜）
+
+| 担当 | 何をする | ブランチ |
+|---|---|---|
+| Claude（Claude Code） | 細かい修正・調整・資料 | `dev` → 確定で `main` |
+| Gemini（Jules） | P2 をゼロから作る | `p2-dev`（Jules のプルリクエストは `p2-dev` 向け） |
+
+**P2 の流れ**
+1. Jules でタスクを始めるとき、ブランチに `p2-dev` を選ぶ。Jules は自分のブランチを作り、`p2-dev` 向けのプルリクエストを出す。
+2. ユーザーが GitHub でプルリクエストを取り込む（Merge）→ `p2-dev` の住所で確認。取り込んだ Jules のブランチは消す。
+3. P2 の作業中も、ときどき `dev` の最新を `p2-dev` に取り込む（細かい修正とのずれを小さく保つ）。
+4. P2 ができたら：`dev` の最新を `p2-dev` に取り込む → `p2-dev` を `dev` に取り込む → 開発版で確認 → 「確定」で `main` へ（お知らせを1件）。終わったら `p2-dev` を消す。
+5. P2 はフェーズを足すときの決まり（`common-spec.md` 7 章・10 章）に従う。新しいフェーズはランキング対象外から始める。
 
 ## 4. 今の状態（2026-10-09）
 

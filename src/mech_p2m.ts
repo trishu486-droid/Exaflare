@@ -22,7 +22,7 @@ const isRanged = k => ['H1', 'H2', 'D3', 'D4'].includes(k);
 const roleOf = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
 
 // ---- 時刻 ----
-const T = {
+const T_BASE = {
   embCast:3.1, emb:8.1, forsCast:16.3, fors:23.3, mark0:23.8,
   tower:[36.5, 46.4, 57.4, 67.4, 78.5, 88.5, 99.4, 109.4], // 光の波動（塔の判定）。スペルハザードの発動は HIT 秒後
   fp:[45.8, 66.7, 88.0, 108.7],                             // 未来／過去の終焉（詠唱完了。円の着弾は偶数回の塔と同時）
@@ -91,7 +91,7 @@ const bgImg = gold => {
 };
 
 const P2M = {
-  id:'p2m', name:'ミッシング', sub:'終末の双腕〜裁きの光（ヤーン 優先順）', view:24, start:{ x:-7, z:1 }, slots:true,
+  id:'p2m', name:'ミッシング', sub:'ミッシング〜裁きの光（ヤーン 優先順）', view:24, start:{ x:-7, z:1 }, slots:true,
   gen(){
     const thStack = pick(TH), dStack = pick(DPS);
     return {
@@ -105,6 +105,9 @@ const P2M = {
   },
   create(p){
     const me = p.me;
+    // ミッシングだけの練習は、ミッシングの詠唱の1秒前から（終末の双腕は通しのときだけ。p.withEmb）。時刻をまとめてずらす
+    const SH = p.withEmb ? 0 : T_BASE.forsCast - 1;
+    const T = Object.fromEntries(Object.entries(T_BASE).map(([k, v]) => [k, Array.isArray(v) ? v.map(x => x - SH) : v - SH]));
     // ---- 組と予兆の流れ（計画どおり。味方はこのとおりに動く） ----
     const A = [p.thStack, PAIR[p.thStack], p.dStack, PAIR[p.dStack]], B = SLOTS.filter(k => !A.includes(k));
     const soakers = k => (k === 1 || k === 2 || k === 3 || k === 8 ? A : B).slice().sort((a, b) => SLOTS.indexOf(a) - SLOTS.indexOf(b));
@@ -150,12 +153,12 @@ const P2M = {
     };
     // ---- 道のり：「この時刻までにここ」の列（味方は着く時刻がギリギリになるように動き出す） ----
     const embSpot = s => s === 'MT' ? { x:-.6, z:-8.6 } : s === 'ST' ? { x:.6, z:-8.6 } : add({ x:0, z:8 }, OFF(s));
-    // ミッシング前：西にタンヒラ、東に DPS。ペアは隣どうし、ペアどうしは少し離して、誰に何が付いたか見えるように
-    const STANDBY = { MT:{ x:-6.5, z:-3 }, H1:{ x:-10, z:-3 }, ST:{ x:-6.5, z:3 }, H2:{ x:-10, z:3 },
-      D1:{ x:6.5, z:-3 }, D3:{ x:10, z:-3 }, D2:{ x:6.5, z:3 }, D4:{ x:10, z:3 } };
+    // ミッシング前の散開：中央より少し南に縦2・横4（上の段 MT ST D1 D2、下の段 H1 H2 D3 D4。ペアは縦に並ぶ）。誰に何が付いたか見えるように
+    const STANDBY = { MT:{ x:-6, z:3 }, ST:{ x:-2, z:3 }, D1:{ x:2, z:3 }, D2:{ x:6, z:3 },
+      H1:{ x:-6, z:7 }, H2:{ x:-2, z:7 }, D3:{ x:2, z:7 }, D4:{ x:6, z:7 } };
     const standby = s => STANDBY[s];
     const route = s => {
-      const w = [{ until:T.emb + .3, spot:embSpot(s) }, { until:T.mark0, spot:standby(s) }];
+      const w = p.withEmb ? [{ until:T.emb + .3, spot:embSpot(s) }, { until:T.mark0, spot:standby(s) }] : [{ until:T.mark0, spot:standby(s) }];
       for (let k = 1; k <= 8; k++){
         const q = abs(relSpot(k, s), k);
         if (k % 2 && k >= 3){
@@ -181,7 +184,7 @@ const P2M = {
       const curS = R[n - 1].spot, nx = R[n].spot;
       return t >= R[n].until - dist(curS, nx) / BOT_SPEED - .05 ? nx : curS;
     };
-    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...embSpot(k) }));
+    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...(p.withEmb ? embSpot(k) : standby(k)) }));
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
 
     // ---- 判定の状態 ----
@@ -260,13 +263,13 @@ const P2M = {
       efx.push({ k:'leg', t:S.t, j }); sfx.big(); fxShake(5, .35); fxFlash('#ffd8a0', .3, .15);
     };
     const events: [number, () => void][] = [
-      [T.emb, () => {
+      ...(p.withEmb ? [[T.emb, () => {
         const tanks = ['MT', 'ST'].map(pos), c = { x:(tanks[0].x + tanks[1].x) / 2, z:(tanks[0].z + tanks[1].z) / 2 };
         if (roleOf(me) === 'T'){
           if (dist(pos('MT'), pos('ST')) > EMB_R) hurt('終末の双腕：タンク2人で重なっていない'); // 軽減のボタンはまだない（P2 のタンクのボタンは攻撃だけ）
         } else if (dist(S.player, c) <= EMB_R) hurt('終末の双腕（タンクの頭割り）に入った');
         FXK.flare(c.x, c.z, EMB_R); sfx.big();
-      }],
+      }]] : []),
       [T.fors, () => { healerHit(60000, 'ミッシング'); fxFlash('#ffffff', .45, .2); sfx.big(); fxShake(4, .3); }],
       ...T.tower.flatMap((tt, i) => [[tt, () => towerSnap(i + 1)], [tt + HIT, () => spellFire(i + 1)]]),
       ...T.leg.flatMap((lt, j) => [[lt - LEG_LEN, () => legCast(j)], [lt, () => legFire(j)]]),
@@ -288,11 +291,11 @@ const P2M = {
     const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 10, px(q.z) - 30, 20, 20); };
 
     return {
-      start: { ...embSpot(me) },
+      start: { ...(p.withEmb ? embSpot(me) : standby(me)) }, // ミッシングだけのときは、最初から整列している
       intro:`あなたは ${me}（${A.includes(me) ? '先に塔：1・2・3・8回目' : '後に塔：4・5・6・7回目'}）`,
       end:T.end,
       casts:[
-        { name:'終末の双腕', start:T.embCast, len:T.emb - T.embCast },
+        ...(p.withEmb ? [{ name:'終末の双腕', start:T.embCast, len:T.emb - T.embCast }] : []),
         { name:'ミッシング', start:T.forsCast, len:T.fors - T.forsCast },
         ...T.fp.map((f, j) => ({ name:p.fp[j] === 'future' ? '未来の終焉' : '過去の終焉', start:f - FP_LEN, len:FP_LEN })),
         ...T.leg.map(l => ({ name:'消滅の脚', start:l - LEG_LEN, len:LEG_LEN })),
@@ -300,7 +303,7 @@ const P2M = {
       ],
       progress: t => {
         const n = T.tower.findIndex(x => t < x + HIT);
-        return t < T.fors ? '終末の双腕・ミッシング' : n >= 0 ? `塔 ${n + 1}／8` : t < T.loj ? '最後の消滅の脚・裁きの光' : '終了';
+        return t < T.fors ? (p.withEmb ? '終末の双腕・ミッシング' : 'ミッシング') : n >= 0 ? `塔 ${n + 1}／8` : t < T.loj ? '最後の消滅の脚・裁きの光' : '終了';
       },
       status(t){
         const s = [];

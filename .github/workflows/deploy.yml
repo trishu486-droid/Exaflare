@@ -1,8 +1,9 @@
-# プッシュのたびに型チェック → ビルド → GitHub Pages に公開する
+# main へのプッシュのたびに型チェック → ビルド → GitHub Pages（旧住所）に公開する
+# 本番は Cloudflare Pages（dancing-mad-sim.pages.dev）。GitHub Pages は移行期間だけ。リポジトリを非公開にするときにこのファイルを消す
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [claude/ff14-exaflare-trainer-3ssqps, main]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

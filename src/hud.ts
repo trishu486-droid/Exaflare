@@ -196,7 +196,7 @@ function drawButtons(){
   hpDraw(); enmityDraw();
   // 左上はバフ・デバフのアイコンだけ。上段＝デバフ（ギミックで付くもの）、下段＝バフ（自分で使ったもの）
   const icon = (art, name, n) => `<i title="${name}">${buffIcon(art)}<b>${n}</b></i>`;
-  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.icon ? `<i title="${x.name}"><img class="pxi" src="${p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
+  const debuffs = st.filter(x => x && (x.art || x.glyph || x.icon || x.img)).map(x => x.icon || x.img ? `<i title="${x.name}"><img class="pxi" src="${x.img || p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');

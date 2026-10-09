@@ -10,7 +10,7 @@ import { applyTitle } from './hud.js';
 import { begin } from './game.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
-const PHASES = [['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
+const PHASES = [['p2', 'P2', 'ゴッドケフカ'], ['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
   const list = $('menuList');
@@ -51,7 +51,7 @@ function renderMenu(){
     }).join('');
     return;
   }
-  // ギミック一覧（選んだフェーズの分）。左右で P3／P4／P5 を切り替え
+  // ギミック一覧（選んだフェーズの分）。左右で P2／P3／P4／P5 を切り替え
   head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ギミック選択（${job().name}） ${opt.phase.toUpperCase()} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
   note.textContent = 'A／STARTで開始　Y／iで解説　←→でフェーズ切替';
 
@@ -109,8 +109,8 @@ function moveCursor(d, horiz = false){
   if (S.menu === 'job' && !horiz) d *= 2;
   S.cursor = (S.cursor + d + menuCount()) % menuCount();
   renderMenu(); sfx.unlock(); sfx.cursor(); }
-// ギミック一覧で左右：P3 → P4 → P5 → P3 の順に切り替え（d＝1 で右、-1 で左）
-const PAGES = ['p3', 'p4', 'p5'];
+// ギミック一覧で左右：P2 → P3 → P4 → P5 → P2 の順に切り替え（d＝1 で右、-1 で左）
+const PAGES = ['p2', 'p3', 'p4', 'p5'];
 function flipPage(d = 1){ const i = Math.max(0, PAGES.indexOf(opt.phase)); openMechs(PAGES[(i + d + PAGES.length) % PAGES.length]); sfx.unlock(); sfx.cursor(); }
 
 export { renderMenu, menuCount, infoTarget, openJobs, openPhases, openMechs, needOrchN, openOrchN, menuConfirm, menuBack, moveCursor, flipPage };

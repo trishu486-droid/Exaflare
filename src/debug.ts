@@ -7,8 +7,8 @@ import { A, HP, pressKey, actTick, hasInvuln } from './action.js';
 import { job } from './jobs.js';
 import { sfx, BGM_TRACKS } from './audio.js';
 import { begin } from './game.js';
-import { hurt } from './gfx.js';
+import { hurt, misses } from './gfx.js';
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
-if (DEBUG) window.__T = { S, opt, MECHS, RUN, A, HP, pressKey, actTick, job, hasInvuln, keys, sfx, BGM_TRACKS, begin, hurt };
+if (DEBUG) window.__T = { S, opt, MECHS, RUN, A, HP, pressKey, actTick, job, hasInvuln, keys, sfx, BGM_TRACKS, begin, hurt, misses };
 export { DEBUG };

@@ -519,9 +519,7 @@ const P3A0 = (() => {
             const X = px(S.player.x), Z = px(S.player.z), c = (Math.floor(performance.now() / 160) & 1) ? P.exaHi : P.exa;
             [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dz]) => { for (let i = 0; i < 6; i++){ const bx = X + dx * (10 + i), bz = Z + dz * (10 + i); rect(bx - dz * i - 1, bz - dx * i - 1, 2, 2, c); rect(bx + dz * i - 1, bz + dx * i - 1, 2, 2, c); } });
           }
-          // 向き（真空波の判定に使う）：足元の黄色い三角
-          const f = S.face || { x:0, z:-1 }, X = px(S.player.x), Z = px(S.player.z);
-          for (let i = 0; i < 4; i++) line(X + f.x * (12 + i) - f.z * (3 - i), Z + f.z * (12 + i) + f.x * (3 - i), X + f.x * (12 + i) + f.z * (3 - i), Z + f.z * (12 + i) - f.x * (3 - i), '#ffe070');
+          // 向き（真空波の判定に使う）は hud.ts の足元の輪（全フェーズ共通）
         },
       };
     }

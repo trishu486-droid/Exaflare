@@ -3,6 +3,7 @@ import { JOBS, job } from './jobs.js';
 import { opt } from './store.js';
 import { A, curBoss, fxEl, hasInvuln, hasMit } from './action.js';
 import { S } from './state.js';
+import { img, jobIconUrl } from './icons.js';
 import { sfx } from './audio.js';
 
 // ===== 画面（内部 288px。1y あたりのピクセル数はギミックごとに変える） =====
@@ -97,14 +98,18 @@ const ICON = {
 };
 const ROLE_COLOR = { tank:['#2a4aa0', '#3a64c8', '#18306a'], healer:['#2a7a3a', '#3a9a4a', '#18502a'],
   melee:['#9a2a3a', '#b83a4a', '#6a1a28'], ranged:['#9a2a3a', '#b83a4a', '#6a1a28'], caster:['#9a2a3a', '#b83a4a', '#6a1a28'] };
-function jobIconSvg(id){
-  const role = JOBS[id].role, [bg, hi] = ROLE_COLOR[role];
-  let r = `<rect x="1" y="0" width="13" height="15" fill="#d8b060"/><rect x="0" y="1" width="15" height="13" fill="#d8b060"/>` +
-    `<rect x="2" y="1" width="11" height="13" fill="${bg}"/><rect x="1" y="2" width="13" height="11" fill="${bg}"/><rect x="2" y="1" width="11" height="3" fill="${hi}"/>`;
-  ICON[id].forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x') r += `<rect x="${2 + i}" y="${2 + j}" width="1" height="1" fill="#f4d888"/>`; }));
-  return `<svg viewBox="0 0 15 15" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
-}
+// ジョブアイコン（8bit の線画・28×28。src/icons.ts）。名前は SVG だったころのまま
+function jobIconSvg(id){ return `<img class="jic" src="${jobIconUrl(id)}" alt="">`; }
 function drawIcon(X, Z, hurt){
+  // ジョブアイコン（15×15 の線画）。読み込み前だけ下の手描きのタイル
+  const im = img(jobIconUrl(opt.job, true));
+  if (im){
+    ctx.drawImage(im, X - 7, Z - 7, 15, 15);
+    if (hurt) alpha(.55, () => rect(X - 7, Z - 7, 15, 15, '#ff2a3a'));
+    if (hasInvuln()) ring(X, Z, 10, '#ffd84a');
+    else if (hasMit()) ring(X, Z, 10, '#5ab0ff');
+    return;
+  }
   const [bg, hi, lo] = hurt ? ['#ff2a3a', '#ff6a6a', '#a01020'] : ROLE_COLOR[job().role];
   const rim = hurt ? '#ffe066' : '#d8b060', fg = hurt ? '#ffffff' : '#f4d888', sh = lo;
   // 角丸タイル：金の縁 → ロール色（上半分を少し明るく、下端を暗く）
@@ -161,59 +166,61 @@ function drawField(){
 }
 
 // ボス：塗りつぶしのターゲットサークル + 正面の三角（北向き）
+// ===== 敵のターゲットサークル（実機寄り・2026-10-13 ユーザーが A案に決定） =====
+// 二重の赤い輪（背面は開いている）＋内側の細い輪、側面に正面向きの小さな「＾」、正面にしずく型の印。
+// ターゲット中は外側を白で縁取る。face：正面の向き（ラジアン、画面の右＝0・下＝+）
+const TC_ON = '#ff4a5a', TC_OFF = '#a82a3a', TC_FILL = '#e8283a', TC_IN_ON = '#ffd0d8', TC_IN_OFF = '#c87080';
+const TC_BACK = Math.PI / 4.2; // 背面の開き（片側）
+const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+function tcRing(X, Z, R, face, on){
+  const back = a => Math.abs(angDiff(a, face + Math.PI)) < TC_BACK, c = on ? TC_ON : TC_OFF, c2 = on ? TC_IN_ON : TC_IN_OFF;
+  alpha(on ? .16 : .08, () => disc(X, Z, R, TC_FILL));
+  const arc = (r, col, skip) => { const n = Math.max(60, Math.round(r * 9)); ctx.fillStyle = col; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; if (skip(a)) continue; ctx.fillRect(Math.round(X + Math.cos(a) * r), Math.round(Z + Math.sin(a) * r), 1, 1); } };
+  if (on) arc(R + 1, '#fff0f4', back);
+  arc(R, c, back); arc(R - 1, c, back);
+  arc(R - 3, c2, a => back(a) || Math.abs(angDiff(a, face)) < .25);
+  // 背面の開きの端：小さな四角
+  [1, -1].forEach(sd => { const a = face + Math.PI + sd * TC_BACK; rect(Math.round(X + Math.cos(a) * R) - 1, Math.round(Z + Math.sin(a) * R) - 1, 3, 3, c); });
+  // 側面：輪の内側に、正面を向いた小さな「＾」
+  [1, -1].forEach(sd => {
+    const a = face + sd * Math.PI / 2, ux = Math.cos(a), uz = Math.sin(a), fx = Math.cos(face), fz = Math.sin(face), tx = X + ux * (R - 6), tz = Z + uz * (R - 6);
+    for (let k = 0; k < 3; k++) for (const s of [1, -1]) rect(Math.round(tx + fx * (1 - k) + ux * k * s), Math.round(tz + fz * (1 - k) + uz * k * s), 1, 1, c2);
+  });
+}
+// 正面のしずく（ボスの絵より手前に描く）
+function tcTip(X, Z, R, face, on){
+  const fx = Math.cos(face), fz = Math.sin(face), nx = -fz, nz = fx;
+  const tri = (tip, base, hw) => [[X + fx * tip, Z + fz * tip], [X + fx * base + nx * hw, Z + fz * base + nz * hw], [X + fx * base - nx * hw, Z + fz * base - nz * hw]];
+  fillTri(tri(R + 9, R - 2.5, 5.5), '#101018');
+  fillTri(tri(R + 7.5, R - 1.5, 3.8), on ? '#fff0f4' : '#ff7a8a');
+  fillTri(tri(R + 4, R - 1, 1.6), on ? TC_ON : TC_OFF);
+}
+// ボスが1体（中央・北向き）：P4・P5 など
 function drawBoss(){
   if (S.inst?.bosses){ drawBosses(); return; }
-  const R = BOSS_R * PPY;
-  alpha(.6, () => disc(C0, C0, R, P.boss));
-  ring(C0, C0, R, P.bossEdge);
-  alpha(.5, () => ring(C0, C0, R - 6, P.bossEdge));
-  for (let i = 0; i < 5; i++) line(C0 - i, C0 - R - 4 + i, C0 + i, C0 - R - 4 + i, P.bossTip);
+  const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY), face = -Math.PI / 2;
+  tcRing(C0, C0, R, face, true); tcTip(C0, C0, R, face, true);
   if (performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
 }
 
-// ボスが2体（P3）：それぞれのターゲットサークル。ターゲット中のボスは太い枠と頭上の矢印
-// 2 体ボス（P3）のターゲットサークル：赤いリング（前後左右に切れ目）＋薄い塗り。ターゲット中は明るい赤
-const TC_ON = '#ff4a5a', TC_OFF = '#a82a3a', TC_FILL = '#e8283a', TC_GAP = 9 * Math.PI / 180;
-// 2体のボスは、ターゲットしている方を最後に（最前面に）描く
+// ボスが2体（P3）：ターゲットしている方を最後に（最前面に）描く。正面の印とターゲットのピンは drawBossFace（ボスの絵の後）
 const targetLast = list => { const id = curBoss().id; return [...list].sort((a, b) => (a.id === id ? 1 : 0) - (b.id === id ? 1 : 0)); };
 function drawBosses(){
   const cur = curBoss(), flash = performance.now() - A.bossFlash < 90;
   targetLast(S.inst.bosses(S.t)).forEach(b => {
-    const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id, c = on ? TC_ON : TC_OFF;
-    alpha(on ? .22 : .12, () => disc(X, Z, R, TC_FILL));
-    const f0 = b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2;
-    const n = Math.max(48, Math.round(R * 8));
-    for (let i = 0; i < n; i++){
-      const a = i / n * Math.PI * 2, d = Math.abs(((a - f0) % (Math.PI / 2) + Math.PI / 2) % (Math.PI / 2));
-      if (d < TC_GAP || d > Math.PI / 2 - TC_GAP) continue; // 前後左右の切れ目
-      const cx = Math.cos(a), cz = Math.sin(a), dot = (rr, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(X + cx * rr), Math.round(Z + cz * rr), 1, 1); };
-      if (on){ dot(R + 1, P.white); dot(R - 2, P.white); } // ターゲット中のボスだけ、リングの内と外を白で縁取る
-      for (let w = 0; w < 2; w++) dot(R - w, c);
-    }
-    // 左右の切れ目に外向きの「＾」
-    [1, -1].forEach(sd => {
-      const a = f0 + sd * Math.PI / 2, ux = Math.cos(a), uz = Math.sin(a), vx = -uz, vz = ux;
-      const tx = X + ux * (R + 2), tz = Z + uz * (R + 2);
-      for (const s of [1, -1]) line(tx, tz, tx - ux * 2 + vx * 2 * s, tz - uz * 2 + vz * 2 * s, c);
-    });
+    const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id;
+    tcRing(X, Z, R, b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2, on);
     if (on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
   });
 }
 
-// ボスの正面（ヘイトを持っているタンクの方）：リングの外へ突き出た細長い三角。
-// ターゲット中のボスには頭上に白いしずく型のマーカー。ボスの絵より手前に描く（ギミックの draw から呼ぶ）
+// ボスの正面（ヘイトを持っているタンクの方）のしずくと、ターゲット中のボスの頭上の白いピン。ボスの絵より手前に描く（ギミックの draw から呼ぶ）
 function fillTri(pts, c){
   ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(q => ctx.lineTo(q[0], q[1])); ctx.closePath(); ctx.fill();
 }
 function drawBossFace(b){
   const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === curBoss().id;
-  if (b.face){
-    const L = Math.hypot(b.face.x, b.face.z) || 1, fx = b.face.x / L, fz = b.face.z / L, nx = -fz, nz = fx;
-    const tri = (tip, base, hw) => [[X + fx * tip, Z + fz * tip], [X + fx * base + nx * hw, Z + fz * base + nz * hw], [X + fx * base - nx * hw, Z + fz * base - nz * hw]];
-    fillTri(tri(R + 12.5, R - 2.5, 7.5), '#101018');           // 黒ふち
-    fillTri(tri(R + 11, R - 1, 6), on ? P.white : '#ff6a7a');
-    fillTri(tri(R + 7, R + .5, 2.5), TC_FILL);
-  }
+  if (b.face) tcTip(X, Z, R, Math.atan2(b.face.z, b.face.x), on);
   if (on){ // しずく型のピン（丸が上・先が下）
     const cy = Z - R - 15;
     fillTri([[X, cy + 9], [X - 5, cy + 1], [X + 5, cy + 1]], '#101018');

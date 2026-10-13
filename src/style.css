@@ -70,7 +70,8 @@ canvas:focus{outline:none}
 .enmity .rk{width:14px;text-align:center;font-weight:400}
 .enmity .rk.a{color:#ff7a9a}.enmity .rk.n{color:#f0d060}
 .enmity .ej{display:flex;flex-direction:column;gap:2px;width:26px}
-.enmity .ej svg{width:26px;height:26px}
+.enmity .ej svg,.enmity .ej img{width:26px;height:26px}
+.jic{image-rendering:pixelated;display:block}
 .enmity .ebar{display:block;height:4px;background:#222;box-shadow:0 0 0 1px #000}
 .enmity .ebar i{display:block;height:100%}
 .enmity .en{min-width:3.5em}
@@ -78,7 +79,7 @@ canvas:focus{outline:none}
 .buff{position:absolute;left:8px;top:6px;font-size:16px;color:var(--gold);pointer-events:none;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
 .buff span{display:flex;align-items:center;gap:5px}
 .buff svg{width:1.35em;height:1.35em;flex:none;box-shadow:0 0 0 2px #000}
-.buff .bufrow{display:flex;gap:6px}
+.buff .bufrow{display:flex;gap:6px;flex-wrap:wrap}
 .buff .bufrow i{display:flex;flex-direction:column;align-items:center;font-style:normal;gap:2px}
 .buff .bufrow svg{width:clamp(22px,6.5vw,28px);height:clamp(26px,7.6vw,33px);box-shadow:none;filter:drop-shadow(0 1px 0 #000)}
 .buff .bufrow b{font-weight:400;color:#8af0a0;font-size:.95em;line-height:1;text-shadow:0 0 3px #0a4a1a,1px 1px 0 #000}
@@ -118,18 +119,28 @@ canvas:focus{outline:none}
 .menu button.secret{border-color:#b05aff;background:#1e1030}
 .menu button.wip{opacity:.45}
 .menu .head.blink{animation:blink .3s steps(2,start) infinite}
-.menu .jobgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(84%,360px)}
+.menu .jobgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;width:min(84%,360px)}
 .menu .jobgrid button{width:100%;position:relative;padding-left:18px}
 /* ジョブ選択はボタンが狭いので、▶ は左の余白に重ねて、名前が折り返さないように */
 .menu .jobgrid button span{white-space:nowrap}
-.menu .jobgrid button.cur>span:first-child::before{position:absolute;left:4px;top:50%;transform:translateY(-50%);margin:0}
+.menu .jobgrid button.cur>span:first-of-type::before{position:absolute;left:4px;top:50%;transform:translateY(-50%);margin:0}
+/* ジョブ選択：ロールの色（タンク青・ヒーラー緑・DPS 赤）と左のジョブアイコン */
+.menu .jobgrid button{align-items:center;justify-content:flex-start}
+.menu .jobgrid button small{margin-left:auto}
+.menu .jobgrid .jic{width:24px;height:24px;flex:none}
+.menu .jobgrid button{min-width:0;gap:4px;padding-left:15px;padding-right:5px}
+.menu .jobgrid button small{flex:none}
+.menu .jobgrid button.r-tank{background:#141c3a;border-color:#2e4aa8}
+.menu .jobgrid button.r-heal{background:#13281a;border-color:#2e7a3a}
+.menu .jobgrid button.r-dps{background:#2a1418;border-color:#8a2e3a}
+.menu .jobgrid button.cur{border-color:var(--gold)}
 .menu button small{font-size:.7em;color:var(--dim);align-self:center;text-align:right;margin-left:auto}
 /* 名前は折り返さない（せまいときは副題のほうを、かたまりごとに折り返す） */
-.menu button>span:first-child{white-space:nowrap}
+.menu button>span:first-of-type{white-space:nowrap}
 .menu button small+.i{margin-left:0}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
 /* ▶ は名前の頭につける（ボタンの左右振り分けに混ぜると、名前との間が大きく空く） */
-.menu button.cur>span:first-child::before{content:"▶";margin-right:4px}
+.menu button.cur>span:first-of-type::before{content:"▶";margin-right:4px}
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dmg{position:absolute;transform:translate(-50%,0);font-size:16px;color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
 .dmg.crit{color:var(--gold);font-size:16px}
@@ -186,7 +197,10 @@ canvas:focus{outline:none}
 .gb.p4on .chatlog{position:relative;z-index:5}
 .gb.p4on .field{position:absolute;left:50%;top:calc(var(--p4band) + var(--p4area) / 2);width:min(100%, calc(var(--p4area) * 48 / 43));transform:translate(-50%,-50%)}
 .gb.p4on .side{position:absolute;top:0;width:auto;height:var(--p4band);padding:4px 8px 0}
-.gb.p4on .side.l{left:0}.gb.p4on .side.r{right:0;align-items:flex-end}
+.gb.p4on .side.l{left:0;right:calc(clamp(110px,34vw,200px) + 20px);align-items:flex-start} /* 右上の HP と重ならないところで折り返す */
+.gb.p4on .side .buff{flex-wrap:wrap;column-gap:4px}
+.gb.p4on .side .buff .bufrow{gap:4px}
+.gb.p4on .side .buff .bufrow .pxi{width:clamp(18px,5.4vw,24px)} /* P4 はデバフが多いので小さめにして1段に収める */.gb.p4on .side.r{right:0;align-items:flex-end}
 .gb.p4on .side .buff,.gb.p4on .side .buff .bufrow{flex-direction:row;gap:6px}
 .gb.p4on .side .hp{width:clamp(110px,34vw,200px);text-align:right}
 .gb.p4on .status{flex:none}
@@ -232,6 +246,7 @@ canvas:focus{outline:none}
 .chatlog .rule{color:#5a8ab0}.chatlog .dim{color:#6a6490}.chatlog .miss{color:#ff6a7a}.chatlog .ok{color:#7aff9a}
 .buff .bufrow .gly{display:flex;align-items:center;justify-content:center;width:clamp(22px,6.5vw,28px);height:clamp(22px,6.5vw,28px);font-size:clamp(13px,4vw,17px);color:#fff;border:2px solid #101018;text-shadow:1px 1px 0 #000}
 .buff .bufrow .pxi{display:block;width:clamp(24px,7vw,32px);height:auto;image-rendering:pixelated;filter:drop-shadow(0 1px 0 #000)}
+.buff .bufrow .pxi.bi{width:clamp(22px,6.5vw,28px);border:1px solid #101018}
 .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
 .stick{position:relative;width:114px;height:114px;flex:none;border:3px solid #9d9ca3;border-radius:50%;background:radial-gradient(circle,#b5b4ad 0 60%,#aaa9a2 61%);touch-action:none}
 .knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:var(--gb-dark);border:3px solid #1e1d24;box-shadow:inset -4px -4px 0 #1e1d24, inset 3px 3px 0 #55545f;pointer-events:none}
@@ -254,6 +269,12 @@ canvas:focus{outline:none}
 .round small{font-size:8px;line-height:1.05;max-width:48px;max-height:2.1em;overflow:hidden;white-space:normal;word-break:break-all;text-align:center;color:#ffe7f2}
 .round.longname small{font-size:7px;max-height:3.2em}
 .round.ready{border-color:var(--gold)}
+/* スキルの絵（実機の画像を元にした 20×20 のドット絵）をボタンいっぱいに。左上にキー、下の帯に名前。リキャスト中は暗くして真ん中に秒数 */
+.round.art{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--art) center/cover no-repeat;image-rendering:pixelated;justify-content:flex-end;padding-bottom:3px}
+.abw.x .round.art,.abw.y .round.art{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--art) center/cover no-repeat}
+.round.art b{position:absolute;left:4px;top:3px;font-size:13px;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
+.round.art.cd b{left:50%;top:50%;transform:translate(-50%,-62%);font-size:20px}
+.round.art small{background:rgba(10,6,20,.72);padding:1px 2px;border-radius:3px;max-width:46px;color:#fff;text-shadow:none}
 .round{position:relative}
 /* コンボの次の段：実機と同じく黄色い点線で囲み、点線が流れる */
 .round.combo{border-color:#ffd84a}
@@ -330,7 +351,7 @@ html.app .sheet{padding-top:calc(env(safe-area-inset-top) + 22px)}
 .rlist li:nth-child(1) b{color:#ffcf4a}.rlist li:nth-child(2) b{color:#d8d8e8}.rlist li:nth-child(3) b{color:#e0a060}
 .rlist b{font-weight:400;text-align:right;color:var(--dim)}
 .rlist .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rlist .jb svg{width:16px;height:16px;display:block}
+.rlist .jb svg,.rlist .jb img{width:20px;height:20px;display:block}
 .rlist .dp{text-align:right}
 /* Perf の色（灰 <25・緑 25〜49・青 50〜74・紫 75〜94・橙 95〜98・桃 99・金 100） */
 .rlist .pf{text-align:right;color:var(--dim)}

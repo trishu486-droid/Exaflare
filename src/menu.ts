@@ -8,6 +8,7 @@ import { titleOn } from './title.js';
 import { sfx } from './audio.js';
 import { applyTitle } from './hud.js';
 import { begin } from './game.js';
+import { jobIconSvg } from './gfx.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 const PHASES = [['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
@@ -20,7 +21,9 @@ function renderMenu(){
   if (S.menu === 'job'){
     head.textContent = 'ジョブ選択';
     note.innerHTML = ph('十字で選んで|A／STARTで決定');
-    list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
+    // ロールで色分けして、左にジョブアイコン
+    const roleCls = k => JOBS[k].role === 'tank' ? 'r-tank' : JOBS[k].role === 'healer' ? 'r-heal' : 'r-dps';
+    list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${roleCls(k)}${i === S.cursor ? ' cur' : ''}">${jobIconSvg(k)}<span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
     return;
   }
   if (S.menu === 'phase'){

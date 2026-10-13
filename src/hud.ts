@@ -11,6 +11,7 @@ import { sfx } from './audio.js';
 import { REG_BTN, rankBlock, rankPrepare } from './ranking.js';
 import { renderP4Panel } from './p4ui.js';
 import { p4IconUrl } from './p4icons.js';
+import { buffImgUrl, skillIconUrl, statusImgUrl } from './icons.js';
 
 // ===== 詠唱バー（ボス） =====
 const castEl = $('cast'), castFill = $('castFill'), castName = $('castName');
@@ -30,9 +31,19 @@ function drawCast(){
   castFill.style.background = c.color || '#fff';
 }
 
+// 自キャラの足元の輪＋正面の三角（実機のターゲットサークル風・黄色）。向きは最後に動いた方向（視線・真空波などの判定に使う）
+// もとは P4 だけだったのを、全フェーズ共通にした（2026-10-13 ユーザーの決定）
+function drawFootRing(X, Z){
+  const f = S.face || { x:0, z:-1 }, nx = -f.z, nz = f.x, R = 14, cz = Z + 1;
+  ctx.fillStyle = '#ffe070';
+  for (let a = 0; a < 120; a++){ const th = a * Math.PI / 60; if (Math.cos(th) * f.x + Math.sin(th) * f.z > .96) continue; ctx.fillRect(X + Math.round(Math.cos(th) * R), cz + Math.round(Math.sin(th) * R), 1, 1); }
+  const tri = (tip, base, w, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(X + f.x * tip, cz + f.z * tip); ctx.lineTo(X + f.x * base + nx * w, cz + f.z * base + nz * w); ctx.lineTo(X + f.x * base - nx * w, cz + f.z * base - nz * w); ctx.closePath(); ctx.fill(); };
+  tri(R + 7, R - 1, 5, '#101018'); tri(R + 5.5, R - .2, 3.5, '#ffe070');
+}
 function drawPlayer(){
-  const now = performance.now(), hurtNow = now - S.hurtT < 500;
-  drawIcon(px(S.player.x), px(S.player.z), hurtNow && (Math.floor(now / 70) & 1));
+  const now = performance.now(), hurtNow = now - S.hurtT < 500, X = px(S.player.x), Z = px(S.player.z);
+  if (S.phase !== 'menu') drawFootRing(X, Z);
+  drawIcon(X, Z, hurtNow && (Math.floor(now / 70) & 1));
 }
 
 function draw(){
@@ -132,6 +143,7 @@ const BUFF_ART = {
     'kRpRRpRRpRRk','kRRpRRpRRpRk','kRpRRpRRpRRk','.kRRpRRpRRk.','..kRRRRRRk..','...kkRRkk...','.....kk.....'] },
 };
 const buffIcon = id => {
+  const u = buffImgUrl(id); if (u) return `<img class="pxi bi" src="${u}" alt="">`; // 実機の画像を元にしたドット絵
   const a = BUFF_ART[id];
   if (!a) return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="${BUFFS[id]?.color || '#888'}"/></svg>`;
   const W = 12, H = 14, inside = (i, j) => i >= 0 && j >= 0 && i < W && j < H && HOUSE(i, j);
@@ -151,8 +163,13 @@ const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピア�
   'リビングデッド':'リビデ', 'シャドウヴィジル':'ヴィジル', 'ゼノグロシー':'ゼノ', 'ニュートラルセクト':'ニューセク',
   '士気高揚の策':'士気', '野戦治療の陣':'陣', '疾風怒濤の計':'疾風',
   'ヒートスプリットショット':'スプリット', 'ヒートスラッグショット':'スラッグ', 'ヒートクリーンショット':'クリーン',
-  'ワクシングスライス':'ワクシング', 'インファナルスライス':'インファナル' };
+  'ワクシングスライス':'ワクシング', 'インファナルスライス':'インファナル',
+  'コンジャンクション・ヘリオス':'コンヘリ', 'フォールマレフィク':'マレフィク', 'エクストリームガード':'エクスガ' };
+// ボタンにはスキルの絵を貼る（元の画像がない技は文字だけ）。左上にキー、下に名前。リキャスト中は真ん中に秒数
 function setBtn(el, key, name, p, ready, combo = false){
+  const art = skillIconUrl(opt.job, name), bg = art ? `url(${art})` : '';
+  if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.setProperty('--art', bg || 'none'); el.classList.toggle('art', !!art); }
+  el.classList.toggle('cd', /^\d+$/.test(key));
   name = SHORT[name] || name;
   el.classList.toggle('longname', name.length > 10);
   el.style.setProperty('--p', p.toFixed(3));
@@ -196,7 +213,7 @@ function drawButtons(){
   hpDraw(); enmityDraw();
   // 左上はバフ・デバフのアイコンだけ。上段＝デバフ（ギミックで付くもの）、下段＝バフ（自分で使ったもの）
   const icon = (art, name, n) => `<i title="${name}">${buffIcon(art)}<b>${n}</b></i>`;
-  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.icon ? `<i title="${x.name}"><img class="pxi" src="${p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
+  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.icon ? `<i title="${x.name}"><img class="pxi" src="${statusImgUrl(x.icon) || p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');

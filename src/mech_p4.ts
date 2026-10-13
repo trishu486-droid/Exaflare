@@ -261,6 +261,9 @@ const P4 = (() => {
         sfx.boom();
       };
       const events: [number, () => void][] = [
+        // カオスとネオエクスデスの出現：光の柱が落ちる音、出た瞬間に画面が少しゆれる（演出は draw の appearFx）
+        [KS.appear - 1.1 + .5, () => sfx.splash()],
+        [KS.appear, () => { sfx.big(); fxShake(2, .25); [CHAOS0, NEO0].forEach(q => fxAdd('burst', q.x, q.z, { r:3, cols:['#ffffff', '#ffe8f0', '#c8e0ff'], dur:.5 })); }],
         [T.mystery[0] + TELL, () => mysteryResolve(p.mystery[0], true, true, 'なぞなぞマジック1')],
         [T.mystery[1] + TELL, () => mysteryResolve(p.mystery[1], true, true, 'なぞなぞマジック2')],
         [T.mystery[2] + TELL, () => mysteryResolve(p.mystery[2], true, true, 'なぞなぞマジック3')],
@@ -314,6 +317,30 @@ const P4 = (() => {
       const orbit = (c, truth, t) => { const a = t * 3; orb(px(c.x) + Math.round(Math.cos(a) * 32), px(c.z) + Math.round(Math.sin(a) * 14), truth, true); }; // ボスの絵のまわりを回る
       // ボスのドット絵（p4boss.ts）。位置を中心に貼る
       const drawSprite = (id, q) => { const sp = bossSprite(id), X = px(q.x), Z = px(q.z); ctx.drawImage(sp, Math.round(X - sp.width / 2), Math.round(Z - sp.height / 2)); };
+      // ボスの絵を白く塗りつぶしたもの（出現の白い姿）
+      const whiteSprite = (() => { const c = {}; return id => c[id] ||= (() => { const sp = bossSprite(id), w = document.createElement('canvas'); w.width = sp.width; w.height = sp.height; const g = w.getContext('2d'); g.drawImage(sp, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w.width, w.height); return w; })(); })();
+      // カオスとネオエクスデスの出現（約1.5秒。2026-10-13 ユーザーの決定。ケフカのまわりの演出はなし）
+      //   ① もやが渦を巻いて集まる（0.5秒）→ ② 上から光の柱、床に白い輪（0.3秒）→ ③ 白い姿で現れて光の粒（0.3秒）→ ④ 白からふつうの色へ（0.4秒）
+      const APPEAR_FX = 1.1;
+      const appearFx = (id, q, t) => {
+        const t0 = KS.appear - APPEAR_FX, a = t - t0; if (a < 0 || a > APPEAR_FX + .4) return;
+        const X = px(q.x), Z = px(q.z), mist = id === 'chaos' ? ['#3a0a2a', '#8a2a3a'] : ['#0a1a3a', '#3a5a8a'], glow = id === 'chaos' ? '#ffd0e0' : '#d0e8ff';
+        if (a < .8){ // ① もや（だんだん小さく速く回る）
+          const k = Math.min(1, a / .5), n = 18;
+          for (let i = 0; i < n; i++){ const ang = i / n * Math.PI * 2 + a * 5, r = (1 - k) * 60 + 14; alpha(.25 + .35 * k, () => disc(X + Math.cos(ang) * r, Z + Math.sin(ang) * r * .55, 6, mist[i % 2])); }
+        }
+        if (a >= .5 && a < .9){ // ② 光の柱と床の輪
+          const k = (a - .5) / .4;
+          alpha(.85 * (1 - k * .5), () => { rect(X - 5, 0, 10, Z, '#ffffff'); rect(X - 8, 0, 3, Z, glow); rect(X + 5, 0, 3, Z, glow); });
+          alpha(.9 * (1 - k), () => ring(X, Z + 18, Math.round(20 + k * 30), '#ffffff'));
+        }
+        const ws = whiteSprite(id), dx = Math.round(X - ws.width / 2), dz = Math.round(Z - ws.height / 2);
+        if (a >= .8 && a < APPEAR_FX){ // ③ 白い姿と光の粒
+          ctx.drawImage(ws, dx, dz);
+          for (let i = 0; i < 20; i++){ const ang = i * 2.4, r = (a - .8) / .3 * 70 * (.6 + (i % 3) * .2); rect(Math.round(X + Math.cos(ang) * r), Math.round(Z + Math.sin(ang) * r * .6), 2, 2, i % 2 ? '#ffe070' : glow); }
+        }
+        if (a >= APPEAR_FX) alpha(1 - (a - APPEAR_FX) / .4, () => ctx.drawImage(ws, dx, dz)); // ④ 白からふつうの色へ（絵の上に重ねて薄くしていく）
+      };
       const drawNeo = q => drawSprite('neo', q);
       const drawChaos = q => drawSprite('chaos', q);
       const tellDraw = (m, ice, th) => {
@@ -418,6 +445,7 @@ const P4 = (() => {
           if (nq){ drawNeo(nq); [0, 1, 2].forEach(i => { if (t >= T.gc[i] && t < T.gcHit[i]) orbit(nq, p.gcTrue[i], t); }); if (t >= T.flood && t < T.floodHit) orbit(nq, p.floodTrue, t); }
           [0, 1].forEach(i => { if (t >= T.chaos[i] && t < T.chaosHit[i]) drawChaosGlow(CHAOS0, p.chaos[i].kind, t); });
           if (t >= KS.appear && t < 43.5){ drawChaos(CHAOS0); [0, 1].forEach(i => { if (t >= T.chaos[i] && t < T.chaosHit[i]) orbit(CHAOS0, p.chaos[i].truth, t); }); }
+          appearFx('chaos', CHAOS0, t); appearFx('neo', NEO0, t); // 出現の演出（ボスの絵の上に重ねる）
           T.mystery.forEach((s, k) => { if (t >= s && t < s + TELL) kefkaOrbs(p.mystery[k].iceTrue, p.mystery[k].thTrue); });
           if (t >= T.thunder && t < T.thunder + TELL) kefkaOrbs(null, charged.thTrue);
           if (t >= T.blizzard && t < T.blizzard + TELL) kefkaOrbs(charged.iceTrue, null);
@@ -426,21 +454,7 @@ const P4 = (() => {
           if (t >= T.release && t < T.releaseTell) drawReleaseRings(t);
           if (t >= T.flood && t < T.floodHit) drawFloodMarks(neo, right, shownColor, t);
           // 味方（7人）は描かない。内部では決まった位置へ動き、混沌の炎・水の置き場所と視線の向きの判定にだけ使う
-          // 自分の向き（視線の判定に使う）と頭上マーカー
-          const f = S.face || { x:0, z:-1 }, X = px(S.player.x), Z = px(S.player.z);
-          const tri = (ax, az, bx, bz, cx, cz, col) => { // 塗りつぶし三角形（ドット）
-            const x0 = Math.floor(Math.min(ax, bx, cx)), x1 = Math.ceil(Math.max(ax, bx, cx)), z0 = Math.floor(Math.min(az, bz, cz)), z1 = Math.ceil(Math.max(az, bz, cz));
-            const e = (px1, pz1, px2, pz2, x, z) => (px2 - px1) * (z - pz1) - (pz2 - pz1) * (x - px1);
-            for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++){ const a = e(ax, az, bx, bz, x + .5, z + .5), b = e(bx, bz, cx, cz, x + .5, z + .5), c = e(cx, cz, ax, az, x + .5, z + .5); if ((a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0)) rect(x, z, 1, 1, col); }
-          };
-          const nx = -f.z, nz = f.x;
-          { // 向き：足元の輪＋正面の三角（実機のターゲットサークル風）
-            const R = 14, cz = Z + 1;
-            for (let a = 0; a < 120; a++){ const th = a * Math.PI / 60, c = Math.cos(th) * f.x + Math.sin(th) * f.z; if (c > .96) continue; rect(X + Math.round(Math.cos(th) * R), cz + Math.round(Math.sin(th) * R), 1, 1, '#ffe070'); }
-            const tip = R + 7, base = R - 1, w = 5;
-            tri(X + f.x * tip, cz + f.z * tip, X + f.x * base + nx * w, cz + f.z * base + nz * w, X + f.x * base - nx * w, cz + f.z * base - nz * w, '#101018');
-            tri(X + f.x * (tip - 1.5), cz + f.z * (tip - 1.5), X + f.x * (base + .8) + nx * (w - 1.5), cz + f.z * (base + .8) + nz * (w - 1.5), X + f.x * (base + .8) - nx * (w - 1.5), cz + f.z * (base + .8) - nz * (w - 1.5), '#ffe070');
-          }
+          // 自分の向き（足元の輪と正面の三角）は hud.ts の drawPlayer で全フェーズ共通に描く。ここは頭上マーカーだけ
           markerDraw();
         },
       };

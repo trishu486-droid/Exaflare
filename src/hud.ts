@@ -53,7 +53,21 @@ function drawPlayer(){
   drawIcon(X, Z, hurtNow && (Math.floor(now / 70) & 1));
 }
 
+// 画面全体の背景（ギミックが screenBg で画像を返すとき。P2 の赤白のうず）。フィールドの中心に合わせて置く
+const screenEl = document.querySelector('.screen') as HTMLElement;
+let lastBg = '';
+function screenBgDraw(){
+  const img = S.phase !== 'menu' ? S.inst?.screenBg?.(S.t) : null;
+  let bg = '';
+  if (img){
+    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k;
+    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y = c.top - s.top + c.height / 2 - size / 2 - screenEl.clientTop;
+    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px no-repeat ${img.color}`;
+  }
+  if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
+}
 function draw(){
+  screenBgDraw();
   const v = S.inst?.view ?? mech().view;
   setPPY((W / 2) / (typeof v === 'function' ? v(S.t) : v));
   const [sx, sz] = fxShakeOffset();
@@ -221,7 +235,7 @@ function drawButtons(){
   hpDraw(); enmityDraw();
   // 左上はバフ・デバフのアイコンだけ。上段＝デバフ（ギミックで付くもの）、下段＝バフ（自分で使ったもの）
   const icon = (art, name, n) => `<i title="${name}">${buffIcon(art)}<b>${n}</b></i>`;
-  const debuffs = st.filter(x => x && (x.art || x.glyph)).map(x => x.icon ? `<i title="${x.name}"><img class="pxi" src="${statusImgUrl(x.icon) || p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
+  const debuffs = st.filter(x => x && (x.art || x.glyph || x.icon || x.img)).map(x => x.icon || x.img ? `<i title="${x.name}"><img class="pxi" src="${x.img || statusImgUrl(x.icon) || p4IconUrl(x.icon)}" alt="${x.name}"><b>${x.sec}</b></i>` : x.glyph ? `<i title="${x.name}"><span class="gly" style="background:${x.color}">${x.glyph}</span><b>${x.sec}</b></i>` : icon(x.art, x.name, x.sec)).join('');
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');

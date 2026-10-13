@@ -198,7 +198,7 @@ function tcTip(X, Z, R, face, on){
 // ボスが1体（中央・北向き）：P4・P5 など
 function drawBoss(){
   if (S.inst?.bosses){ drawBosses(); return; }
-  const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY), face = -Math.PI / 2;
+  const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY), face = -Math.PI / 2; // ギミックごとにターゲットサークルの大きさを変えられる（P2 のゴッドケフカは 6）
   tcRing(C0, C0, R, face, true); tcTip(C0, C0, R, face, true);
   if (performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
 }

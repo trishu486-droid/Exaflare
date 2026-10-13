@@ -11,7 +11,7 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 | `docs/common-spec.md` | どの絶・零式にも共通の決まり（方針・ユーザーとの進め方・実機に合わせる原則・味方 NPC・タンクの練習箇所・新しく作る手順） | 最初に必ず |
 | `docs/dmu/spec.md` | 絶妖星乱舞の仕様（画面・メニュー・P3／P4／P5・お知らせ／お問い合わせ／ランキング・ファイルの地図・テストのしかた） | 作業の前に |
 | `docs/dmu/history.md` | いつ何を決めて何を変えたかの記録 | 経緯を知りたいとき |
-| `docs/dmu/research-p3.md` / `research-p4.md` / `research-p5-exa.md` | 調査メモ（技名・時刻・処理法・決定事項） | そのフェーズを触るとき |
+| `docs/dmu/research-p1.md` / `research-p3.md` / `research-p4.md` / `research-p5-exa.md` | 調査メモ（技名・時刻・処理法・決定事項） | そのフェーズを触るとき |
 | `docs/firestore.rules` | ランキング（Firebase）のルール | ランキングを触るとき |
 
 - 決まったこと・わかったことは、その場で該当の資料に追記して育てる（追記のしかたは `common-spec.md` の 0 章）。

@@ -47,7 +47,7 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 - `main` へのプッシュ＝公開（Cloudflare Pages。移行中は GitHub Pages も）。プッシュしたら、公開が終わったか（curl で新しいファイル名が出るか）まで確認して伝える。
 - 本番に出すたびに、お知らせ（`src/news.ts`）のいちばん上に1件足す（日本時間・分まで。遊ぶ人向けの短い言葉で）。
 - ブランチは `main`（本番）と `dev`（開発）が基本。作業の前に必ず `dev` の最新を取り込む。本番に出すときは `dev` を `main` に取り込む。
-- 新しいフェーズを、ほかの作業と並行して長く作るときだけ、作業用のブランチ（例：`p2-dev`）を `dev` から作る。完成したら `dev` に取り込んで消す。それ以外のブランチは作らない。
+- 新しいフェーズを、ほかの作業と並行して長く作るときだけ、作業用のブランチ（例：`p1-dev`）を `dev` から作る。完成したら `dev` に取り込んで消す。それ以外のブランチは作らない。
 - 1つの修正 = 1つのコミット。コミットメッセージは日本語で「何をどう変えたか」。リポジトリにモデル名を書かない。
 
 ### 資料のもらい方
@@ -187,7 +187,7 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 
 - Vite + TypeScript + PWA。`npm run check`（型チェック）、`npm run build`（`dist/`）、`npm run build:artifact`（1枚の HTML、`dist-artifact/`）。
 - 公開：`main` へのプッシュで Cloudflare Pages（https://dancing-mad-sim.pages.dev/、プロジェクト `dancing-mad-sim`）が自動でビルドして公開する。移行中は GitHub Actions → GitHub Pages（https://trishu486-droid.github.io/Exaflare/）も同じ中身で更新される。
-- 開発版：`dev` へのプッシュで Cloudflare のプレビュー（https://dev.dancing-mad-sim.pages.dev/ ）に出る。作業用ブランチ（`p2-dev` など）も、Cloudflare のプレビューのブランチに足せば `https://<ブランチ名>.dancing-mad-sim.pages.dev/` で見られる。Artifact は使わない方針（Artifact の中ではランキングとお問い合わせが動かない）。
+- 開発版：`dev` へのプッシュで Cloudflare のプレビュー（https://dev.dancing-mad-sim.pages.dev/ ）に出る。作業用ブランチ（`p1-dev` など）も、Cloudflare のプレビューのブランチに足せば `https://<ブランチ名>.dancing-mad-sim.pages.dev/` で見られる。Artifact は使わない方針（Artifact の中ではランキングとお問い合わせが動かない）。
 - 公開先・容量について：Cloudflare Pages の無料枠は通信量実質無制限・1サイト2万ファイル。今は約1.2MB。容量よりも、人気が出たときの Firebase の読み込み回数（1日5万回）と、コンテンツが増えたときの最初の読み込みの重さに気をつける。
 - ギミック1つ = `gen()`（毎回のランダムな問題）と `create()`（その回の進行）。`create()` は `end`・`casts`・`tick(t)`（判定）・`draw(t)`／`drawFloor(t)`（描画）・`safe()`／`guide()`（補助表示）・`status()`（デバフ）・`enmity()`（敵視）・`progress()` などを返す。通し（`mech_run.ts`）は各ギミックを実戦の時刻に並べて呼ぶ。
 - テスト用：`?debug` で `window.__T`（`S`, `opt`, `begin`, `pressKey`, `hurt` など）。Claude のクラウド環境では、Playwright は `require('/opt/node22/lib/node_modules/playwright')`、ブラウザは `/opt/pw-browsers/chromium`。外部サイトへの通信は証明書エラーになることがあるので `ignoreHTTPSErrors:true`、ランキングは `page.route` で偽のデータを返して確かめる。

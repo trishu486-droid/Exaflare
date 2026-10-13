@@ -38,6 +38,7 @@ function openMenu(){
 const FALL_OVER = .3; // 床の縁からこれだけはみ出したら落ちる（キャラの半分くらい）
 function movePlayer(dt){
   if (S.phase === 'menu' || S.fall) return; // 落ちたあとは動けない
+  if (S.phase === 'run' && S.inst?.lockMove?.(S.t)) return; // 混乱・睡眠・ノックバックの最中など（P1）。動かすのはギミックの側
   let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;

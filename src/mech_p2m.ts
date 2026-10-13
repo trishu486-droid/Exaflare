@@ -6,6 +6,7 @@ import { sfx } from './audio.js';
 import { FXC, FXK, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px } from './gfx.js';
 import { markCanvas, spellTroubleUrl } from './p2icons.js';
+import { screenFx } from './p2fx.js';
 
 // =====================================================================
 // P2（ゴッドケフカ）：ミッシング（終末の双腕 〜 裁きの光）。docs/dmu/research-p2.md
@@ -38,7 +39,8 @@ const ODD = { stack1:{ x:-4.6, z:5.0 }, fan:{ x:-7.2, z:8.6 }, bait:{ x:-10.5, z
   stack2:{ x:4.4, z:4.4 }, circ:{ x:6.3, z:9.6 }, joinR1:{ x:1.2, z:6.0 }, joinR2:{ x:1.6, z:4.0 } };
 const EVEN = { fan1:{ x:-4.4, z:3.8 }, fan2:{ x:4.4, z:3.8 }, circ1:{ x:-6.4, z:9.6 }, circ2:{ x:6.4, z:9.6 },
   baitL:{ x:-10, z:4.0 }, baitR:{ x:10, z:4.0 }, takeL:{ x:-5.6, z:-5.4 }, takeR:{ x:5.6, z:-5.4 } };
-const WAIT_PAST = { x:0, z:8.6 }, WAIT_FUTURE = { x:0, z:-8.6 };
+// 消滅の脚を待つ所：過去＝塔の側（塔と塔の間）、未来＝塔の反対側。少し外周寄りに立たないと、脚の角度が急になって次の塔で当たる
+const WAIT_D = 9.5; // 8 より内側だと当たる人が出る（全パターンで確認）
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const rot = (q, deg) => { const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); return { x:q.x * c - q.z * s, z:q.x * s + q.z * c }; };
@@ -91,7 +93,7 @@ const bgImg = gold => {
 };
 
 const P2M = {
-  id:'p2m', name:'ミッシング', sub:'ミッシング〜裁きの光（ヤーン 優先順）', view:24, start:{ x:-7, z:1 }, slots:true,
+  id:'p2m', name:'ミッシング', sub:'ヤーン優先順', view:24, start:{ x:-7, z:1 }, slots:true,
   gen(){
     const thStack = pick(TH), dStack = pick(DPS);
     return {
@@ -163,7 +165,8 @@ const P2M = {
         const q = abs(relSpot(k, s), k);
         if (k % 2 && k >= 3){
           const j = (k - 1) / 2 - 1, fut = p.fp[j] === 'future';
-          w.push({ until:T.leg[j] - LEG_LEN, spot:add(abs(fut ? WAIT_FUTURE : WAIT_PAST, k), OFF(s)) });
+          const wd = p.waitD ?? WAIT_D;
+          w.push({ until:T.leg[j] - LEG_LEN, spot:add(abs({ x:0, z:fut ? -wd : wd }, k), OFF(s)) });
           w.push({ until:T.leg[j] - .15, spot:q });
         }
         w.push({ until:T.tower[k - 1], spot:q });               // 塔の判定までに着く
@@ -239,6 +242,8 @@ const P2M = {
       // 偶数回：未来／過去の終焉の円（ケフカに近い4人）＋分身
       if (k % 2 === 0){
         const j = k / 2 - 1, near = all.slice().sort((a, b) => Math.hypot(a.q.x, a.q.z) - Math.hypot(b.q.x, b.q.z)).slice(0, 4);
+        const want = SLOTS.filter(s => relSpot(k, s) === EVEN.fan1 || relSpot(k, s) === EVEN.fan2 || relSpot(k, s) === EVEN.takeL || relSpot(k, s) === EVEN.takeR);
+        if (near.some(n => !want.includes(n.s))) hurt(`${k}回目：未来過去の分身が ${near.filter(n => !want.includes(n.s)).map(n => n.s).join('・')} に飛んだ（誘導の位置が違う）`);
         near.forEach(n => { all.filter(a => dist(a.q, n.q) <= FP_R).forEach(a => hits[a.s].push('未来過去の円')); FXK.holy(n.q.x, n.q.z, FP_R); fxAdd('burst', n.q.x, n.q.z, { r:FP_R, cols:FXC.magenta, dur:.5 }); });
         near.forEach((n, i) => { if (i === p.cloneSkip[j]) return; const d = Math.hypot(n.q.x, n.q.z) || 1; clones.push({ x:n.q.x / d * CLONE_D, z:n.q.z / d * CLONE_D, from:S.t, until:T.leg[j] + .6, j }); });
       }
@@ -255,13 +260,18 @@ const P2M = {
     const legCast = j => {
       const fut = p.fp[j] === 'future';
       const srcs = [{ x:0, z:0 }, ...clones.filter(c => c.j === j)];
-      srcs.forEach(c => { const tq = pos(pick(SLOTS)); const d = Math.hypot(tq.x - c.x, tq.z - c.z) || 1; legSrc.push({ x:c.x, z:c.z, face:{ x:(tq.x - c.x) / d, z:(tq.z - c.z) / d }, j, fut }); });
+      // 実機ではパーティのランダムな誰かを向くが、このツールでは必ず自分を向く（自分が誘導の練習をする）
+      srcs.forEach(c => { const tq = S.player; const d = Math.hypot(tq.x - c.x, tq.z - c.z) || 1; legSrc.push({ x:c.x, z:c.z, face:{ x:(tq.x - c.x) / d, z:(tq.z - c.z) / d }, j, fut }); });
     };
     const legHits = (j, q) => legSrc.filter(L => L.j === j).some(L => { const d = (q.x - L.x) * L.face.x + (q.z - L.z) * L.face.z; return L.fut ? d > 0 : d < 0; });
     const legFire = j => {
-      if (legHits(j, S.player)) hurt(`消滅の脚（${p.fp[j] === 'future' ? '未来＝前' : '過去＝後ろ'}）に当たった`);
+      // 誘導の正誤：8人が決まった位置（次の塔の立ち位置）にいたら誰かに当たる向き＝誘導が悪い。自分だけ当たった＝自分の立ち位置が違う
+      const victims = SLOTS.filter(s => legHits(j, spotAt(s, T.leg[j] - .05)));
+      if (victims.length) hurt(`消滅の脚：誘導が悪い（この向きだと ${victims.join('・')} に当たる）`);
+      else if (legHits(j, S.player)) hurt(`消滅の脚に当たった（${p.fp[j] === 'future' ? '未来＝前' : '過去＝後ろ'}、立ち位置が違う）`);
       efx.push({ k:'leg', t:S.t, j }); sfx.big(); fxShake(5, .35); fxFlash('#ffd8a0', .3, .15);
     };
+
     const events: [number, () => void][] = [
       ...(p.withEmb ? [[T.emb, () => {
         const tanks = ['MT', 'ST'].map(pos), c = { x:(tanks[0].x + tanks[1].x) / 2, z:(tanks[0].z + tanks[1].z) / 2 };
@@ -270,12 +280,12 @@ const P2M = {
         } else if (dist(S.player, c) <= EMB_R) hurt('終末の双腕（タンクの頭割り）に入った');
         FXK.flare(c.x, c.z, EMB_R); sfx.big();
       }]] : []),
-      [T.fors, () => { healerHit(60000, 'ミッシング'); fxFlash('#ffffff', .45, .2); sfx.big(); fxShake(4, .3); }],
+      [T.fors, () => { healerHit(60000, 'ミッシング'); screenFx('forsaken'); sfx.big(); fxShake(4, .3); }],
       ...T.tower.flatMap((tt, i) => [[tt, () => towerSnap(i + 1)], [tt + HIT, () => spellFire(i + 1)]]),
       ...T.leg.flatMap((lt, j) => [[lt - LEG_LEN, () => legCast(j)], [lt, () => legFire(j)]]),
       [T.loj, () => {
         if (mySoaks < 4) hurt('裁きの光：スペルハザードが残っていた');
-        healerHit(70000, '裁きの光'); fxFlash('#fff4c0', .7, .35); sfx.big(); fxShake(6, .5);
+        healerHit(70000, '裁きの光'); screenFx('judgment'); sfx.big(); fxShake(6, .5);
       }],
     ].sort((a, b) => a[0] - b[0]);
 
@@ -288,9 +298,12 @@ const P2M = {
     const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
       1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     const markOf = (s, t) => { const L = given.filter(x => x.k === s && x.t <= t); const last = L[L.length - 1]; return last && t < last.t + MARK_SHOW ? last.mark : null; };
+    const DIGIT = { 1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', 5:'111100110001110', 6:'011100110101010', 7:'111001010010010', 8:'010101010101010', 9:'010101011001110' };
+    const drawNum = (X, Y, n) => { const g = DIGIT[n]; if (!g) return; rect(X - 3, Y - 4, 7, 9, '#101830'); for (let i = 0; i < 15; i++) if (g[i] === '1') rect(X - 1 + (i % 3), Y - 2 + (i / 3 | 0), 1, 1, '#ffffff'); };
     const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 8, px(q.z) - 23, 16, 16); }; // 頭のすぐ上（タイルの上端に接する）
 
     return {
+      bossR:6, // ゴッドケフカのターゲットサークル（ヤーンの図から測ると 6 くらい）
       start: { ...(p.withEmb ? embSpot(me) : standby(me)) }, // ミッシングだけのときは、最初から整列している
       intro:`あなたは ${me}（${A.includes(me) ? '先に塔：1・2・3・8回目' : '後に塔：4・5・6・7回目'}）`,
       end:T.end,
@@ -335,7 +348,9 @@ const P2M = {
       draw(t){
         // 塔の上の青い球
         T.tower.forEach((_, i) => { const k = i + 1; if (!towerVisible(k)) return;
-          towersOf(k).forEach(c => { const X = px(c.x), Z = px(c.z) - 4 - Math.round(Math.sin(t * 3 + i) * 1.5); disc(X, Z, 6, '#1a4a9a'); disc(X, Z - 1, 5, '#3a8ae8'); disc(X - 2, Z - 3, 2, '#c8f0ff'); }); });
+          towersOf(k).forEach(c => { const X = px(c.x), Z = px(c.z) - 4 - Math.round(Math.sin(t * 3 + i) * 1.5); disc(X, Z, 6, '#1a4a9a'); disc(X, Z - 1, 5, '#3a8ae8'); disc(X - 2, Z - 3, 2, '#c8f0ff');
+            // 着弾までの秒数（球の上）
+            const sec = Math.ceil(T.tower[i] - t); if (sec > 0 && sec < 10) drawNum(X, Z - 12, sec); }); });
         // 分身（紫の輪）と、消滅の脚の向き
         clones.filter(c => t >= c.from && t < c.until).forEach(c => { const X = px(c.x), Z = px(c.z); alpha(.35, () => disc(X, Z, 9, '#b05aff')); ring(X, Z, 9, '#d08cff'); ring(X, Z, 8, '#d08cff'); });
         legSrc.filter(L => t >= T.leg[L.j] - LEG_LEN && t < T.leg[L.j]).forEach(L => {

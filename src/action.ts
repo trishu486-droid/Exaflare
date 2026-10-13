@@ -81,7 +81,7 @@ const canHit = () => (S.inst?.targetable?.(S.t) ?? true) && (curBoss().attackabl
 // 決戦中に自分の組ではないボスを殴った：技は出る（GCD も回る）が、ダメージは通らず INVULNERABLE。コンボも進まない
 const invuln = () => (S.inst?.targetable?.(S.t) ?? true) && !(curBoss().attackable?.(S.t) ?? true);
 // 攻撃する相手。ボスが2体いるギミック（P3）は inst.bosses と A.tgt（ターゲット）。いなければ中央のボス
-function curBoss(){ const L = S.inst?.bosses?.(S.t); return L?.length ? L.find(b => b.id === A.tgt) || L[0] : { x:0, z:0, r:BOSS_R }; }
+function curBoss(){ const L = S.inst?.bosses?.(S.t); return L?.length ? L.find(b => b.id === A.tgt) || L[0] : { x:0, z:0, r:S.inst?.bossR ?? BOSS_R }; }
 // ターゲットを次のボスへ（P3 のターゲット切替ボタン）
 function switchTarget(){
   const L = S.inst?.bosses?.(S.t); if (!L?.length) return;

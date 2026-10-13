@@ -163,7 +163,7 @@ function drawField(){
 // ボス：塗りつぶしのターゲットサークル + 正面の三角（北向き）
 function drawBoss(){
   if (S.inst?.bosses){ drawBosses(); return; }
-  const R = BOSS_R * PPY;
+  const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY); // ギミックごとにターゲットサークルの大きさを変えられる（P2 のゴッドケフカは 6）
   alpha(.6, () => disc(C0, C0, R, P.boss));
   ring(C0, C0, R, P.bossEdge);
   alpha(.5, () => ring(C0, C0, R - 6, P.bossEdge));

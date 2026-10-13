@@ -6,6 +6,7 @@ import { sfx } from './audio.js';
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px } from './gfx.js';
 import { clearOutside, bgImg } from './mech_p2m.js';
+import { screenFx } from './p2fx.js';
 
 // =====================================================================
 // P2（ゴッドケフカ）：トライン（裁きの光 〜 終末の双腕）。docs/dmu/research-p2.md §3
@@ -16,7 +17,7 @@ import { clearOutside, bgImg } from './mech_p2m.js';
 // 大きさ（三角の中心から頂点 6、頂点の円 半径5）は図からの推定
 // =====================================================================
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
-const T = { lojCast:0, loj:5.0, trineCast:12.2, trine:16.2, spawn:[16.7, 18.7, 20.7], det:[29.1, 31.1, 33.1],
+const T_BASE = { lojCast:0, loj:5.0, trineCast:12.2, trine:16.2, spawn:[16.7, 18.7, 20.7], det:[29.1, 31.1, 33.1],
   wingCast:18.3, wing:23.3, tbCast:29.1, tb:33.4, embCast:35.6, emb:40.6, end:42.2 };
 // 三角：一辺 10（中心から頂点 5.77）、向きは東か西だけ。頂点の爆発は半径 6（Splatoon のスクリプトの値）。立ち位置は 6.4 離す
 const OUT_ANG = [11, 71, 131, 191, 251, 311], OUT_R = 15.275, CIR = 6, CLEAR = 6.4, EMB_R = 3, BOT_SPEED = 24;
@@ -36,12 +37,15 @@ const OFF = k => at(SLOTS.indexOf(k) * 45 + 22.5, .7);
 const angOf = q => (Math.atan2(q.x, -q.z) * 180 / Math.PI + 360) % 360;
 
 const P2T = {
-  id:'p2t', name:'トライン', sub:'裁きの光〜終末の双腕（ヤーン）', view:24, start:{ x:0, z:2 }, slots:true,
+  id:'p2t', name:'トライン', sub:'', view:24, start:{ x:0, z:2 }, slots:true,
   gen(){
     const pt = pick(PATTERNS);
     return { me:mySlot(), sets:[pt[0], pt[1], [...pt[2], -1]], centerHead:pick([1, -1]), wingLeft:Math.random() < .5 };
   },
   create(p){
+    // トラインだけの練習は、トラインの詠唱の1秒前から（裁きの光は P2 通しのときだけ。p.withLoj）。時刻をまとめてずらす
+    const SH = p.withLoj ? 0 : T_BASE.trineCast - 1;
+    const T = Object.fromEntries(Object.entries(T_BASE).map(([k, v]) => [k, Array.isArray(v) ? v.map(x => x - SH) : v - SH]));
     const me = p.me;
     // ---- 三角（-1 は中央） ----
     const tri = (i, set) => {
@@ -99,7 +103,7 @@ const P2T = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
-      [T.loj, () => { healerHit(70000, '裁きの光'); fxFlash('#fff4c0', .7, .35); sfx.big(); fxShake(6, .5); }],
+      ...(p.withLoj ? [[T.loj, () => { healerHit(70000, '裁きの光'); screenFx('judgment'); sfx.big(); fxShake(6, .5); }]] : []),
       ...T.det.map((dt, s) => [dt, () => {
         const vs = circlesOf([s]);
         if (vs.some(v => dist(S.player, v) <= CIR)) hurt(`トライン ${s + 1}回目の爆発に当たった`);
@@ -130,17 +134,18 @@ const P2T = {
     const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
       1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     return {
+      bossR:6,
       start:{ ...center(me) },
       intro:`あなたは ${me}`,
       end:T.end,
       casts:[
-        { name:'裁きの光', start:T.lojCast, len:T.loj - T.lojCast },
+        ...(p.withLoj ? [{ name:'裁きの光', start:T.lojCast, len:T.loj - T.lojCast }] : []),
         { name:'トライン', start:T.trineCast, len:T.trine - T.trineCast },
         { name:'破壊の翼', start:T.wingCast, len:T.wing - T.wingCast },
         { name:'破壊の翼', start:T.tbCast, len:T.tb - T.tbCast },
         { name:'終末の双腕', start:T.embCast, len:T.emb - T.embCast },
       ],
-      progress: t => t < T.loj ? '裁きの光' : t < T.det[2] + .2 ? 'トライン・破壊の翼' : t < T.emb ? '終末の双腕' : '終了',
+      progress: t => p.withLoj && t < T.loj ? '裁きの光' : t < T.det[2] + .2 ? 'トライン・破壊の翼' : t < T.emb ? '終末の双腕' : '終了',
       tick(t){
         const dt = Math.max(0, t - lastT); lastT = t;
         bots.forEach(b => { const g = botGoal(b.k, t), d = dist(b, g); if (d > .05){ const k = Math.min(1, BOT_SPEED * dt / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; } });
@@ -162,10 +167,17 @@ const P2T = {
         });
       },
       draw(t){
-        // 破壊の翼（半面）の詠唱中：光る翼（ケフカの横に白い羽）
-        if (t >= T.wingCast && t < T.wing){
-          const X = px(0), Z = px(0), s = hitSide, blink = (Math.floor(t * 8) & 1) ? '#ffffff' : '#fff4c0';
-          for (let i = 0; i < 6; i++) line(X + s * (10 + i * 3), Z - 2 - i * 3, X + s * (28 + i * 2), Z - 12 - i, blink);
+        // 破壊の翼（半面）の詠唱中：攻撃が来る側の半面に、白〜桃色の光の筋が差し込む（実機の翼の光に寄せる。翼の絵は描かない）
+        if (t >= T.wingCast && t < T.wing + .3){
+          const k = Math.min(1, (t - T.wingCast) / (T.wing - T.wingCast)), C0 = px(0), R = 20 * PPY, s = hitSide;
+          alpha(.06 + .14 * k, () => { ctx.fillStyle = '#ffd8f4'; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); s > 0 ? ctx.fillRect(C0 + 1, C0 + dy, hw, 1) : ctx.fillRect(C0 - hw, C0 + dy, hw, 1); } });
+          const cols = ['#ffffff', '#ffe8fa', '#f0b0ff'];
+          for (let i = 0; i < 9; i++){
+            const ph = (t * .9 + i * .37) % 1, a0 = (-70 + i * 17) * Math.PI / 180, len = R * (.45 + .55 * ph);
+            const x1 = C0 + s * Math.cos(a0) * len, y1 = C0 + Math.sin(a0) * len, x0 = C0 + s * Math.cos(a0) * len * .2, y0 = C0 + Math.sin(a0) * len * .2;
+            alpha((.25 + .55 * k) * (1 - ph * .6), () => { line(x0, y0, x1, y1, cols[i % 3]); line(x0, y0 + 1, x1, y1 + 1, cols[(i + 1) % 3]); });
+          }
+          if (t >= T.wing) alpha(.5 * (1 - (t - T.wing) / .3), () => { ctx.fillStyle = '#ffffff'; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); s > 0 ? ctx.fillRect(C0, C0 + dy, hw, 1) : ctx.fillRect(C0 - hw, C0 + dy, hw, 1); } });
         }
         bots.forEach(b => {
           const X = px(b.x), Z = px(b.z);

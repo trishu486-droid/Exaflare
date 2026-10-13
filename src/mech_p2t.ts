@@ -12,8 +12,9 @@ import { screenFx } from './p2fx.js';
 // P2（ゴッドケフカ）：トライン（裁きの光 〜 終末の双腕）。docs/dmu/research-p2.md §3
 // 時刻は cactbot のタイムライン 436.1 秒（裁きの光の詠唱の始まり）を 0 とする
 // 三角は外周6か所（中心から 15.3、60 度おき）＋中央。1回目＝外周3つ、2回目＝外周1つ、3回目＝中央＋外周2つ。降った順に2秒おきに頂点3か所から円
-// 安地（ヤーン）：ヒーラー・DPS は南 → 東、タンクは北 → 西の順に、1回目に降った三角の中へ。途中で破壊の翼（光る翼の側の半面）をよける
-// 破壊の翼（強攻撃）：一番近い人と一番遠い人。MT はボスの近く、ST は最外周、ほかは外周（最外周より内）
+// 処理（ヤーン・2026-10-13 ユーザーの指摘で作り直し）：最初は中央が安全。破壊の翼（半面）を中央でよけ、1回目の外周が爆発したらその三角の方へ入って
+//   2・3回目（中央を含む）をよける。パーティは南 → 東、タンクは北 → 西を優先した1回目の三角の方向
+// 破壊の翼（強攻撃）：一番近い人と一番遠い人（タンク2人。北側を使う）。範囲が広い
 // 大きさ（三角の中心から頂点 6、頂点の円 半径5）は図からの推定
 // =====================================================================
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
@@ -21,6 +22,7 @@ const T_BASE = { lojCast:0, loj:5.0, trineCast:12.2, trine:16.2, spawn:[16.7, 18
   wingCast:18.3, wing:23.3, tbCast:29.1, tb:33.4, embCast:35.6, emb:40.6, end:42.2 };
 // 三角：一辺 10（中心から頂点 5.77）、向きは東か西だけ。頂点の爆発は半径 6（Splatoon のスクリプトの値）。立ち位置は 6.4 離す
 const OUT_ANG = [11, 71, 131, 191, 251, 311], OUT_R = 15.275, CIR = 6, CLEAR = 6.4, EMB_R = 3, BOT_SPEED = 24;
+const TB_R = 8; // 破壊の翼（強攻撃）の範囲。資料に数字がないので、ユーザーがくれた実機の画像（黒紫の大きな円）から推定（半径 8〜9 くらい）
 const TRI_OFF = [[5.75, 0], [-3, 5], [-3, -5]]; // 東向きの三角の頂点（中心から）。西向きは x を逆に
 // 降る順のパターン（cactbot のコメントにある4つ。OUT_ANG の番号）。3回目は必ず中央も
 const PATTERNS = [
@@ -56,38 +58,44 @@ const P2T = {
     const TRIS = p.sets.flatMap((L, s) => L.map(i => tri(i, s)));
     const circlesOf = sets => TRIS.filter(t => sets.includes(t.set)).flatMap(t => t.v);
     const safeFrom = (q, sets, m = CLEAR - CIR + .8) => circlesOf(sets).every(v => dist(q, v) > CIR + m) && Math.hypot(q.x, q.z) < 19.3;
-    // ---- 安地：1回目の三角を、ヒーラー・DPS は南から反時計回り（南 → 東）、タンクは北から反時計回り（北 → 西）に探す ----
-    const sweep = (from, skip) => TRIS.filter(t => t.set === 0 && t !== skip).sort((a, b) => ((from - OUT_ANG[a.i] + 360) % 360) - ((from - OUT_ANG[b.i] + 360) % 360))[0];
-    const partyT = sweep(210), tankT = sweep(30, partyT);
-    // q のまわりで、指定の回の円が来ない一番近い所（6人で固まるずれ 0.7 の分も空ける）
-    const nearSafe = (q, sets, maxR = 8) => {
-      if (safeFrom(q, sets)) return q;
-      for (let r = .25; r <= maxR; r += .25) for (let a = 0; a < 360; a += 10){ const c = add(q, at(a, r)); if (safeFrom(c, sets)) return c; }
-      return q;
+    // ---- 立ち位置（ヤーン。Splatoon の P2_Trine_Beta の「ヤーン速報 方角優先」と同じ考え方） ----
+    // ① 最初は中央が必ず安全（中央の三角は3回目）。破壊の翼（半面）は全員で中央から 3 ずれた安全な側で待つ
+    // ② 1回目（外周3つ）が爆発したら、その三角の方へ入る（もう爆発しない）。2回目・3回目（中央を含む）はここでよける。外周で2回よけたりはしない
+    //    パーティは1回目の三角のうち南 → 東を優先した方向に中心から 14。タンクは北 → 西を優先した方向（パーティと別）に MT 7.5・ST 17
+    // ③ そのまま破壊の翼（強攻撃）：一番近い人（MT）と一番遠い人（ST）。範囲が広いので、ほかの人はタンクから離れている
+    const hitSide = p.wingLeft ? -1 : 1; // 破壊の翼（半面）：光る翼の側。ケフカは北を向いているので、左の翼＝西、右の翼＝東
+    const unitOf = q => { const d = Math.hypot(q.x, q.z) || 1; return { x:q.x / d, z:q.z / d }; };
+    const first = TRIS.filter(t => t.set === 0);
+    const byPriority = (list, dirs) => [...list].sort((a, b) => { for (const d of dirs){ const da = unitOf(a.c).x * d.x + unitOf(a.c).z * d.z, db = unitOf(b.c).x * d.x + unitOf(b.c).z * d.z; if (Math.abs(da - db) > .05) return db - da; } return 0; })[0];
+    const S_ = { x:0, z:1 }, E_ = { x:1, z:0 }, N_ = { x:0, z:-1 }, W_ = { x:-1, z:0 };
+    const partyT = byPriority(first, [S_, E_]), tankT = byPriority(first.filter(t => t !== partyT), [N_, W_]);
+    // 方向 dir・中心からの距離 r のあたり（±5、向きのずれ 32° まで）で、2・3回目の爆発から 6.4 離れた一番近い所（Splatoon と同じ探し方）
+    const dirSafe = (dir, r, ok = (q: { x: number, z: number }) => true) => {
+      const u = unitOf(dir), n = { x:-u.z, z:u.x }, want = { x:u.x * r, z:u.z * r };
+      let best = null, bd = 1e9;
+      for (let dr = -5; dr <= 5; dr += .25) for (let dl = -5; dl <= 5; dl += .25){
+        const q = { x:want.x + u.x * dr + n.x * dl, z:want.z + u.z * dr + n.z * dl }, qu = unitOf(q);
+        if (qu.x * u.x + qu.z * u.z < Math.cos(32 * Math.PI / 180) || Math.hypot(q.x, q.z) > 19) continue;
+        if (!circlesOf([1, 2]).every(v => dist(q, v) >= CLEAR) || !ok(q)) continue;
+        const d = dist(q, want); if (d < bd){ bd = d; best = q; }
+      }
+      return best || want;
     };
-    // 1回目が爆発するまでは三角のすぐ外（1回目の円が来ない所）で待ち、爆発したら三角の中（2・3回目の円が来ない所）へ
-    const partyPre = nearSafe(partyT.c, [0, 1, 2], 14), partySpot = nearSafe(partyT.c, [1, 2]);
-    const tankPre = nearSafe(tankT.c, [0, 1], 14);
-    // MT：1回目の爆発のあと、2・3回目の円が来ないボスに近い所。ST：最外周で、2・3回目の円が来ない所（タンクの三角の方向に近い順）
-    const tankDir = OUT_ANG[tankT.i], off = q => Math.abs((angOf(q) - tankDir + 540) % 360 - 180); // タンクの三角の方向からのずれ
-    const ringSpots = (d, m) => [...Array(72)].map((_, k) => at(k * 5, d)).filter(q => safeFrom(q, [1, 2], m)).sort((a, b) => off(a) - off(b));
-    let mtSpot = null;
-    for (let d = 6; d <= 12 && !mtSpot; d += .5) mtSpot = ringSpots(d, .6)[0] || null;
-    mtSpot = mtSpot || at(tankDir, 8);
-    const stSpot = ringSpots(18.8, .4)[0] || at(tankDir, 18.8);
-    // 破壊の翼（半面）：光る翼の側。ケフカは北を向いているので、左の翼＝西、右の翼＝東
-    const hitSide = p.wingLeft ? -1 : 1;
+    const partySpot = dirSafe(partyT.c, 14), mtSpot = dirSafe(tankT.c, 7.5), stSpot = dirSafe(tankT.c, 18.5, q => dist(q, mtSpot) > TB_R + .5); // ST は最外周寄り（MT の範囲に入らないように）
+    // 半面よけ・1回目の爆発を待つ所：中央から安全な側へ 3（1回目の円が来ないことを確かめる）
+    const waitSpot = (() => { const q = { x:-hitSide * 3, z:0 }; if (circlesOf([0]).every(v => dist(q, v) >= CLEAR)) return q; for (let r = .5; r <= 4; r += .5) for (let a = 0; a < 360; a += 15){ const c = add(q, at(a, r)); if (c.x * hitSide < -.5 && circlesOf([0]).every(v => dist(c, v) >= CLEAR)) return c; } return q; })();
     // ---- 道のり ----
     const center = s => add({ x:0, z:3 }, at(SLOTS.indexOf(s) * 45, 2));
     const route = s => {
-      const t = roleOf(s) === 'T', pre = t ? tankPre : partyPre, o = t ? { x:0, z:0 } : OFF(s);
-      // 半面よけは全員同じ所（安全な側、少し南）。そのあと1回目の三角のすぐ外 → 爆発したら中へ
-      const w = [{ until:T.wing, spot:add({ x:-hitSide * 7, z:3 }, OFF(s)) }, { until:T.det[0] - .1, spot:add(pre, o) }, { until:T.det[0] + .05, spot:add(pre, o) }];
-      if (t){ w.push({ until:T.det[1] - .1, spot:s === 'MT' ? mtSpot : stSpot }); w.push({ until:T.tb + .1, spot:s === 'MT' ? mtSpot : stSpot }); }
-      else { w.push({ until:T.det[1] - .1, spot:add(partySpot, o) }); w.push({ until:T.tb + .1, spot:add(partySpot, o) }); }
+      const t = roleOf(s) === 'T', o = t ? { x:0, z:0 } : OFF(s), fin = s === 'MT' ? mtSpot : s === 'ST' ? stSpot : add(partySpot, o);
       const emb = t ? { x:s === 'MT' ? -.6 : .6, z:-9.5 } : add(partySpot, o); // 終末の双腕：タンク2人はボスの北で重なる
-      w.push({ until:T.emb - .1, spot:emb }, { until:T.end + 9, spot:emb });
-      return [{ until:T.spawn[0] + 1.5, spot:center(s) }, ...w];
+      return [
+        { until:T.spawn[0] + 1.5, spot:center(s) },
+        { until:T.det[0] + .05, spot:add(waitSpot, OFF(s)) },     // 半面よけ〜1回目の爆発まで、中央の安全な側
+        { until:T.det[1] - .1, spot:fin },                        // 1回目が爆発したら、その三角の方へ（2回目の爆発の前に着く）
+        { until:T.tb + .1, spot:fin },                            // 3回目（中央）の爆発と強攻撃をここで
+        { until:T.emb - .1, spot:emb }, { until:T.end + 9, spot:emb },
+      ];
     };
     const ROUTES = Object.fromEntries(SLOTS.map(s => [s, route(s)]));
     const spotAt = (s, t) => (ROUTES[s].find(w => t < w.until) ?? ROUTES[s][ROUTES[s].length - 1]).spot;
@@ -119,7 +127,10 @@ const P2T = {
         if (me === 'MT' && near !== 'MT') hurt('破壊の翼（強攻撃）：MT がいちばん近くにいなかった');
         else if (me === 'ST' && far !== 'ST') hurt('破壊の翼（強攻撃）：ST がいちばん遠くにいなかった');
         else if (roleOf(me) !== 'T' && (near === me || far === me)) hurt('破壊の翼（強攻撃）を受けた（近すぎ・遠すぎ）');
-        [near, far].forEach(k => { const q = pos(k); fxAdd('burst', q.x, q.z, { r:2.5, cols:FXC.flare, dur:.45 }); });
+        // 範囲は広い（半径 TB_R・推定）。タンク以外がタンクのまわりにいると巻き込まれる
+        if (roleOf(me) !== 'T' && near !== me && far !== me && [near, far].some(k => dist(pos(k), S.player) <= TB_R)) hurt('破壊の翼（強攻撃）の範囲に巻き込まれた');
+        if (roleOf(me) === 'T' && [near, far].some(k => k !== me && dist(pos(k), S.player) <= TB_R)) hurt('破壊の翼（強攻撃）：もう1人のタンクの範囲に入った');
+        [near, far].forEach(k => { const q = pos(k); fxAdd('burst', q.x, q.z, { r:TB_R, cols:FXC.flare, dur:.5 }); });
         sfx.big();
       }],
       [T.emb, () => {

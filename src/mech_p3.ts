@@ -327,7 +327,15 @@ const P3A0 = (() => {
         if (now() < vulnUntil) hurt(`被魔法ダメージ増加中に${name}を受けた`);
         vulnUntil = now() + 4; healerHit(dmg, name);
       };
+      // 炎・水（デバフとクリスタル）は、ロールで決まった位置で処理する（TLB3式）。決まった位置にいなければ失敗
+      //   ずれると、クリスタルの対象が変わったり、ほかの人の風が外れたりする。ガイドの輪（半径2）より少し広く見る
+      const POS_TOL = 3, posMiss = {};
+      const posCheck = kind => {
+        if (posMiss[kind] || dist(S.player, spot(me, now())) <= POS_TOL) return;
+        posMiss[kind] = true; hurt(`${kind === 'fire' ? '混沌の炎・ほのお' : '混沌の水・つなみ'}：決まった位置にいなかった`);
+      };
       const elementGoesOff = kind => {
+        posCheck(kind);
         const hs = holders(kind).map(k => ({ ...pos(k) }));
         if (kind === 'fire'){
           if (hs.some(h => dist(h, S.player) <= FIRE_R)) hitMe('混沌の炎', DMG.fire);
@@ -339,6 +347,7 @@ const P3A0 = (() => {
         sfx.big();
       };
       const crystalGoesOff = kind => {
+        posCheck(kind);
         const c = CRY[kind], tg = nearest(c, 2), tp = tg.map(k => ({ ...pos(k) }));
         const isTarget = tg.includes(me);
         const hit = kind === 'fire'
@@ -485,10 +494,13 @@ const P3A0 = (() => {
           // 範囲サンダガの詠唱中：画面の外（北）にある「無」から、黒く太いもやの触手がうねりながらエクスデスへ伸びて力をもらう
           if (t >= T.thunderAoe - THUNDER_CAST && t < T.thunderAoe + .3){
             const k = Math.min(1, (t - (T.thunderAoe - THUNDER_CAST)) / 1.2), f = t < T.thunderAoe ? 1 : 1 - (t - T.thunderAoe) / .3, E = { x:px(EX.x), z:px(EX.z) };
-            [[-30, 0], [10, 1.7], [42, 3.1]].forEach(([ox, ph]) => {
+            // 3本は近くから出す（出どころの間隔 12〜14px）。太さは本ごとに変え、途中でも太くなったり細くなったり、まばらにする
+            [[-13, 0, 6], [0, 1.7, 8.5], [14, 3.1, 5]].forEach(([ox, ph, th0]) => {
               const S0 = { x:px(0) + ox, z:-6 }, L = Math.hypot(E.x - S0.x, E.z - S0.z), ux = (E.x - S0.x) / L, uz = (E.z - S0.z) / L, len = L * k;
               for (let s2 = 0; s2 < len; s2 += 1.5){
-                const q = s2 / L, w = Math.sin(q * 7 + t * 2.5 + ph) * 10 * Math.sin(q * Math.PI), x = S0.x + ux * s2 - uz * w, z = S0.z + uz * s2 + ux * w, th = 7 * (1 - q * .75);
+                const q = s2 / L, w = Math.sin(q * 7 + t * 2.5 + ph) * 9 * Math.sin(q * Math.PI), x = S0.x + ux * s2 - uz * w, z = S0.z + uz * s2 + ux * w;
+                const lump = .55 + .45 * Math.sin(q * 11 + ph * 2.3 - t * 1.8) * Math.sin(q * 5.3 + ph + t * .9) + .25 * Math.sin(q * 23 + ph * 4); // 太い所・細い所
+                const th = Math.max(1.5, th0 * (1 - q * .7) * lump);
                 alpha(.35 * f, () => disc(Math.round(x), Math.round(z), Math.round(th + 2), '#2a2a6a'));
                 alpha(.75 * f, () => disc(Math.round(x), Math.round(z), Math.round(th), (s2 / 6 | 0) % 2 ? '#0a0c22' : '#141a3a'));
               }

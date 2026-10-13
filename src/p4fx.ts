@@ -122,6 +122,7 @@ function drawFloodMarks(neo, right, colorOf, t){
   });
 }
 // マジックアウトの詠唱中：ケフカのまわりに青と紫の大きな輪が何重にも
-function drawReleaseRings(t){ const X = px(0), Y = px(0); for (let i = 0; i < 3; i++){ const rx = 18 + i * 6 + Math.round(Math.sin(t * 3 + i) * 2); ga(.75, () => { for (let a = 0; a < 72; a++){ const th = a * Math.PI / 36; rect(X + Math.round(Math.cos(th) * rx), Y + Math.round(Math.sin(th) * rx * .45), 2, 1, i % 2 ? '#b05aff' : '#5ab8ff'); } }); } }
+// マジックアウトの詠唱中の輪。真偽の玉の輪（半径16）と見分けやすいよう、外側に薄く出す
+function drawReleaseRings(t){ const X = px(0), Y = px(0); for (let i = 0; i < 3; i++){ const rx = 27 + i * 7 + Math.round(Math.sin(t * 3 + i) * 2); ga(.3, () => { for (let a = 0; a < 72; a++){ const th = a * Math.PI / 36; rect(X + Math.round(Math.cos(th) * rx), Y + Math.round(Math.sin(th) * rx * .45), 2, 1, i % 2 ? '#b05aff' : '#5ab8ff'); } }); } }
 
 export { makeP4Fx, drawRails, drawChaosGlow, drawFloodMarks, drawReleaseRings, scatter };

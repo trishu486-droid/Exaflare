@@ -9,7 +9,7 @@ import { sfx } from './audio.js';
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
             gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[],
             provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
-  tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
+  tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string; tgt?:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
   gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number; lockAt:number; lockKeys:string[];
   provoke:number | null; shirk:number | null; sunUsed:boolean;
@@ -25,10 +25,10 @@ function hpReset(){
   HP.on = job().role === 'healer'; HP.hp = 100; HP.shield = 0; HP.taken = HP.prevented = HP.absorbed = HP.healed = 0;
   $('hp').hidden = !HP.on;
 }
-function onBuff(id){
+function onBuff(id, tgt?: string){
   if (!HP.on || S.phase !== 'run' && S.phase !== 'count') return;
   const b = BUFFS[id], ns = hasBuff('ns');
-  if (S.inst?.party){ S.inst.party.heal(id, ns); return; } // P3 じしん＆ブラックホール：回復は8人ぶんギミック側で計算（自分の HP も）
+  if (S.inst?.party){ S.inst.party.heal(id, ns, tgt); return; } // P3 じしん＆ブラックホール：回復は8人ぶんギミック側で計算（自分の HP も）
   if (b.heal){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + b.heal * (ns ? 1.2 : 1)); HP.healed += HP.hp - before; popup(Math.round((HP.hp - before) * MAX_HP / 100).toLocaleString('en-US'), 'healnum self', BUFFS[id].name, S.player); }
   if (b.shield) HP.shield = Math.max(HP.shield, b.shield);
   if (id === 'helios' && ns) HP.shield = Math.max(HP.shield, 25); // ニュートラルセクト中のヘリオスはバリアも付く
@@ -167,7 +167,8 @@ function runGcd(k){
   A.readyAt = S.t + GCD; A.gcds++; A.actAt = S.t;
   if (ab.gcd){
     A.cds[k] = S.t + ab.cd;
-    if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k }; if (!ab.buff) faceBoss(); return; }
+    // 単体回復の相手は、詠唱を始めた瞬間のターゲットで決まる（詠唱中にターゲットを変えても変わらない。FF14 と同じ）
+    if (ab.cast && A.instant <= 0){ A.cast = { start:S.t, end:S.t + ab.cast, k, tgt:S.inst?.party?.sel }; if (!ab.buff) faceBoss(); return; }
     if (ab.cast) A.instant--;
     finishGcd(ab); return;
   }
@@ -187,8 +188,8 @@ function runGcd(k){
   A.cast = { start:S.t, end:S.t + ab.cast, k }; faceBoss(); // 詠唱の始まりにも向く
 }
 // GCD技の効果：バフが付くもの（回復・バリア）かダメージ
-function finishGcd(ab){
-  if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
+function finishGcd(ab, tgt?: string){
+  if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff, tgt); }
   else dealDamage(ab.pot, ab.name);
 }
 // タンク：P5 通しではオーケストラの前後で B・X・Y の技が入れ替わる。リキャストは技ごとに覚えておく
@@ -229,7 +230,7 @@ function actTick(dt){
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）
   if (A.cast){
     if (isMoving() && S.t < A.cast.end - SLIDECAST){ A.cast = null; A.readyAt = S.t; fail(); }
-    else if (S.t >= A.cast.end){ const ab = job()[A.cast.k] || a; A.cast = null; finishGcd(ab); }
+    else if (S.t >= A.cast.end){ const ab = job()[A.cast.k] || a, tgt = A.cast.tgt; A.cast = null; finishGcd(ab, tgt); }
     return;
   }
   if (S.t < A.readyAt) return;

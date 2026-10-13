@@ -18,7 +18,7 @@ const P4 = (() => {
   const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
   const SUP = ['MT', 'ST', 'H1', 'H2'], DPS = ['D1', 'D2', 'D3', 'D4'];
   const grp = k => SUP.includes(k) ? 'TH' : 'D';
-  const BOT_SPEED = 9, SPOT_TOL = 3, SPREAD_R = 6, STACK_R = 6, BAIT_R = 6, EDGE_HW = 2.5;
+  const BOT_SPEED = 9, SPOT_TOL = 3, SPREAD_R = 8, STACK_R = 8, BAIT_R = 6, EDGE_HW = 2.5; // 散開・頭割り（フォークライトニング・水属性圧縮）は半径 8（ゲームデータ：Death Bolt／Death Wave）
   const T = {
     mystery:[11.02, 25.94, 41.08], gc:[11.37, 26.30, 41.26], gcHit:[20.35, 35.20, 50.05],
     chaos:[16.51, 31.43], chaosHit:[25.35, 40.20], debuff1:20.36, debuff2:35.28, chaosDebuff:[27.28, 40.99], gc3Debuff:51.67,
@@ -121,14 +121,16 @@ const P4 = (() => {
       // 1セット目：無の氾濫でネオエクスデスがいた方向を北。2セット目：フィールドの北（ブリザガの安地側へ寄る）
       const blizzHits = iceHits(charged);
       const setBase = (k, set) => { const base = set === 1 ? p.neoDir : 0, g = grp(k); return isSpread(k, set) ? base + (g === 'TH' ? 270 : 90) : base + (g === 'TH' ? 0 : 180); };
-      const setSpots = (k, set) => { const b = setBase(k, set), r = isSpread(k, set) ? 14 : 9.5; return (set === 2 ? [b, b - 30, b + 30] : [b]).map(c => at(c, r)); };
+      // 散開は中心から 17（2セット目で頭割りと 30° しか離れないときも、半径 8 に巻き込まない距離）。頭割りは 9.5
+      const SPREAD_POS = 17, STACK_POS = 9.5;
+      const setSpots = (k, set) => { const b = setBase(k, set), r = isSpread(k, set) ? SPREAD_POS : STACK_POS; return (set === 2 ? [b, b - 30, b + 30] : [b]).map(c => at(c, r)); };
       const setSpot = (k, set) => {
         const g = grp(k), sp = isSpread(k, set);
         let b = setBase(k, set);
         if (set === 2){ const cand = [b - 30, b + 30]; b = cand.find(c => !blizzHits.includes(quadOf(at(c, 10)))) ?? b; }
-        if (sp) return at(b, 14);
+        if (sp) return at(b, SPREAD_POS);
         const tgt = SLOTS.find(x => grp(x) === g && stackTarget(x, set));
-        const c = at(b, 9.5); if (k === tgt) return c;
+        const c = at(b, STACK_POS); if (k === tgt) return c;
         const others = SLOTS.filter(x => grp(x) === g && !isSpread(x, set) && x !== tgt), i = others.indexOf(k);
         return { x:c.x + Math.cos(i * 2.1 + 1) * 1.2, z:c.z + Math.sin(i * 2.1 + 1) * 1.2 };
       };
@@ -419,7 +421,8 @@ const P4 = (() => {
           T.mystery.forEach((s, k) => { if (t >= s && t < s + TELL) kefkaOrbs(p.mystery[k].iceTrue, p.mystery[k].thTrue); });
           if (t >= T.thunder && t < T.thunder + TELL) kefkaOrbs(null, charged.thTrue);
           if (t >= T.blizzard && t < T.blizzard + TELL) kefkaOrbs(charged.iceTrue, null);
-          if (t >= T.releaseTell - 6 && t < T.releaseTell + TELL) kefkaOrbs(relShown.ice, relShown.th);
+          // マジックアウト：真偽の玉は詠唱の始まりから予兆が出るまで（予兆が出たあとは回らない。実機と同じ）
+          if (t >= T.release && t < T.releaseTell) kefkaOrbs(relShown.ice, relShown.th);
           if (t >= T.release && t < T.releaseTell) drawReleaseRings(t);
           if (t >= T.flood && t < T.floodHit) drawFloodMarks(neo, right, shownColor, t);
           // 味方（7人）は描かない。内部では決まった位置へ動き、混沌の炎・水の置き場所と視線の向きの判定にだけ使う

@@ -150,7 +150,17 @@ const P3C = {
     const CH = mkBoss(centerPos('chaos'), 'ST'), EX = mkBoss(centerPos('exdeath'), 'MT');
     const CAST_CH = [[T.damning[0].cast, T.damning[0].hit], [T.damning[1].cast, T.damning[1].hit], [T.impl.cast, T.impl.hits[1]]];
     const CAST_EX = [[T.bh, T.bhSpawn], ...TH.map(([a, b]) => [a - 5, b]), [T.white.cast, T.white.hit]];
-    const casting = (b, t) => (b === CH ? CAST_CH : CAST_EX).some(([a, z]) => t >= a && t < z);
+    // ボスは詠唱の始まりから、攻撃が出て少しあと（POST_HOLD）まで動かない（向きも変えない）。FF14 の動きに合わせる
+    const POST_HOLD = 1.0;
+    const casting = (b, t) => (b === CH ? CAST_CH : CAST_EX).some(([a, z]) => t >= a && t < z + POST_HOLD);
+    // ブラックホール2セット目の終わり（ダミングイーディクト2回目・ボクチン1回目）：エクスデスは詠唱がないので、
+    // MT がボクチンをよけるついでに外周寄りへ連れて行く。そこ（中央と外周のちょうど間）でサンダガ2連を受け、終わったら中央へ戻す
+    const PULL = { from:T.noth[4] + .2, to:T.thunder[1][0] - 5, back:T.thunder[1][1] + POST_HOLD, R:10, STOP:2.5 };
+    let pullDir = null; // エクスデスを置く方角（ボクチンの直線の横で、カオスの背面側。エクスデス組の側）
+    const pullBearing = () => {
+      if (pullDir == null){ const kb = p.kefka.bok[0], e = centerPos('exdeath'); pullDir = [kb + 180 + 60, kb + 180 - 60].map(norm).sort((a, b) => { const qa = at(a, 1), qb = at(b, 1); return (qb.x * e.x + qb.z * e.z) - (qa.x * e.x + qa.z * e.z); })[0]; }
+      return pullDir;
+    };
     const battleOn = t => t < T.battleEnd;
     const bosses = t => [
       { id:'chaos', name:'カオス', x:CH.x, z:CH.z, face:CH.face, r:BOSS_TC, color:BOSS_COL.chaos, attackable: tt => !battleOn(tt) || side(me) === 'chaos' },
@@ -232,11 +242,13 @@ const P3C = {
           const near = r0 => { for (let r = r0; r <= r0 + 3; r += .5){ for (let da = 0; da <= 180; da += 15) for (const sg of [1, -1]){ const q = add(EX, at(kd + da * sg, r)); if (!nearMine(q)) return q; } } return add(EX, at(kd, r0)); };
           // 受けるタンクのまわり（円範囲）から離れる。タンクはケフカ側
           const aim = near(1), far = q => dist(q, aim) > BUSTER_R + .8 && dist(q, near(.5)) > BUSTER_R + .8;
-          if (k === 'MT') return t < h1 + .3 ? near(1) : findSafe(idle(k), q => dist(q, EX) >= 4 && dist(q, near(.5)) > BUSTER_R + .8);
+          if (k === 'MT') return t < h1 + .3 ? near(.5) : findSafe(idle(k), q => dist(q, EX) >= 4 && dist(q, near(.5)) > BUSTER_R + .8);
           if (k === 'ST' && t >= h1 + .3) return near(.5);
           if (k !== 'ST' || t < h1 + .3) return findSafe(idle(k), q => dist(q, EX) >= 3.5 && far(q)); // ST も1発目までは離れておく
         }
       }
+      // MT：エクスデスを外周寄りへ連れて行く（サンダガの詠唱が始まるまで。そのあとも 1発目まではそのそば）
+      if (k === 'MT' && t >= PULL.from && t < T.thunder[1][0] - 3) return at(pullBearing(), PULL.R + PULL.STOP);
       // ダミングイーディクト：全員カオスの背面へ（2回目はボクチンの直線もよける）
       for (let i = 0; i < 2; i++){
         const dm = T.damning[i];
@@ -296,8 +308,11 @@ const P3C = {
       return idle(k);
     };
     // 地雷のすぐそばにならないよう、最後に地雷から押し出す
+    // サンダガ2連を受けるタンク（1発目 MT・2発目 ST）は、エクスデスの真下で受ける（線よけ・地雷よけで押し出さない。near() が地雷は避けている）
+    const takingThunder = (k, t) => TH.some(([h1, h2]) => (k === 'MT' && t >= h1 - 3 && t < h1 + .3) || (k === 'ST' && t >= h1 + .3 && t < h2 + .3));
     const spot = (k, t) => {
       let q = spot0(k, t);
+      if (takingThunder(k, t)) return q;
       const pushMines = () => { curMines().forEach(m => { const d = dist(q, m), need = MINE_HIT + .7; if (d < need){ const u = d > .01 ? unit(m, q) : unit(m, { x:0, z:0 }); q = add(m, u, need); } }); };
       pushMines();
       // 自分の担当でない線の上に立たない（ほかの人の線を取ってしまう）
@@ -508,15 +523,16 @@ const P3C = {
     const party = {
       get sel(){ return sel; },
       select(k){ if (SLOTS.includes(k)){ sel = k; sfx.ok?.(); } },
-      heal(id, ns){
+      // tgt：詠唱を始めたときのターゲット（詠唱なしで出たときは今のターゲット）
+      heal(id, ns, tgt = sel){
         const b = BUFFS[id], mult = ns ? 1.2 : 1;
-        const targets = b.single ? [sel] : SLOTS;
+        const targets = b.single ? [tgt] : SLOTS;
         targets.forEach(k => {
           if (b.heal){ const got = addHp(k, b.heal * mult); if (k === me && got > 0) popup(Math.round(got * 2050).toLocaleString('en-US'), 'healnum self', b.name, S.player); }
           if (b.shield){ mem[k].shield = Math.max(mem[k].shield, b.shield); mem[k].shUntil = now() + 15; }
           if (id === 'helios' && ns){ mem[k].shield = Math.max(mem[k].shield, 25); mem[k].shUntil = now() + 15; }
         });
-        if (b.single && sel !== me) popup(`${b.name} → ${sel}`, 'crit');
+        if (b.single && tgt !== me) popup(`${b.name} → ${tgt}`, 'crit');
       },
       regen(v){ SLOTS.forEach(k => addHp(k, v)); },
       members: t => SLOTS.map(k => {
@@ -716,7 +732,7 @@ const P3C = {
         Object.entries(botPress).forEach(([k, tp]) => { if (!label[k] && t >= tp) giveMark(k, LINE_GROUP[p.line[k]]); });
         // 見えない味方：次に位置が大事になる瞬間（DEADLINES）の直前まで動かず、ギリギリで駆け込む（P5 のオーケストラと同じ。答えが見えないように）
         // このコマで締め切りをまたいだときは、まだその締め切りを使う（攻撃の判定はこの移動のあとに来るので、先に持ち場を離れない）
-        const D = DEADLINES.find(x => x > lt + .02) ?? T.end;
+        const D = DEADLINES.find(x => x > lt) ?? T.end;
         bots.forEach(b => {
           if (mem[b.k].dead) return;
           const g = spot(b.k, D > t ? Math.max(t, D - .1) : D - .1), d = dist(b, g), step = BOT_SPEED * dt;
@@ -726,9 +742,14 @@ const P3C = {
         // P3 通し：決戦2回目の位置（離れている）から、じしんまでに中央へ歩いてくる（エクスデスはサンダガの詠唱が終わってから）
         if (p.bossFrom && !this._from){ this._from = true; const fb = p.bossFrom(); [[CH, 'chaos'], [EX, 'exdeath']].forEach(([b, id]) => { const q = fb.find(x => x.id === id); b.x = q.x; b.z = q.z; }); }
         if (p.bossFrom) [[CH, 'chaos'], [EX, 'exdeath']].forEach(([b, sd]) => {
-          if (casting(b, t) || (b === EX && t < TH[0][1] + .2)) return; const g = centerPos(sd), d = dist(b, g); if (d < .05) return; // エクスデスはサンダガ2連が終わるまで外周
+          if (casting(b, t) || (b === EX && (t < TH[0][1] + .2 || (t >= PULL.from && t < PULL.back + 5)))) return; const g = centerPos(sd), d = dist(b, g); if (d < .05) return; // エクスデスはサンダガ2連が終わるまで外周
           const k = Math.min(1, 7 * dt / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k;
         });
+        // エクスデスを外周寄りへ（MT について行く）→ サンダガ2連 → 中央へ戻る
+        if (!casting(EX, t) && ((t >= PULL.from && t < PULL.to) || (t >= PULL.back && t < PULL.back + 5))){
+          const g = t < PULL.to ? pos('MT') : centerPos('exdeath'), stop = t < PULL.to ? PULL.STOP : 0, d = dist(EX, g);
+          if (d > stop + .05){ const step = Math.min(BOSS_SPEED * dt, d - stop); EX.x += (g.x - EX.x) / d * step; EX.z += (g.z - EX.z) / d * step; }
+        }
         [CH, EX].forEach(b => {
           if (casting(b, t)) return;
           // ボスは中央に固定（タンクが線を持って離れても動かない＝近接が殴れる）。向きだけヘイトのタンクの方へ

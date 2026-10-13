@@ -2,6 +2,7 @@ import './style.css';
 import './debug.js';
 import './pwa.js';
 import './devbadge.js';
+import './moved.js';
 import './config.js';
 import './jobs.js';
 import './gfx.js';

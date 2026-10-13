@@ -1,4 +1,4 @@
-import { BUFFS, GCD, GCD_QUEUE, KEYS, MELEE, QUEUE, SLIDECAST, dmgPerPot, isGcd, job } from './jobs.js';
+import { BUFFS, CRIT_AVG, GCD, GCD_QUEUE, KEYS, MELEE, QUEUE, SLIDECAST, dmgPerPot, isGcd, job } from './jobs.js';
 import { $ } from './store.js';
 import { S, keys, stickVec } from './state.js';
 import { C0, P, PPY, W, alpha, hurt, jobIconSvg, line, px, rect, ring } from './gfx.js';
@@ -8,10 +8,10 @@ import { sfx } from './audio.js';
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
             gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[],
-            provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
+            provoke:null as number | null, shirk:null as number | null, walk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
   tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string; tgt?:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
-  gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number; lockAt:number; lockKeys:string[];
+  walk:number | null; gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number; lockAt:number; lockKeys:string[];
   provoke:number | null; shirk:number | null; sunUsed:boolean;
 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
@@ -45,18 +45,20 @@ function healerHit(raw, name?: string){
   popup(Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum self', name, S.player);
   if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
 }
-// HoT（継続回復）は FF14 と同じく 3 秒ごとにまとめて 1 回。数字は全部の HoT の合計で、技の名前は出さない
+// HoT（継続回復）は FF14 と同じく 3 秒ごとにまとめて 1 回。数字は全部の HoT の合計で、技の名前は出さない（ばらつき・クリティカルあり）
 const HOT_TICK = 3;
 let hotAt = -Infinity;
 function hpTick(dt){
   if (!HP.on) return;
   if (S.t >= hotAt){
     hotAt = (Math.floor(S.t / HOT_TICK) + 1) * HOT_TICK;
-    const v = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].regen).reduce((a, id) => a + BUFFS[id].regen * HOT_TICK, 0);
-    if (v > 0){
+    const v0 = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].regen).reduce((a, id) => a + BUFFS[id].regen * HOT_TICK, 0);
+    // FF14 と同じく、HoT にも ±5% のばらつきとクリティカル（25%・1.5倍）。平均の回復量は変えない（1.125 で割る）
+    const crit = Math.random() < .25, v = v0 * (.95 + Math.random() * .1) * (crit ? 1.5 : 1) / CRIT_AVG;
+    if (v0 > 0){
       if (S.inst?.party) S.inst.party.regen(v);
       else { const before = HP.hp; HP.hp = Math.min(100, HP.hp + v); HP.healed += HP.hp - before; }
-      popup(Math.round(v * MAX_HP / 100).toLocaleString('en-US'), 'healnum self', undefined, S.player);
+      popup(Math.round(v * MAX_HP / 100).toLocaleString('en-US') + (crit ? '!' : ''), 'healnum self', undefined, S.player);
     }
   }
   if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
@@ -79,10 +81,34 @@ function hpDraw(){
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[] });
+  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, walk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[] });
   fxEl.innerHTML = ''; hotAt = -Infinity;
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
+// ===== 暗黒騎士のリビングデッド（実機と同じ流れ。2026-10-13 ユーザーの希望） =====
+// リビングデッド（10秒）の間に戦闘不能になる攻撃を受けると、ウォーキングデッド（10秒、HP は1より減らない）に変わる
+// ウォーキングデッドの間に最大HPぶん回復するとデッドリバース（残り時間、HP は1より減らない）。回復が足りないまま切れると戦闘不能
+// タンクには HP がないので、回復は「進み（%）」で数える：ヒーラー（NPC）が少し遅れて毎秒、自分のウェポンスキル・魔法が1回ごと（リビングデッドの追加効果）
+const WALK_NPC = 12, WALK_NPC_DELAY = 1, WALK_GCD = 15;
+// 戦闘不能になる攻撃を受けたとき：生き残れたら true（無敵・リビングデッドの流れ）
+function lethalHit(){
+  if (hasBuff('living')){
+    delete A.buffs.living; A.buffs.walking = S.t + BUFFS.walking.dur; A.walk = 0;
+    sfx.buff(); popup(BUFFS.walking.name, 'crit');
+    return true;
+  }
+  return hasInvuln();
+}
+function walkHeal(v){
+  if (A.walk === null || !hasBuff('walking')) return;
+  A.walk += v;
+  if (A.walk >= 100){ A.buffs.rebirth = A.buffs.walking; delete A.buffs.walking; A.walk = null; sfx.buff(); popup(BUFFS.rebirth.name, 'crit'); }
+}
+function walkTick(dt){
+  if (A.walk === null) return;
+  if (!hasBuff('walking')){ A.walk = null; hurt('ウォーキングデッドの間に回復が足りなかった'); return; }
+  if (S.t - (A.buffs.walking - BUFFS.walking.dur) >= WALK_NPC_DELAY) walkHeal(WALK_NPC * dt);
+}
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
 const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
@@ -165,6 +191,7 @@ function pressKey(k){
 function runGcd(k){
   const j = job(), ab = j[k];
   A.readyAt = S.t + GCD; A.gcds++; A.actAt = S.t;
+  walkHeal(WALK_GCD);
   if (ab.gcd){
     A.cds[k] = S.t + ab.cd;
     // 単体回復の相手は、詠唱を始めた瞬間のターゲットで決まる（詠唱中にターゲットを変えても変わらない。FF14 と同じ）
@@ -216,6 +243,7 @@ function kitSwap(j){
 }
 function actTick(dt){
   const j = job(), a = j.a;
+  walkTick(dt);
   kitSwap(j);
   KEYS.forEach(k => {
     const ab = j[k];
@@ -256,4 +284,4 @@ function drawActFx(){
   }
 }
 
-export { A, curBoss, switchTarget, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };
+export { A, curBoss, switchTarget, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, lethalHit, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };

@@ -29,7 +29,7 @@ const MISS = (() => {
   const INNER = { NE:[IN, -IN], SE:[IN, IN], SW:[-IN, IN], NW:[-IN, -IN] };
   const inHole = (x, z, [tx, tz]) => (x - tx * G) ** 2 + (z - tz * G) ** 2 <= HOLE_R * HOLE_R;
   return {
-    id:'miss', name:'ミッシング', sub:'P5 時間切れ前', view:24, start:{ x:IN, z:-IN },
+    id:'miss', name:'ミッシング', sub:'', view:24, start:{ x:IN, z:-IN },
     gen(){
       const x = pick(['NE', 'SE', 'SW', 'NW']);
       const c3 = pick([rot(x, 135), rot(x, -135)].filter(c => c !== 'N')), left = shuffle(['N', 'E', 'S', 'W'].filter(c => c !== c3));

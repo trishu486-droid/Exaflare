@@ -4,7 +4,7 @@ import { S, shuffle } from './state.js';
 import { ORCH } from './mech_orch.js';
 import { opt } from './store.js';
 import { sfx } from './audio.js';
-import { A, hasInvuln, healerHit } from './action.js';
+import { A, hasInvuln, healerHit, lethalHit } from './action.js';
 import { FXC, FXK, fxAdd, fxFlash, fxParts, fxShake } from './fx.js';
 import { P, PPY, hurt, px, rect, ring } from './gfx.js';
 
@@ -124,7 +124,7 @@ const RUN = (() => {
             if (role === 'T'){
               if (a.solo){
                 const holy = holyOf(a.solo); // ホーリー役：スイッチしてヘイト1位になった方
-                if (me === holy){ if (!inK('T')) hurt('AAを受けていない'); else if (!hasInvuln()) hurt('無敵なしでAA'); }
+                if (me === holy){ if (!inK('T')) hurt('AAを受けていない'); else if (!lethalHit()) hurt('無敵なしでAA'); }
                 else if (inK('T')) hurt('AAに入った（ホーリー役が1人で受ける）');
               } else if (!inK('T')) hurt('AAの頭割りに入れていない');
             } else {

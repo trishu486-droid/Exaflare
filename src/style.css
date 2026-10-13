@@ -496,3 +496,13 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 /* 開発版の札（プレビューの住所だけ）。上の並びのいちばん左に、2行の小さな赤い札 */
 #devBadge{flex:none;align-self:center;display:flex;flex-direction:column;align-items:center;padding:1px 2px;margin-right:2px;background:#d8283a;color:#fff;font:10px/1.15 "DotGothic16",monospace;border:1px solid #fff;border-radius:3px;pointer-events:none}
 #devBadge small{font-size:7px;opacity:.9;letter-spacing:-.02em}
+
+/* 旧住所（GitHub Pages）から開いたときの引っ越しのお知らせ（src/moved.ts） */
+.sheet.moved{z-index:20}
+.moved h2{margin:0;font:400 18px var(--px);color:var(--gold)}
+.moved p{margin:0;font-size:14px;line-height:1.6}
+.moved b{color:var(--gold);font-weight:400}
+.moved .mvurl{font:15px var(--px);color:#fff;background:#0a0814;border:3px solid var(--edge);padding:6px 8px;width:100%;box-sizing:border-box}
+.moved .mvgo{text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center}
+.moved .row{display:flex;gap:8px}
+.moved .row .close{flex:1}

@@ -42,6 +42,7 @@ const sfx = {
   back(){ [520, 350].forEach((f, i) => setTimeout(() => this.tone(f, .07, 'square', .045), i * 70)); },
   boom(){ this.tone(140, .09, 'square', .025, -80); },
   big(){ this.tone(110, .3, 'square', .07, -70); this.tone(55, .35, 'triangle', .09, -20); },
+  fall(){ this.tone(900, .75, 'triangle', .07, -780); }, // 外周から落ちる「ヒュー」
   splash(){ this.tone(420, .18, 'triangle', .05, -300); },
   hurt(){ this.tone(220, .25, 'sawtooth', .08, -160); },
   hit(){ this.tone(988, .05, 'square', .04); },

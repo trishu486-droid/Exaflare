@@ -42,6 +42,13 @@ function drawFootRing(X, Z){
 }
 function drawPlayer(){
   const now = performance.now(), hurtNow = now - S.hurtT < 500, X = px(S.player.x), Z = px(S.player.z);
+  // 外周から落ちた：外へ少し流れながら、だんだん小さくなって消える（0.75秒）
+  if (S.fall){
+    const k = Math.min(1, (now - S.fall.at) / 750); if (k >= 1) return;
+    const sc = 1 - k * k, d = k * 10, gx = X + S.fall.ux * d, gz = Z + S.fall.uz * d + k * 6;
+    ctx.save(); ctx.translate(gx, gz); ctx.rotate(k * 3); ctx.scale(sc, sc); drawIcon(0, 0, false); ctx.restore();
+    return;
+  }
   if (S.phase !== 'menu') drawFootRing(X, Z);
   drawIcon(X, Z, hurtNow && (Math.floor(now / 70) & 1));
 }
@@ -167,7 +174,8 @@ const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピア�
   'コンジャンクション・ヘリオス':'コンヘリ', 'フォールマレフィク':'マレフィク', 'エクストリームガード':'エクスガ' };
 // ボタンにはスキルの絵を貼る（元の画像がない技は文字だけ）。左上にキー、下に名前。リキャスト中は真ん中に秒数
 function setBtn(el, key, name, p, ready, combo = false){
-  const art = skillIconUrl(opt.job, name), bg = art ? `url(${art})` : '';
+  // 絵の住所はページから見た完全な住所にする（CSS の変数に相対の住所を入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
+  const art = skillIconUrl(opt.job, name), bg = art ? `url("${new URL(art, document.baseURI).href}")` : '';
   if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.setProperty('--art', bg || 'none'); el.classList.toggle('art', !!art); }
   el.classList.toggle('cd', /^\d+$/.test(key));
   name = SHORT[name] || name;
@@ -217,8 +225,13 @@ function drawButtons(){
   const buffs = (run ? Object.keys(A.buffs).filter(hasBuff).map(id => icon(id, BUFFS[id].name, Math.ceil(A.buffs[id] - S.t))).join('') : '')
     + (run && A.instant ? icon(A.instantArt || 'triple', A.instantArt === 'swift' ? '迅速魔' : '三連魔', A.instant) : ''); // 数字は残りの回数
   const html = (debuffs ? `<div class="bufrow debuffs">${debuffs}</div>` : '') + (buffs ? `<div class="bufrow">${buffs}</div>` : '');
-  if (buffEl.innerHTML !== html) buffEl.innerHTML = html;
+  // 並び（アイコンの種類）が同じなら秒数の数字だけ書きかえる。全部書き直すと、画像を読み直してチカチカする
+  const shape = html.replace(/<b>[^<]*<\/b>/g, '<b></b>');
+  if (shape !== buffShape){ buffEl.innerHTML = html; buffShape = shape; return; }
+  const nums = [...html.matchAll(/<b>([^<]*)<\/b>/g)].map(m => m[1]), bs = buffEl.querySelectorAll('b');
+  nums.forEach((n, i) => { if (bs[i] && bs[i].textContent !== n) bs[i].textContent = n; });
 }
+let buffShape = '';
 
 // ===== HUD / メッセージ =====
 const hSet = $('hSet'), hHit = $('hHit'), hDmg = $('hDmg'), msg = $('msg');

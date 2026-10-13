@@ -1,6 +1,6 @@
 import { S, pick, logLine } from './state.js';
 import { sfx } from './audio.js';
-import { A, hasInvuln, healerHit, popup, switchTarget } from './action.js';
+import { A, hasInvuln, healerHit, lethalHit, popup, switchTarget } from './action.js';
 import { opt } from './store.js';
 import { mySlot } from './jobs.js';
 import { bossSprite } from './p4boss.js';
@@ -380,7 +380,7 @@ const P3A0 = (() => {
           const e = { x:EX.x, z:EX.z }, tgt = nearest(e, 1)[0];
           if (tgt === me){
             if (me !== 'MT') hurt('サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
-            else if (!hasInvuln()) hurt('無敵なしでサンダガ（強攻撃）を受けた');
+            else if (!lethalHit()) hurt('無敵なしでサンダガ（強攻撃）を受けた');
           } else if (me === 'MT') hurt('サンダガ（強攻撃）を受けなかった（エクスデスの一番近くにいない）');
           else if (inBusterAoe(S.player, pos(tgt))) hurt('サンダガ（タンク強攻撃の範囲）に巻き込まれた');
           const q = { ...pos(tgt) };

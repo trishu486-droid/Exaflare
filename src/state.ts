@@ -6,6 +6,7 @@ interface State {
   phase:'menu' | 'count' | 'run' | 'done'; menu?:string; cursor:number;
   t:number; t0:number; endT?:number; failAt?:number | null; killed?:boolean;
   player:{ x:number; z:number }; face?:{ x:number; z:number }; hits:number; hurtT:number; inst:any; problem:any;
+  fall?:{ at:number; ux:number; uz:number } | null; // 外周から落ちた（at は performance.now）
   score?:number; resultHtml?:string; rankEntry?:any; rankSent?:boolean | string; stickRepeat:number; omakePending:boolean;
 }
 const S: State = { stickRepeat:0, omakePending:false, phase:'menu', t:-COUNTDOWN, t0:0, player:{ x:0, z:5 }, hits:0, hurtT:-9, inst:null, problem:null, cursor:0 };

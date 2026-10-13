@@ -2,7 +2,7 @@ import { PLAYER_SPEED } from './config.js';
 import { job, mySlot } from './jobs.js';
 import { opt } from './store.js';
 import { S, shuffle } from './state.js';
-import { A, hasHeavy, hasInvuln, hasMit } from './action.js';
+import { A, hasHeavy, hasInvuln, hasMit, lethalHit } from './action.js';
 import { sfx } from './audio.js';
 import { FXC, FXK, fxAdd, fxFlash } from './fx.js';
 import { P, PPY, glyph, hurt, px, rect, ring } from './gfx.js';
@@ -148,7 +148,7 @@ const ORCH = (() => {
             }
             else if (p.me !== H && dist(me, pos(F)) <= FLARE_R) hurt('フレアに巻き込まれた');
             if (p.me === H && dist(me, STACK) > 3) hurt('ボス前でホーリーを受けていない');
-            if (p.me === H && !hasInvuln()) hurt('無敵なしでホーリー');
+            if (p.me === H && !lethalHit()) hurt('無敵なしでホーリー');
           }
         },
         safeActive: () => true,

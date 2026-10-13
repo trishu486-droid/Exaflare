@@ -15,7 +15,7 @@ function begin(){
   const m = mech();
   logClear(); // チャット欄（P4 の PT マクロと自分のメモ）を空にする
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
-  fxReset(); S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
+  fxReset(); S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.fall = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
   S.face = { x:0, z:-1 };
   hpReset();
@@ -37,7 +37,7 @@ function openMenu(){
 // ===== 更新 =====
 const FALL_OVER = .3; // 床の縁からこれだけはみ出したら落ちる（キャラの半分くらい）
 function movePlayer(dt){
-  if (S.phase === 'menu') return;
+  if (S.phase === 'menu' || S.fall) return; // 落ちたあとは動けない
   let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;
@@ -46,7 +46,7 @@ function movePlayer(dt){
   let x = S.player.x + mx / len * PLAYER_SPEED * dt, z = S.player.z + mz / len * PLAYER_SPEED * dt;
   // 外周には見えない壁がない：実行中に床の外へ出たら落ちて失敗。カウントダウン中は端で止める
   const fall = S.phase === 'run', lim = fall ? ARENA_R + FALL_OVER : ARENA_R - .5, r = Math.hypot(x, z);
-  if (r > lim){ x *= lim / r; z *= lim / r; if (fall && S.failAt == null) hurt('外周から落ちた'); }
+  if (r > lim){ x *= lim / r; z *= lim / r; if (fall && S.failAt == null){ hurt('外周から落ちた'); S.fall = { at:performance.now(), ux:x / lim, uz:z / lim }; sfx.fall(); } }
   S.player.x = x; S.player.z = z;
 }
 

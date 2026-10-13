@@ -181,6 +181,7 @@ const P4 = (() => {
       const chaosFireFirst = Math.random() < .5; // デバフ欄で炎と水のどちらが左か（実機でも人によって違う）
       const efx = makeP4Fx(); // エフェクト（p4fx.ts）
       const KS = { appear:9.6 }; // おちょくりソウルのあと、カオスとネオエクスデスが出る
+      const CHAOS_LEAVE = 43.5; // カオスが消える
       // ---- PT チャット（マクロ）と自分のメモ ----
       const chat = []; let chatVer = 0;
       const say = (text, cls = '') => { chat.push({ text, cls }); chatVer++; logLine(text, cls); };
@@ -264,6 +265,9 @@ const P4 = (() => {
         // カオスとネオエクスデスの出現：光の柱が落ちる音、出た瞬間に画面が少しゆれる（演出は draw の appearFx）
         [KS.appear - 1.1 + .5, () => sfx.splash()],
         [KS.appear, () => { sfx.big(); fxShake(2, .25); [CHAOS0, NEO0].forEach(q => fxAdd('burst', q.x, q.z, { r:3, cols:['#ffffff', '#ffe8f0', '#c8e0ff'], dur:.5 })); }],
+        [T.neoFlood - 1.1 + .5, () => sfx.splash()],
+        [T.neoFlood, () => { sfx.big(); fxShake(2, .25); fxAdd('burst', neo.x, neo.z, { r:3, cols:['#ffffff', '#c8e0ff'], dur:.5 }); }],
+        ...[CHAOS_LEAVE, T.neoLeave, T.surge].map(tt => [tt, () => sfx.splash()] as [number, () => void]), // 消える音
         [T.mystery[0] + TELL, () => mysteryResolve(p.mystery[0], true, true, 'なぞなぞマジック1')],
         [T.mystery[1] + TELL, () => mysteryResolve(p.mystery[1], true, true, 'なぞなぞマジック2')],
         [T.mystery[2] + TELL, () => mysteryResolve(p.mystery[2], true, true, 'なぞなぞマジック3')],
@@ -321,10 +325,12 @@ const P4 = (() => {
       const whiteSprite = (() => { const c = {}; return id => c[id] ||= (() => { const sp = bossSprite(id), w = document.createElement('canvas'); w.width = sp.width; w.height = sp.height; const g = w.getContext('2d'); g.drawImage(sp, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w.width, w.height); return w; })(); })();
       // カオスとネオエクスデスの出現（約1.5秒。2026-10-13 ユーザーの決定。ケフカのまわりの演出はなし）
       //   ① もやが渦を巻いて集まる（0.5秒）→ ② 上から光の柱、床に白い輪（0.3秒）→ ③ 白い姿で現れて光の粒（0.3秒）→ ④ 白からふつうの色へ（0.4秒）
+      //   t0：ボスが見えるようになる時刻（演出はその 1.1 秒前から）
       const APPEAR_FX = 1.1;
-      const appearFx = (id, q, t) => {
-        const t0 = KS.appear - APPEAR_FX, a = t - t0; if (a < 0 || a > APPEAR_FX + .4) return;
-        const X = px(q.x), Z = px(q.z), mist = id === 'chaos' ? ['#3a0a2a', '#8a2a3a'] : ['#0a1a3a', '#3a5a8a'], glow = id === 'chaos' ? '#ffd0e0' : '#d0e8ff';
+      const MIST = { chaos:['#3a0a2a', '#8a2a3a'], neo:['#0a1a3a', '#3a5a8a'] }, GLOW = { chaos:'#ffd0e0', neo:'#d0e8ff' };
+      const appearFx = (id, q, t, t0) => {
+        const a = t - (t0 - APPEAR_FX); if (a < 0 || a > APPEAR_FX + .4) return;
+        const X = px(q.x), Z = px(q.z), mist = MIST[id], glow = GLOW[id];
         if (a < .8){ // ① もや（だんだん小さく速く回る）
           const k = Math.min(1, a / .5), n = 18;
           for (let i = 0; i < n; i++){ const ang = i / n * Math.PI * 2 + a * 5, r = (1 - k) * 60 + 14; alpha(.25 + .35 * k, () => disc(X + Math.cos(ang) * r, Z + Math.sin(ang) * r * .55, 6, mist[i % 2])); }
@@ -340,6 +346,22 @@ const P4 = (() => {
           for (let i = 0; i < 20; i++){ const ang = i * 2.4, r = (a - .8) / .3 * 70 * (.6 + (i % 3) * .2); rect(Math.round(X + Math.cos(ang) * r), Math.round(Z + Math.sin(ang) * r * .6), 2, 2, i % 2 ? '#ffe070' : glow); }
         }
         if (a >= APPEAR_FX) alpha(1 - (a - APPEAR_FX) / .4, () => ctx.drawImage(ws, dx, dz)); // ④ 白からふつうの色へ（絵の上に重ねて薄くしていく）
+      };
+      // 消えるとき（約1.1秒。t1：ボスの絵が消える時刻）
+      //   ① 白く光っていく（0.3秒・まだ絵がある）→ ② 白い姿が上へ細くなって光の柱に吸い込まれる（0.4秒）→ ③ もやが広がって消える（0.4秒）
+      const vanishFx = (id, q, t, t1) => {
+        const a = t - (t1 - .3); if (a < 0 || a > 1.1) return;
+        const X = px(q.x), Z = px(q.z), ws = whiteSprite(id), mist = MIST[id], glow = GLOW[id];
+        if (a < .3){ alpha(a / .3, () => ctx.drawImage(ws, Math.round(X - ws.width / 2), Math.round(Z - ws.height / 2))); return; }
+        if (a < .7){
+          const k = (a - .3) / .4, w = Math.max(1, Math.round(ws.width * (1 - k))), h = Math.round(ws.height * (1 + k * .6));
+          alpha(.9 * (1 - k * .4), () => { rect(X - 4, 0, 8, Z, '#ffffff'); rect(X - 6, 0, 2, Z, glow); rect(X + 4, 0, 2, Z, glow); });
+          ctx.drawImage(ws, Math.round(X - w / 2), Math.round(Z + ws.height / 2 - h), w, h);
+        }
+        if (a >= .5){
+          const k = Math.min(1, (a - .5) / .6), n = 18;
+          for (let i = 0; i < n; i++){ const ang = i / n * Math.PI * 2 - a * 3, r = 10 + k * 50; alpha(.5 * (1 - k), () => disc(X + Math.cos(ang) * r, Z + Math.sin(ang) * r * .55, 5, mist[i % 2])); }
+        }
       };
       const drawNeo = q => drawSprite('neo', q);
       const drawChaos = q => drawSprite('chaos', q);
@@ -444,8 +466,11 @@ const P4 = (() => {
           const nq = neoPos(t);
           if (nq){ drawNeo(nq); [0, 1, 2].forEach(i => { if (t >= T.gc[i] && t < T.gcHit[i]) orbit(nq, p.gcTrue[i], t); }); if (t >= T.flood && t < T.floodHit) orbit(nq, p.floodTrue, t); }
           [0, 1].forEach(i => { if (t >= T.chaos[i] && t < T.chaosHit[i]) drawChaosGlow(CHAOS0, p.chaos[i].kind, t); });
-          if (t >= KS.appear && t < 43.5){ drawChaos(CHAOS0); [0, 1].forEach(i => { if (t >= T.chaos[i] && t < T.chaosHit[i]) orbit(CHAOS0, p.chaos[i].truth, t); }); }
-          appearFx('chaos', CHAOS0, t); appearFx('neo', NEO0, t); // 出現の演出（ボスの絵の上に重ねる）
+          if (t >= KS.appear && t < CHAOS_LEAVE){ drawChaos(CHAOS0); [0, 1].forEach(i => { if (t >= T.chaos[i] && t < T.chaosHit[i]) orbit(CHAOS0, p.chaos[i].truth, t); }); }
+          // 出る・消える演出（ボスの絵の上に重ねる）。カオスは 43.5 で消える。ネオエクスデスは無の氾濫の前にいったん消えて、別の場所にまた出る
+          appearFx('chaos', CHAOS0, t, KS.appear); vanishFx('chaos', CHAOS0, t, CHAOS_LEAVE);
+          appearFx('neo', NEO0, t, KS.appear); vanishFx('neo', NEO0, t, T.neoLeave);
+          appearFx('neo', neo, t, T.neoFlood); vanishFx('neo', neo, t, T.surge);
           T.mystery.forEach((s, k) => { if (t >= s && t < s + TELL) kefkaOrbs(p.mystery[k].iceTrue, p.mystery[k].thTrue); });
           if (t >= T.thunder && t < T.thunder + TELL) kefkaOrbs(null, charged.thTrue);
           if (t >= T.blizzard && t < T.blizzard + TELL) kefkaOrbs(charged.iceTrue, null);

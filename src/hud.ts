@@ -188,7 +188,7 @@ function drawButtons(){
       return;
     }
     const left = run && !ab.sunsign ? Math.max(0, A.cds[k] - S.t) : 0;
-    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)));
+    setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)), run && !!ab.self);
   });
   // 結果が出たら（done）デバフ・バフ・敵視／HP は消して、フィールドを暗くする（結果の文字と重ならないように）
   $('game').classList.toggle('over', S.phase === 'done');

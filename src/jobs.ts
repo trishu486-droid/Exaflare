@@ -89,13 +89,14 @@ function idealPps(j){
 // タンクは攻撃アビリティ込みの構成で計算する（オーケストラ中にボタンが変わっても、1あたりのダメージは変えない）
 const dmgPerPot = () => { const j = JOBS[opt.job]; return TARGET_DPS[opt.job] / (idealPps(j.role === 'tank' ? { ...j, ...j.atk } : j) * CRIT_AVG); };
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
-const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true }; // ニュートラルセクト中に1回だけ
+const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true, self:true }; // ニュートラルセクト中に1回だけ。self：自分の技で出てくる（切替の知らせなし・ボタンが回る）
 // P3 じしん＆ブラックホール：ヒーラーの Y は単体回復（パーティリストで選んだ人へ）
 const SINGLE_HEAL = { ast:{ name:'ベネフィラ', gcd:true, cd:0, cast:1.5, buff:'b2' }, sch:{ name:'鼓舞激励の策', gcd:true, cd:0, cast:2.0, buff:'adlo' } };
 const KEYS = ['a', 'b', 'x', 'y'];
 // GCD を使うボタン（A・コンボの段・GCD技）か
 const isGcd = (j, k) => k === 'a' || !!j[k].step || !!j[k].gcd;
-const GCD = 2.5, QUEUE = 0.5, MELEE = 3, SLIDECAST = 0.5;
+// 先行入力の受付：FF14 は 0.5 秒。GCD 技だけ少し短くする（効きすぎて、早押しでも入ってしまうため）
+const GCD = 2.5, QUEUE = 0.5, GCD_QUEUE = 0.3, MELEE = 3, SLIDECAST = 0.5;
 
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
@@ -115,4 +116,4 @@ const job = () => {
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
 
-export { BUFFS, JOBS, JOB_ORDER, TARGET_DPS, CRIT_AVG, idealPps, dmgPerPot, PROVOKE, SHIRK, SUNSIGN, KEYS, isGcd, GCD, QUEUE, MELEE, SLIDECAST, tankRole, jobCache, job, mySlot };
+export { BUFFS, JOBS, JOB_ORDER, TARGET_DPS, CRIT_AVG, idealPps, dmgPerPot, PROVOKE, SHIRK, SUNSIGN, KEYS, isGcd, GCD, QUEUE, GCD_QUEUE, MELEE, SLIDECAST, tankRole, jobCache, job, mySlot };

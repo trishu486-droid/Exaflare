@@ -24,7 +24,7 @@ const CELES = (() => {
   // CC：quake=円（ボスから10y以内が危険）/ tornado=ドーナツ（10yより外が危険）
   const CC = { quake:{ name:'クエイク', color:'#e0a040', inner:true }, tornado:{ name:'トルネド', color:'#58e07a', inner:false } };
   return {
-    id:'celes', name:'スリースターズ', sub:'属性の塔', view:24, start:{ x:0, z:4 },
+    id:'celes', name:'スリースターズ', sub:'', view:24, start:{ x:0, z:4 },
     gen(){
       const debuff = opt.debuff === 'rand' ? pick([0, 0, 1, 1, 2, 2, -1, -1]) : Number(opt.debuff);
       const dbl = shuffle([0, 1, 2]);

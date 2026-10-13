@@ -28,6 +28,12 @@ const RUN = (() => {
     { at:[175.2, 178.3, 181.4], dmg:[68850, 81000, 81000], solo:2 },
   ];
   const ENTROPY = { cast:147.8, len:6, at:154.7, dmg:180000, r:4 }; // 混沌の終末の5回目あたりで詠唱開始
+  // 混沌の渦の散開位置：オーケストラの散開と同じ向き。遠隔（ヒーラー・D3・D4）はボスから離れてもいいので外周寄り（中心から 16）へ
+  const ENT_OUT = 16;
+  const ENT_SPREAD = Object.fromEntries(Object.entries(ORCH.SPREAD).map(([k, q]: [string, any]) => {
+    if (!['H1', 'H2', 'D3', 'D4'].includes(k)) return [k, q];
+    const r = Math.hypot(q.x, q.z); return [k, { x:q.x / r * ENT_OUT, z:q.z / r * ENT_OUT }];
+  }));
   // [ギミック, 開始時刻, オーケストラの回, そのオーケストラのバフ・ヘイトが続く時刻]
   const SEGS: [string, number, number?, number?][] = [['flood', 52.55], ['orch', 66.0, 1, 87.6], ['celes', 87.62], ['exa', 132.8], ['orch', 158.0, 2, 182.7], ['miss', 182.7]];
   const MK = id => MECHS.find(m => m.id === id);
@@ -42,7 +48,7 @@ const RUN = (() => {
   const roleOf = slot => slot[0] === 'M' || slot[0] === 'S' ? 'T' : slot[0];
   const fmt = t => { const s = Math.max(0, Math.floor(t)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
   return {
-    id:'p5', name:'P5 通し', sub:'P5 を最初から最後まで', view:24, start:HOME.T, slots:true,
+    id:'p5', name:'P5 通し', sub:'', view:24, start:HOME.T, slots:true,
     gen(){
       return SEGS.map(([id, at, n]) => id === 'orch' ? { me:mySlot(), n, targets:shuffle([...ORCH.NON_TANK]).slice(0, 3), t0:at } : MK(id).gen());
     },
@@ -63,7 +69,7 @@ const RUN = (() => {
       // フレア役のタンクは、オーケストラ直後の1発目のAAの間だけ A の外（北）で待つ
       const holyOf = n => n === 1 ? 'ST' : 'MT';
       const stayOut = t => { const a = aa.find(q => !q.done); return role === 'T' && a && a.solo && a.t - t < 6 && me !== holyOf(a.solo); };
-      const spot = t => spreadAt(t) ? ORCH.SPREAD[me] : stayOut(t) ? { x:0, z:-16 } : home;
+      const spot = t => spreadAt(t) ? ENT_SPREAD[me] : stayOut(t) ? { x:0, z:-16 } : home;
       // ヘイト1位：オーケストラ1回目の後は ST、2回目の後は MT（ヘイトは戻さない）
       const topOut = t => t < segs[1].at + 7 || t >= orch2.at + 7 ? 'MT' : 'ST';
       const orchAt = t => segs.find(s => s.id === 'orch' && t >= s.at && t < s.keep);
@@ -132,9 +138,9 @@ const RUN = (() => {
             fired.ent = true; sfx.big(); entX = S.player.x; entZ = S.player.z;
             // 混沌の渦：全員の位置で爆発、画面が白く飛んで岩が散る
             FXK.flare(entX, entZ, ENTROPY.r, true);
-            Object.entries(ORCH.SPREAD).forEach(([k, q]) => { if (k !== me) fxAdd('burst', q.x, q.z, { r:ENTROPY.r, cols:FXC.flare, dur:.6 }); });
+            Object.entries(ENT_SPREAD).forEach(([k, q]) => { if (k !== me) fxAdd('burst', q.x, q.z, { r:ENTROPY.r, cols:FXC.flare, dur:.6 }); });
             fxFlash('#fff4d0', .7, .25); fxParts(30, 0, 0, { cols:['#3a2a1a', '#6a4a2a', '#1a1010'], speed:12, up:12, life:.9, size:3, spread:24 });
-            const near = Object.entries(ORCH.SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
+            const near = Object.entries(ENT_SPREAD).some(([k, q]) => k !== me && Math.hypot(q.x - S.player.x, q.z - S.player.z) < ENTROPY.r);
             if (near) hurt('混沌の渦が重なった');
             healerHit(ENTROPY.dmg, '混沌の渦');
           }
@@ -154,7 +160,7 @@ const RUN = (() => {
         guide(t){
           const s = seg(t);
           // 混沌の渦の詠唱が始まったら、エクサを避けながら向かう散開位置も出しておく
-          if (s && t >= ENTROPY.cast && t < ENTROPY.at){ const q = ORCH.SPREAD[me]; ring(px(q.x), px(q.z), Math.round(2 * PPY), '#ff9a3a'); }
+          if (s && t >= ENTROPY.cast && t < ENTROPY.at){ const q = ENT_SPREAD[me]; ring(px(q.x), px(q.z), Math.round(2 * PPY), '#ff9a3a'); }
           if (s) return s.inst.guide?.(t - s.at);
           const g = spot(t); ring(px(g.x), px(g.z), Math.round(2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white);
         },

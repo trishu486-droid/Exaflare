@@ -11,25 +11,27 @@ import { begin } from './game.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 const PHASES = [['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
+// 文を「かたまり」ごとに折り返す（| ・全角空白と「・」「〜」のあと・（ の前で区切る。かたまりの途中では折り返さない）
+const ph = (s: string) => s.split(/\||(?=（)|(?<=[　・〜])/).filter(Boolean).map(x => `<span class="ph">${x}</span>`).join('');
 function renderMenu(){
   const head = $('menu').querySelector('.head'), note = $('menu').querySelector('.note');
   const list = $('menuList');
   list.className = S.menu === 'job' ? 'jobgrid' : ''; list.style.display = S.menu === 'job' ? '' : 'contents';
   if (S.menu === 'job'){
     head.textContent = 'ジョブ選択';
-    note.textContent = '十字で選んでA／STARTで決定';
+    note.innerHTML = ph('十字で選んで|A／STARTで決定');
     list.innerHTML = JOB_ORDER.map((k, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${JOBS[k].name}</span><small>${JOBS[k].slots[0]}</small></button>`).join('');
     return;
   }
   if (S.menu === 'phase'){
-    head.textContent = `フェーズ選択（${job().name}）`;
-    note.textContent = '十字で選んでA／STARTで決定';
-    list.innerHTML = PHASES.map(([id, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${id === 'omake' ? ' extra' : ''}"><span>${name}</span><small>${sub}</small></button>`).join('');
+    head.innerHTML = ph(`フェーズ選択（${job().name}）`);
+    note.innerHTML = ph('十字で選んで|A／STARTで決定');
+    list.innerHTML = PHASES.map(([id, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${id === 'omake' ? ' extra' : ''}"><span>${name}</span><small>${ph(sub)}</small></button>`).join('');
     return;
   }
   if (S.menu === 'omake'){
     head.textContent = '陰キャと見るあたしンち';
-    note.textContent = 'A／STARTでYouTubeを開く　Bでもどる';
+    note.innerHTML = ph('A／STARTでYouTubeを開く　Bでもどる');
     list.className = 'omake'; list.style.display = '';
     list.innerHTML = OMAKE.map(([, ep, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${ep}</span><small>${sub}</small></button>`).join('')
       + `<button type="button" data-i="${OMAKE.length}" class="${S.cursor === OMAKE.length ? 'cur' : ''}"><span>チャンネルを見る</span><small>しゃるるん</small></button>`;
@@ -38,25 +40,25 @@ function renderMenu(){
   }
   if (S.menu === 'slot'){
     head.textContent = `${job().name}の担当`;
-    note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
+    note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
     $('menuList').innerHTML = job().slots.map((sl, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${sl}</span><small>${mech().name}</small></button>`).join('');
     return;
   }
   if (S.menu === 'orchn'){
-    head.textContent = `${job().name}（${mySlot()}）`;
-    note.textContent = '十字で選んでA／STARTで開始（Bでもどる）';
+    head.innerHTML = ph(`${job().name}（${mySlot()}）`);
+    note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
     $('menuList').innerHTML = [1, 2].map((n, i) => {
       const flare = (mySlot() === 'MT') === (n === 1);
-      return `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${n}回目</span><small>${flare ? 'フレア役（シャーク）' : 'ホーリー役（挑発・無敵）'}</small></button>`;
+      return `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${n}回目</span><small>${ph(flare ? 'フレア役（シャーク）' : 'ホーリー役（挑発・無敵）')}</small></button>`;
     }).join('');
     return;
   }
   // ギミック一覧（選んだフェーズの分）。左右で P3／P4／P5 を切り替え
-  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ギミック選択（${job().name}） ${opt.phase.toUpperCase()} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
-  note.textContent = 'A／STARTで開始　Y／iで解説　←→でフェーズ切替';
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ${ph(`ギミック選択|（${job().name}）${opt.phase.toUpperCase()}`)} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
+  note.innerHTML = ph('A／STARTで開始　Y／iで解説　←→でフェーズ切替');
 
   const L = menuMechs();
-  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${m.sub}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
+  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${ph(m.sub)}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
 function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;

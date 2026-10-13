@@ -29,9 +29,10 @@ const ORCH = (() => {
   const FLARE_SPOT = { x:0, z:-18.5 };
   const SOUTH = { H1:{ x:-6.5, z:14.5 }, H2:{ x:-9, z:13 }, D1:{ x:3.5, z:16 }, D2:{ x:6, z:14.5 }, D3:{ x:1.5, z:13.5 }, D4:{ x:8.5, z:12.5 } };
   const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
+  const LABEL_FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
+    1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const outward = (p, r) => { const d = Math.hypot(p.x, p.z) || 1; return { x:p.x / d * r, z:p.z / d * r }; };
-  const tileGlyph = { T:'111010010010010', H:'101101111101101', D:'110101101101110' };
   return {
     id:'orch', name:'狂気のオーケストラ', sub:'1回目・2回目', view:24, start:{ x:0, z:8 }, slots:true, SPREAD, NON_TANK,
     gen(){
@@ -169,9 +170,10 @@ const ORCH = (() => {
           if (!fired.fin && fired.w2){ gather(pos(F), FINAL, ['#ffffff', '#ffe070', '#ff9a3a']); gather(pos(H), FINAL, ['#ffffff', '#c8f0ff', '#8ad8ff']); }
           // 味方
           bots.forEach(b => {
-            const X = px(b.x), Z = px(b.z), r = roleOf(b.k);
-            rect(X - 4, Z - 4, 9, 9, P.white); rect(X - 3, Z - 3, 7, 7, ROLE_COL[r]);
-            const g = tileGlyph[r]; for (let i = 0; i < 15; i++) if (g[i] === '1') rect(X - 1 + (i % 3), Z - 2 + (i / 3 | 0), 1, 1, P.white);
+            // ロールの色の札に担当（MT・D1 など）を書く（P2 と同じ）
+            const X = px(b.x), Z = px(b.z);
+            rect(X - 6, Z - 4, 13, 9, P.white); rect(X - 5, Z - 3, 11, 7, ROLE_COL[roleOf(b.k)]);
+            [...b.k].forEach((ch, i) => { const g = LABEL_FONT[ch]; for (let n = 0; n < 15; n++) if (g[n] === '1') rect(X - 4 + i * 4 + (n % 3), Z - 2 + (n / 3 | 0), 1, 1, P.white); });
           });
           // 2回目で狙われた人
           if (t >= W2 && t < W2 + .6) w2targets.forEach(k => { const q = pos(k); ring(px(q.x), px(q.z), Math.round(HOLY_R * PPY), P.white); });

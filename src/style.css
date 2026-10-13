@@ -108,7 +108,10 @@ canvas:focus{outline:none}
 .menu .head{font-size:16px;color:var(--gold)}
 .menu .head .pg{display:inline-block;padding:0 6px;cursor:pointer;touch-action:manipulation}
 .menu .note{font-size:16px;color:var(--dim)}
-.menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;gap:8px}
+/* 文はかたまり（.ph）ごとに折り返す。2行になっても中央そろえ */
+.menu .head,.menu .note{text-align:center;padding:0 8px}
+.menu .ph{display:inline-block}
+.menu button{width:min(84%,360px);font:16px/1.2 var(--px);color:var(--ink);background:#15121f;border:3px solid var(--edge);padding:5px 10px;text-align:left;cursor:pointer;touch-action:manipulation;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .menu .omake{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;max-height:228px;overflow-y:auto;scrollbar-width:none}
 .menu .omake::-webkit-scrollbar{display:none}
 .menu button.extra{border-style:dashed}
@@ -119,10 +122,14 @@ canvas:focus{outline:none}
 .menu .jobgrid button{width:100%;position:relative;padding-left:18px}
 /* ジョブ選択はボタンが狭いので、▶ は左の余白に重ねて、名前が折り返さないように */
 .menu .jobgrid button span{white-space:nowrap}
-.menu .jobgrid button.cur::before{position:absolute;left:4px;top:50%;transform:translateY(-50%);margin:0}
-.menu button small{font-size:.7em;color:var(--dim);align-self:center}
+.menu .jobgrid button.cur>span:first-child::before{position:absolute;left:4px;top:50%;transform:translateY(-50%);margin:0}
+.menu button small{font-size:.7em;color:var(--dim);align-self:center;text-align:right;margin-left:auto}
+/* 名前は折り返さない（せまいときは副題のほうを、かたまりごとに折り返す） */
+.menu button>span:first-child{white-space:nowrap}
+.menu button small+.i{margin-left:0}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
-.menu button.cur::before{content:"▶";margin-right:4px}
+/* ▶ は名前の頭につける（ボタンの左右振り分けに混ぜると、名前との間が大きく空く） */
+.menu button.cur>span:first-child::before{content:"▶";margin-right:4px}
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dmg{position:absolute;transform:translate(-50%,0);font-size:16px;color:#fff;white-space:nowrap;animation:dmg .9s steps(9) forwards;font-variant-numeric:tabular-nums}
 .dmg.crit{color:var(--gold);font-size:16px}
@@ -304,6 +311,9 @@ html.app .sheet{padding-top:calc(env(safe-area-inset-top) + 22px)}
 .guide .miss{margin:0}
 .guide .miss dt{color:var(--red);margin-top:8px}
 .guide .miss dt:first-child{margin-top:2px}
+/* 失敗した画面から開いたとき、そのミスの説明を目立たせる */
+.guide .miss dt.hit{background:#3a1018;outline:2px solid var(--red);padding:2px 4px}
+.guide .miss dd.hit{background:#2a1418;padding:2px 4px}
 .guide .miss dd{margin:0 0 0 1em}
 .guide .tip{font-size:12px;color:var(--dim)}
 .guide a{color:#8ac8ff}

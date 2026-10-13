@@ -65,7 +65,7 @@ const frontSegs = (pr, off = 0) => {
   return [{ inst:a, at:0, end:FRONT_END }, { inst:b, at:FRONT_B, end:FRONT_END, noBoss:true }];
 };
 const P3A = {
-  id:'p3a', name:'バウル・オブ・アゴニー', sub:'TLB3式（決戦〜アルテマブラスター）', view:24, start:{ x:0, z:4 }, slots:true,
+  id:'p3a', name:'P3前半', sub:'TLB3式（決戦〜アルテマブラスター）', view:24, start:{ x:0, z:4 }, slots:true,
   gen: frontGen,
   create(pr){
     const segs = frontSegs(pr);
@@ -152,7 +152,7 @@ const RUN3 = (() => {
   const activeLen = ENRAGE.cast - TARGETABLE;
   const dpsTarget = () => TARGET_DPS[opt.job] * (opt.job === 'ast' || opt.job === 'sch' ? HEAL_EASE : 1);
   return {
-    id:'p3', name:'P3 通し', sub:'P3 を最初から最後まで', view:24, start:{ x:0, z:4 }, slots:true,
+    id:'p3', name:'P3 通し', sub:'', view:24, start:{ x:0, z:4 }, slots:true,
     gen(){
       const [a, b] = frontGen(), c = P3C.gen(), d = P3D.gen();
       return [a, b, c, { ...d, north:c.kefka.bok[1] }]; // 締めの北＝2回目のボクチンが来た方向

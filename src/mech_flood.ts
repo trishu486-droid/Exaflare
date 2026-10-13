@@ -19,7 +19,7 @@ const FLOOD = (() => {
   }
   function pairs(rev){ return rev ? [[-5, 15], [-15, 5]] : [[5, -15], [15, -5]]; }
   return {
-    id:'flood', name:'フラッド', sub:'カオティックフラッド', view:24, start:{ x:0, z:2 },
+    id:'flood', name:'フラッド', sub:'', view:24, start:{ x:0, z:2 },
     gen(){ return { first:pick(['A','B']), revA:Math.random() < .5, revB:Math.random() < .5 }; },
     create(p){
       const second = p.first === 'A' ? 'B' : 'A';

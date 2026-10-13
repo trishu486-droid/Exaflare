@@ -35,6 +35,7 @@ function openMenu(){
 }
 
 // ===== 更新 =====
+const FALL_OVER = .3; // 床の縁からこれだけはみ出したら落ちる（キャラの半分くらい）
 function movePlayer(dt){
   if (S.phase === 'menu') return;
   let mx = stickVec.x, mz = stickVec.z;
@@ -43,7 +44,9 @@ function movePlayer(dt){
   const len = Math.hypot(mx, mz); if (!len) return;
   S.face = { x:mx / len, z:mz / len }; // 最後に動いた向き（P4 の視線の判定）
   let x = S.player.x + mx / len * PLAYER_SPEED * dt, z = S.player.z + mz / len * PLAYER_SPEED * dt;
-  const r = Math.hypot(x, z); if (r > ARENA_R - .5){ x *= (ARENA_R - .5) / r; z *= (ARENA_R - .5) / r; }
+  // 外周には見えない壁がない：実行中に床の外へ出たら落ちて失敗。カウントダウン中は端で止める
+  const fall = S.phase === 'run', lim = fall ? ARENA_R + FALL_OVER : ARENA_R - .5, r = Math.hypot(x, z);
+  if (r > lim){ x *= lim / r; z *= lim / r; if (fall && S.failAt == null) hurt('外周から落ちた'); }
   S.player.x = x; S.player.z = z;
 }
 

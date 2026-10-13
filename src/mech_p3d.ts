@@ -33,7 +33,7 @@ const add = (a, b, k = 1) => ({ x:a.x + b.x * k, z:a.z + b.z * k });
 const unit = (a, b) => { const d = dist(a, b) || 1; return { x:(b.x - a.x) / d, z:(b.z - a.z) / d }; };
 
 const P3D = {
-  id:'p3d', name:'どんどこ地団駄', sub:'塔と着弾（ヤーン）', view:24, start:{ x:0, z:2 }, slots:true,
+  id:'p3d', name:'どんどこ地団駄', sub:'ヤーン式（塔と着弾）', view:24, start:{ x:0, z:2 }, slots:true,
   gen(){ return { me:mySlot(), north:pick([0, 45, 90, 135, 180, 225, 270, 315]), thFirst:Math.random() < .5 }; },
   create(p){
     const now = () => S.t - (p.off || 0); // P3 通しでつないだときの、このギミックの中の時刻

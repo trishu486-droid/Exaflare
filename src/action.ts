@@ -1,4 +1,4 @@
-import { BUFFS, GCD, KEYS, MELEE, QUEUE, SLIDECAST, dmgPerPot, isGcd, job } from './jobs.js';
+import { BUFFS, GCD, GCD_QUEUE, KEYS, MELEE, QUEUE, SLIDECAST, dmgPerPot, isGcd, job } from './jobs.js';
 import { $ } from './store.js';
 import { S, keys, stickVec } from './state.js';
 import { C0, P, PPY, W, alpha, hurt, jobIconSvg, line, px, rect, ring } from './gfx.js';
@@ -7,11 +7,11 @@ import { sfx } from './audio.js';
 
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
-            gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9,
+            gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[],
             provoke:null as number | null, shirk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
   tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
-  gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number;
+  gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number; lockAt:number; lockKeys:string[];
   provoke:number | null; shirk:number | null; sunUsed:boolean;
 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
@@ -45,9 +45,20 @@ function healerHit(raw, name?: string){
   popup(Math.round((dmg + absorbed) * MAX_HP / 100).toLocaleString('en-US'), 'hurtnum self', name, S.player);
   if (HP.hp <= 0){ hurt('HPが0になった'); HP.hp = 100; HP.shield = 0; }
 }
+// HoT（継続回復）は FF14 と同じく 3 秒ごとにまとめて 1 回。数字は全部の HoT の合計で、技の名前は出さない
+const HOT_TICK = 3;
+let hotAt = -Infinity;
 function hpTick(dt){
   if (!HP.on) return;
-  Object.keys(A.buffs).forEach(id => { if (hasBuff(id) && BUFFS[id].regen && S.inst?.party){ S.inst.party.regen(BUFFS[id].regen * dt); return; } if (hasBuff(id) && BUFFS[id].regen){ const before = HP.hp; HP.hp = Math.min(100, HP.hp + BUFFS[id].regen * dt); HP.healed += HP.hp - before; } });
+  if (S.t >= hotAt){
+    hotAt = (Math.floor(S.t / HOT_TICK) + 1) * HOT_TICK;
+    const v = Object.keys(A.buffs).filter(id => hasBuff(id) && BUFFS[id].regen).reduce((a, id) => a + BUFFS[id].regen * HOT_TICK, 0);
+    if (v > 0){
+      if (S.inst?.party) S.inst.party.regen(v);
+      else { const before = HP.hp; HP.hp = Math.min(100, HP.hp + v); HP.healed += HP.hp - before; }
+      popup(Math.round(v * MAX_HP / 100).toLocaleString('en-US'), 'healnum self', undefined, S.player);
+    }
+  }
   if (HP.shield > 0 && !hasBuff('galv') && !hasBuff('ns')) HP.shield = 0;
 }
 let enmityHtml = '';
@@ -62,14 +73,14 @@ function enmityDraw(){
 }
 function hpDraw(){
   if (!HP.on) return;
-  // P4 は右の列に縦のバー、ほかは上の帯に横のバー（数字は k 単位）
-  $('hpNum').innerHTML = `<span class="hpl">HP</span>${Math.round(Math.max(0, HP.hp * MAX_HP / 100) / 1000)}k`;
+  // P4 は右の列に縦のバー、ほかは上の帯に横のバー（数字は 205000 のように全部出す）
+  $('hpNum').innerHTML = `<span class="hpl">HP</span>${Math.round(Math.max(0, HP.hp * MAX_HP / 100))}`;
   const hp = $('hp'); hp.style.setProperty('--hp', Math.max(0, HP.hp) + '%'); hp.style.setProperty('--sh', Math.min(100, HP.shield) + '%');
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9 });
-  fxEl.innerHTML = '';
+  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[] });
+  fxEl.innerHTML = ''; hotAt = -Infinity;
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
@@ -128,22 +139,22 @@ function dealDamage(pot, name){
 }
 function fail(){ A.failT = performance.now(); sfx.no(); }
 
-// 先行入力：リキャスト残り0.5秒から受け付ける（カウントダウン終了直前も可）
+// 先行入力：GCD 技はリキャスト残り0.3秒、アビリティは0.5秒から受け付ける（カウントダウン終了直前も可）
 const active = () => S.phase === 'run' || S.phase === 'count';
 function pressKey(k){
   sfx.unlock();
   if (!active()) return;
   const ab = job()[k];
-  if (k !== 'a' && S.t - A.swapAt < SWAP_LOCK) return; // ホットバーが切り替わった直後
+  if (A.lockKeys.includes(k) && S.t - A.lockAt < SWAP_LOCK) return; // ホットバーで技が変わったボタンは、切り替わった直後だけ受け付けない
   // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
   if (ab.sunsign){ if (S.phase !== 'run') return; A.actAt = S.t; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
   if (isGcd(job(), k)){
-    if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; } // GCD技：覚えておいて次のGCDで
-    if (!A.cast && S.t >= A.readyAt - QUEUE) A.queued = k;
+    if (ab.gcd){ if (S.t >= A.cds[k] - GCD_QUEUE) A.q[k] = true; return; } // GCD技：覚えておいて次のGCDで
+    if (!A.cast && S.t >= A.readyAt - GCD_QUEUE) A.queued = k;
     return;
   }
   if (S.phase === 'count' || S.t < A.cds[k]){ if (S.t >= A.cds[k] - QUEUE) A.q[k] = true; return; }
-  if (A.cast){ A.q[k] = true; return; } // 詠唱中に押したら、詠唱が終わってから発動
+  if (A.cast){ if (S.t >= A.cast.end - QUEUE) A.q[k] = true; return; } // 詠唱の終わり0.5秒に押したら、詠唱が終わってから発動
   if (ab.pot && (!inRange() || (!canHit() && !invuln()))){ fail(); return; }
   A.cds[k] = S.t + ab.cd; A.actAt = S.t;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
@@ -181,14 +192,18 @@ function finishGcd(ab){
   else dealDamage(ab.pot, ab.name);
 }
 // タンク：P5 通しではオーケストラの前後で B・X・Y の技が入れ替わる。リキャストは技ごとに覚えておく
-// 切り替わった直後の少しの間は B・X・Y の入力を受け付けない（連打していた技が、新しい技として暴発しないように）
+// 切り替わった直後の少しの間は、技が変わったボタンの入力を受け付けない（連打していた技が、新しい技として暴発しないように）
 const SWAP_LOCK = .8;
 function kitSwap(j){
   if (A.kit === j) return;
   if (A.kit){
     const changed = ['b', 'x', 'y'].filter(k => A.kit[k].name !== j[k].name);
     ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? 0; A.q[k] = false; });
-    if (changed.length && S.phase === 'run'){ // 切り替えの知らせ：音と、新しい技の一覧
+    // 自分の技で切り替わったもの（占星のニュートラルセクト → サンサイン など。技に self:true）は知らせない。
+    // ボタンのまわりが回るだけ（hud.ts）。ギミックやシステムで切り替わったときだけ、音と一覧で知らせる
+    const self = changed.length && changed.every(k => A.kit[k].self || j[k].self);
+    if (changed.length && S.phase === 'run'){ A.lockAt = S.t; A.lockKeys = changed; }
+    if (changed.length && S.phase === 'run' && !self){ // 切り替えの知らせ：音と、新しい技の一覧
       A.swapAt = S.t; sfx.ok();
       const el = document.createElement('div');
       el.className = 'swapnote outline';
@@ -204,11 +219,11 @@ function actTick(dt){
   KEYS.forEach(k => {
     const ab = j[k];
     if (held[k] && !A.cast){
-      if (isGcd(j, k)) { if (!ab.gcd || S.t >= A.cds[k] - QUEUE) pressKey(k); }
+      if (isGcd(j, k)) { if (!ab.gcd || S.t >= A.cds[k] - GCD_QUEUE) pressKey(k); }
       else if (S.t >= A.cds[k] && (!ab.pot || inRange())) pressKey(k);
     }
     if (k === 'a' || !A.q[k] || A.cast) return;
-    if (ab.gcd){ if (S.t >= A.cds[k] - QUEUE && S.t >= A.readyAt - QUEUE){ A.q[k] = false; A.queued = k; } }
+    if (ab.gcd){ if (S.t >= A.cds[k] - GCD_QUEUE && S.t >= A.readyAt - GCD_QUEUE){ A.q[k] = false; A.queued = k; } }
     else if (S.t >= A.cds[k]){ A.q[k] = false; pressKey(k); }
   });
   // 詠唱中：スライドキャスト猶予前に動くと中断（GCDは戻る）

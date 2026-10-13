@@ -63,7 +63,7 @@ const angDiff = (a, b) => ((a - b) % 360 + 540) % 360 - 180;
 const unit = (a, b) => { const d = dist(a, b) || 1; return { x:(b.x - a.x) / d, z:(b.z - a.z) / d }; };
 
 const P3C = {
-  id:'p3c', name:'じしん＆ブラックホール', sub:'頭上マーカー式（ヤーン）', view:24, start:{ x:-3, z:3 }, slots:true,
+  id:'p3c', name:'P3後半', sub:'頭上マーカー式（じしん〜ブラックホール）', view:24, start:{ x:-3, z:3 }, slots:true,
   gen(){
     // 土の順番：泥土はヒーラー1人と DPS 1人（片方ファースト、片方セカンド）。残り6人にファースト2・セカンド2・サード2
     const hm = pick(['H1', 'H2']), dm = pick(['D1', 'D2', 'D3', 'D4']), hmFirst = Math.random() < .5;

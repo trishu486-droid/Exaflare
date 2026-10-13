@@ -23,6 +23,8 @@ oSpeed.addEventListener('input', () => { opt.speed = parseFloat(oSpeed.value); s
 oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('path', opt.path); });
 oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });
 oMarker.addEventListener('change', () => { opt.marker = oMarker.value; store.set('marker', opt.marker); });
+const oMix = $('oMix'); oMix.checked = opt.mix;
+oMix.addEventListener('change', () => { opt.mix = oMix.checked; store.set('mix', opt.mix); sfx.unlock(); });
 oSound.addEventListener('change', () => { opt.sound = oSound.checked; store.set('sound', opt.sound); if (opt.sound) sfx.unlock(); });
 oDebuff.addEventListener('change', () => { opt.debuff = oDebuff.value; store.set('debuff', opt.debuff); });
 oDouble.addEventListener('change', () => { opt.dbl = oDouble.value; store.set('dbl', opt.dbl); });

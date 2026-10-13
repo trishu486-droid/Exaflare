@@ -2,18 +2,37 @@ import { MECHS, menuMechs, phaseOf } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { $, opt } from './store.js';
 import { sfx } from './audio.js';
-import { cv } from './gfx.js';
+import { cv, misses } from './gfx.js';
 import { S } from './state.js';
 import { openMenu } from './game.js';
 import { menuConfirm } from './menu.js';
 
 // ===== 解説（メニューの i）：ギミックの中身・処理の手順・ミスしたときの原因 =====
 // 文章は下の出典を読んだうえで、このアプリの動きに合わせて書き直したもの。画像はこのアプリの画面
-const INFO_SRC = [
-  ['【FF14】絶ケフカ(絶もうひとつの未来) P5 攻略・解説（かなたん）', 'https://kanatan.info/archives/41984416.html'],
-  ['かなたん：P5 解説動画（YouTube）', 'https://www.youtube.com/watch?v=mmpMeQXFtyc'],
-  ['ヤーン速報：絶妖星乱舞（ミッシングの脳死法）', 'https://yan-flash.com/ultimate/yosei-ranbu'],
-];
+const CACTBOT = ['cactbot（タイムライン・技名などのゲームデータ）', 'https://github.com/OverlayPlugin/cactbot/tree/main/ui/raidboss/data/07-dt/ultimate'];
+const YAN = ['ヤーン速報：絶妖星乱舞 攻略特設（採用している処理法）', 'https://yan-flash.com/ultimate/yosei-ranbu'];
+// 出典はフェーズごと
+const INFO_SRC = {
+  p3:[
+    YAN,
+    ['イディルシャイア居住区：絶・妖星乱舞 P3（エクスデス＆カオス）', 'https://kanatan.info/archives/41970818.html'],
+    ['ドリッピー速報：P3前半 バウル・オブ・アゴニー＆アルテマブラスター', 'https://drippy-sokuhou.com/articles/kefka-p3-front'],
+    ['ドリッピー速報：P3後半 じしん＆ブラックホール', 'https://drippy-sokuhou.com/articles/kefka-p3-blackhole'],
+    CACTBOT,
+  ],
+  p4:[
+    YAN,
+    ['イディルシャイア居住区：絶・妖星乱舞 P4', 'https://kanatan.info/archives/41960996.html'],
+    ['シュリこ：絶妖星乱舞 P4 詳細説明、解説（note）', 'https://note.com/suri_ko/n/na77921828769'],
+    ['Materia Raiding：Dancing Mad Ultimate（英語）', 'https://materiaraiding.com/ultimate/dmu'],
+    CACTBOT,
+  ],
+  p5:[
+    ['【FF14】絶ケフカ(絶もうひとつの未来) P5 攻略・解説（かなたん）', 'https://kanatan.info/archives/41984416.html'],
+    ['かなたん：P5 解説動画（YouTube）', 'https://www.youtube.com/watch?v=mmpMeQXFtyc'],
+    ['ヤーン速報：絶妖星乱舞（ミッシングの脳死法）', 'https://yan-flash.com/ultimate/yosei-ranbu'],
+  ],
+};
 const INFO = {
   flood: {
     flow:'魔撃（AA）の3回目とほぼ同時に始まる。終わるとすぐ狂気のオーケストラの詠唱。',
@@ -302,8 +321,24 @@ INFO.p3a.miss = [...INFO.p3a.miss, ...INFO.p3b.miss];
   ],
   tip:'味方は画面に出ないが、決まった位置に立っている。処理法はヤーン速報に合わせている。',
 };
+// ミスの文（例：「決戦：カオスの近くにいなかった」）に合う説明の見出し（例：「決戦：○○の近くにいなかった」）の番号。なければ -1
+// 見出しを「○○」で区切ったかけらが全部ミスの文に入っていれば合う。だめなら頭の文字がいちばん長く同じもの（4文字以上）
+function missIndex(list, reasons){
+  const norm = x => String(x).replace(/<[^>]*>/g, '');
+  for (const r of reasons){
+    const i = list.findIndex(([k]) => norm(k).split('○○').every(part => r.includes(part)));
+    if (i >= 0) return i;
+  }
+  let best = -1, len = 3;
+  reasons.forEach(r => list.forEach(([k], i) => { const kk = norm(k); let n = 0; while (n < kk.length && kk[n] === r[n]) n++; if (n > len){ len = n; best = i; } }));
+  return best;
+}
+// どのギミックでも：外周の縁から外へ出ると落ちる
+Object.values(INFO).forEach((d: any) => d.miss.push(['外周から落ちた', '床の縁には見えない壁がない。外へ出ると落ちて失敗する。']));
 function openInfo(id){
   const m = [...MECHS, RUN].find(q => q.id === id), d = INFO[id]; if (!m || !d) return;
+  // 失敗した画面から開いたときは、そのミスの説明へ飛ぶ（ミスの文と、説明の見出しを照らし合わせる）
+  const hit = S.phase === 'done' ? missIndex(d.miss, [...misses.keys()]) : -1;
   const fig = (img, cap) => img ? `<figure><img src="img/guide/${img}.png" alt="${cap}" loading="lazy"><figcaption>${cap}</figcaption></figure>` : '';
   $('infoBody').innerHTML =
     `<h2 id="infoTitle">${m.name}<small>${m.sub}</small></h2>` +
@@ -312,12 +347,13 @@ function openInfo(id){
     `<h3>失敗しやすいところ</h3><p>${d.why}</p>` +
     `<h3>処理のしかた</h3><ol>` + d.steps.map(([t, img, cap]) => `<li>${t}${fig(img, cap)}</li>`).join('') + `</ol>` +
     (d.tank ? `<h3>タンク</h3><dl class="miss">` + d.tank.map(([k, v]) => `<dt style="color:var(--gold)">${k}</dt><dd>${v}</dd>`).join('') + `</dl>` : '') +
-    `<h3>このミスが出たら</h3><dl class="miss">` + d.miss.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('') + `</dl>` +
+    `<h3>このミスが出たら</h3><dl class="miss">` + d.miss.map(([k, v], i) => `<dt${i === hit ? ' class="hit"' : ''}>${k}</dt><dd${i === hit ? ' class="hit"' : ''}>${v}</dd>`).join('') + `</dl>` +
     `<p class="tip">${d.tip}</p>` +
     `<h3>出典</h3><p class="tip">下の記事・動画を読んで、このアプリの動きに合わせて書き直した解説です。画像はこのアプリの画面。詳しくは元の記事へ。</p>` +
-    `<ul class="src">` + INFO_SRC.map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${t}</a></li>`).join('') + `</ul>` +
+    `<ul class="src">` + (INFO_SRC[phaseOf(id)] || INFO_SRC.p5).map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${t}</a></li>`).join('') + `</ul>` +
     `<div class="row"><button class="close" type="button" data-act="close">とじる</button><button class="close" type="button" data-act="play" data-id="${id}">練習する</button></div>`;
   $('info').hidden = false; $('infoBody').scrollTop = 0;
+  if (hit >= 0) $('infoBody').querySelector('dt.hit')?.scrollIntoView({ block:'center' });
   sfx.unlock(); sfx.ok();
 }
 function closeInfo(){ $('info').hidden = true; sfx.back(); cv.focus({ preventScroll:true }); }

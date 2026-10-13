@@ -16,12 +16,13 @@ const bgmGain = () => Math.max(0, Math.min(100, opt.bgmVol ?? 25)) / 50;
 const sfx = {
   ac:null,
   // iOS：ホーム画面から開いたアプリでは、止まった音（suspended／interrupted）を指を離したときに再開する必要がある
-  //   audioSession を playback にすると、マナーモードでも鳴り、ほかのアプリの音に消されない（Safari 16.4 以降）
+  //   audioSession（Safari 16.4 以降）：ambient＝ほかのアプリ（YouTube など）の音を止めずに一緒に鳴る（マナーモードでは鳴らない）
+  //   playback＝マナーモードでも鳴るが、ほかのアプリの音は止まる。設定の「ほかのアプリの音と一緒に鳴らす」で切り替え
   unlock(){
     if (!opt.sound && !opt.bgm) return;
     if (document.hidden) return; // 見えていない間は鳴らさない
     try {
-      const n: any = navigator; if (n.audioSession && n.audioSession.type !== 'playback') n.audioSession.type = 'playback';
+      const n: any = navigator, type = opt.mix ? 'ambient' : 'playback'; if (n.audioSession && n.audioSession.type !== type) n.audioSession.type = type;
       this.ac ||= new (window.AudioContext || window.webkitAudioContext)();
       if (this.ac.state !== 'running') this.ac.resume().catch(() => {});
     } catch {}

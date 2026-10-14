@@ -2,11 +2,13 @@
 import { mySlot } from './jobs.js';
 import { S, shuffle, pick } from './state.js';
 import { sfx } from './audio.js';
+import { healerHit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
 import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
   BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, drawStatue, tether } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：ずびずばテレポ 〜 神々の像（3回目）〜 なぞなぞマジック。docs/dmu/research-p1.md §4
@@ -40,7 +42,7 @@ const FINAL_SPREAD = { D1:{ x:-7.3, z:-7.3 }, D2:{ x:7.3, z:-7.3 }, ST:{ x:7.3, 
 const FINAL_STACK = { T:{ x:6.5, z:6.5 }, D:{ x:-7.5, z:-7.5 } };
 
 const P1C = {
-  id:'p1c', name:'ずびずばテレポ', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
+  id:'p1c', name:'神々の像　第三楽章', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
   gen(){
     const dpsDiff = Math.random() < .5;
     const matching = dpsDiff ? TH : DPS, different = dpsDiff ? DPS : TH;
@@ -120,7 +122,7 @@ const P1C = {
     let placed = 0, soaked = 0, soakFail = [], judged = false;
     const fail = why => { if (!soakFail.includes(why)) soakFail.push(why); };
     const placeArrows = w => SLOTS.forEach(k => { const q = pos(k), d = PLAN[k].dirs[w]; arrows.push({ x:q.x, z:q.z, dir:d, spawn:T.live[w], by:k, dwell:{}, gone:false }); placed++;
-      fxAdd('burst', q.x, q.z, { r:2, cols:FXC.tp || ['#c05aff', '#ffe070'], dur:.4 }); });
+      fxAdd('burst', q.x, q.z, { r:2.2, cols:['#8a3ad8', '#c87aff', '#ffffff'], dur:.5 }); });
     const liveArrows = t => arrows.filter(a => !a.gone && t >= a.spawn);
     const carryTo = (k, a, t) => { const q = pos(k), v = DVEC[a.dir]; st[k].carry = { t0:t, from:{ x:q.x, z:q.z }, to:{ x:a.x + v.x * ARROW_PUSH, z:a.z + v.z * ARROW_PUSH } }; sfx.blip(880, .05); };
     const tickArrows = (t, dt) => {
@@ -183,7 +185,7 @@ const P1C = {
       if (f >= 1) s.kb = null;
     });
     const resolveTrap = t => {
-      const holders = [p.trapT, p.trapD];
+      const holders = [p.trapT, p.trapD]; healerHit(65000, 'つぎつぎトラップ');
       const inT = holders.filter(h => dist(S.player, pos(h)) <= TRAP_R || h === me);
       if (me !== p.trapT && me !== p.trapD){
         if (inT.length >= 2) hurt('つぎつぎトラップの頭割りに2つ入った');
@@ -191,7 +193,7 @@ const P1C = {
       } else if (holders.some(h => h !== me && dist(S.player, pos(h)) <= TRAP_R)) hurt('つぎつぎトラップ：もう一つの頭割りに入った');
       holders.forEach(h => {
         const c = { x:pos(h).x, z:pos(h).z };
-        fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:['#ff7ad8', '#ffe070', '#7ad8ff'], dur:.5 }); fxParts(14, c.x, c.z, { cols:['#ff7ad8', '#ffe070', '#7ad8ff', '#b07aff'], speed:8, up:6, life:.7, spread:3 });
+        fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
         SLOTS.forEach(k => {
           if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return;
           const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB };
@@ -210,6 +212,7 @@ const P1C = {
       [T.exp[1], () => { placeArrows(1); sfx.blip(520, .08); }],
       [T.trap, () => resolveTrap(S.t)],
       [T.wills, () => {
+        healerHit(220000, isConf(me) ? '聖母の神気' : '睡魔の神気');
         // 睡魔の神気（睡眠の人のまわり半径5）→ 聖母の神気（混乱）。混乱の人が睡眠の範囲にいると死ぬ。睡眠どうしも重ならない
         SLOTS.filter(k => !isConf(k) && k !== me).forEach(k => { if (dist(S.player, pos(k)) <= SLEEP_R) hurt(isConf(me) ? '睡魔の神気（睡眠の人のまわり）に入ったまま聖母の神気を受けた' : '睡魔の神気（睡眠の人のまわり）が重なった'); });
         SLOTS.forEach(k => fxAdd('burst', pos(k).x, pos(k).z, { r:isConf(k) ? 2 : SLEEP_R, cols:isConf(k) ? ['#ff7ad8', '#ffffff'] : ['#7ab8ff', '#ffffff'], dur:.5 }));
@@ -234,7 +237,7 @@ const P1C = {
         efx.add('gaze');
       }],
       [T.fire, () => {
-        const q = S.player;
+        const q = S.player; healerHit(220000, 'めらめらファイガ');
         if (mm.fireStack){
           const mine = isTH(me) ? p.fireT : p.fireD, other = isTH(me) ? p.fireD : p.fireT;
           if (me !== mine && dist(q, pos(mine)) > STACK_R) hurt('めらめらファイガ：頭割りに入っていない');
@@ -262,7 +265,8 @@ const P1C = {
     // 像はフィールドの外（北）。画面の北の端に、東西の位置だけ合わせて描く
     const statueOnScreen = q => ({ x:q.x, z:-22.3 });
     return {
-      bossR:6, markers:MARKERS, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
+      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
       casts:[
         { name:'ずびずばテレポ', start:T.tpCast, len:T.tp - T.tpCast },
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
@@ -283,16 +287,11 @@ const P1C = {
       drawFloor(t){
         // なぞなぞマジックの予兆（サンダガの帯）
         if (t >= T.mmCast && t < T.thunder){ drawTell(mm, false, true); drawRails(mm.thO, thTell(mm).map(i => BAND_C[i])); }
-        // 矢印（床のテレポ）：紫の台に黄色い矢印。使えるまでの間（3秒）は薄い
+        // 矢印（床のテレポ）：暗い丸い台に金のふちと金の矢印（実機の動画）。使えるまでの間（3秒）は薄い
         arrows.forEach(a => {
           if (a.gone || t < a.spawn - .9) return;
           const X = px(a.x), Z = px(a.z), R = Math.round(ARROW_R * PPY), pending = t < a.spawn, grace = t < a.spawn + ARROW_GRACE;
-          alpha(pending ? .35 : grace ? .55 : .9, () => {
-            disc(X, Z, R, '#3a1a6a'); ring(X, Z, R, '#c05aff');
-            const v = DVEC[a.dir], n = { x:-v.z, z:v.x }, L = R - 3;
-            for (let i = -L; i <= L; i++){ rect(Math.round(X + v.x * i), Math.round(Z + v.z * i), 2, 2, '#ffe070'); }
-            for (let i = 0; i < 5; i++){ rect(Math.round(X + v.x * (L - i) + n.x * i), Math.round(Z + v.z * (L - i) + n.z * i), 2, 2, '#ffe070'); rect(Math.round(X + v.x * (L - i) - n.x * i), Math.round(Z + v.z * (L - i) - n.z * i), 2, 2, '#ffe070'); }
-          });
+          alpha(pending ? .35 : grace ? .6 : 1, () => arrowPlate(X, Z, R + 2, DVEC[a.dir]));
         });
       },
       draw(t){

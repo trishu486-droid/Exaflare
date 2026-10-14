@@ -117,6 +117,33 @@ function tether(a, b, col){
   for (let i = 0; i < n; i++) if ((i + ph) % 3 !== 0) rect(Math.round(A.x + (B.x - A.x) * i / n), Math.round(A.z + (B.z - A.z) * i / n), 2, 2, col);
 }
 
+// ---- 実機の動画に寄せた見た目（2026-10-14 ユーザーがくれた動画から） ----
+// 矢印（ずびずばテレポ）：暗い丸い台に金のふち、金の矢印（山形）
+function arrowPlate(X, Z, R, v){
+  disc(X, Z, R, '#1a1420'); ring(X, Z, R, '#e0b040'); ring(X, Z, R - 1, '#8a6a20');
+  const n = { x:-v.z, z:v.x }, L = Math.max(3, R - 4);
+  for (let w = 0; w < 3; w++) for (let i = 0; i <= L; i++){
+    const f = i / L, back = L * .6 * (1 - f) - w; // 山形（∧）を3重に
+    rect(Math.round(X + v.x * (back + L * .4 - L * .5) + n.x * (L - i) * .9), Math.round(Z + v.z * (back + L * .4 - L * .5) + n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
+    rect(Math.round(X + v.x * (back + L * .4 - L * .5) - n.x * (L - i) * .9), Math.round(Z + v.z * (back + L * .4 - L * .5) - n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
+  }
+}
+// 重力弾の沼（グラビガ）：紫に光るうず
+function puddle(c, R, t){
+  const X = px(c.x), Z = px(c.z), r = Math.round(R * PPY);
+  alpha(.55, () => disc(X, Z, r, '#3a0a6a')); alpha(.5, () => disc(X, Z, Math.round(r * .55), '#8a3ad8'));
+  for (let i = 0; i < 3; i++){ const a0 = t * 2 + i * 2.1; for (let k = 0; k < 14; k++){ const a = a0 + k * .22, rr = r * (.25 + k / 14 * .7); rect(Math.round(X + Math.cos(a) * rr), Math.round(Z + Math.sin(a) * rr), 2, 2, k % 3 ? '#c87aff' : '#ffffff'); } }
+  ring(X, Z, r, '#b05aff');
+}
+// 中心から向き u の 90° の扇を塗る（ばりばりルインガ）
+function fillCone(u, halfDeg, col){
+  const c = Math.cos(halfDeg * Math.PI / 180);
+  fillArena(z => { let lo = 99, hi = -99; for (let x = -20; x <= 20; x += .25){ const r = Math.hypot(x, z); if (r > .3 && (x * u.x + z * u.z) / r >= c){ lo = Math.min(lo, x); hi = Math.max(hi, x); } } return hi >= lo ? [lo, hi] : null; }, col);
+}
+// つぎつぎトラップの爆発（赤い結晶）
+const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
+
+export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
   orb, kefkaOrbs, spreadMark, stackMark, drawStatue, tether };

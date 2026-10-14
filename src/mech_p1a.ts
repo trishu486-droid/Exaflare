@@ -2,11 +2,13 @@
 import { mySlot } from './jobs.js';
 import { S, shuffle, pick } from './state.js';
 import { sfx } from './audio.js';
+import { healerHit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
 import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, drawStatue, tether } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（1回目）〜 波動砲 〜 つぎつぎトラップ 〜 なぞなぞマジック（2回目）。docs/dmu/research-p1.md §2
@@ -30,7 +32,7 @@ const PAIR_DPS = { MT:'D1', H1:'D3', ST:'D2', H2:'D4' }; // DPS は点対称の�
 const unit = (a, b) => { const d = dist(a, b) || 1; return { x:(b.x - a.x) / d, z:(b.z - a.z) / d }; };
 
 const P1A = {
-  id:'p1a', name:'神々の像（1回目）', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
+  id:'p1a', name:'神々の像　第一楽章', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
   gen(){
     const mm1 = rollMystery(), mm2 = rollMystery();
     const tetherTH = Math.random() < .5;
@@ -113,7 +115,7 @@ const P1A = {
       [T.pulse, () => { SLOTS.filter(tethered).forEach(k => { const d = kbDir(pos(k)); push(k, STATUE, { x:d.x * PULSE_KB, z:d.z * PULSE_KB }, S.t); }); sfx.boom(); fxShake(3, .25); }],
       [T.ice1, () => { if (iceHit(m1, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(m1) }); sfx.boom(); }],
       [T.fire1, () => {
-        const q = S.player;
+        const q = S.player; healerHit(220000, 'めらめらファイガ');
         if (m1.fireStack){
           const mine = isTH(me) ? p.fireT : p.fireD, other = isTH(me) ? p.fireD : p.fireT;
           if (me !== mine && dist(q, pos(mine)) > STACK_R) hurt('めらめらファイガ：頭割りに入っていない');
@@ -133,19 +135,20 @@ const P1A = {
           const q = pos(k), v = { x:q.x - b.a.x, z:q.z - b.a.z }, along = v.x * b.d.x + v.z * b.d.z, perp = Math.abs(v.x * b.d.z - v.z * b.d.x);
           if (along > 0 && perp <= BEAM_HW){ vuln.add(k); if (k === me && b.k !== me) hurt('波動砲（ほかの人へのビーム）に当たった'); }
         }));
+        if (p.cannon.includes(me)) healerHit(325000, '波動砲');
         beamShow = { t:S.t, beams };
         sfx.big(); fxShake(4, .3);
       }],
       [T.explosion, () => {
         const inTower = q => towers.filter(tw => dist(q, tw) <= TOWER_R);
-        const mine = inTower(S.player);
+        const mine = inTower(S.player); if (mine.length) healerHit(325000, '爆発');
         if (vuln.has(me) && mine.length) hurt('波動砲を受けたのに塔に入った');
         if (!vuln.has(me) && !mine.length) hurt('塔に入っていない（ビームを受けていない人は塔へ）');
         towers.forEach(tw => { fxAdd('burst', tw.x, tw.z, { r:TOWER_R, cols:FXC.flare, dur:.5 }); fxParts(8, tw.x, tw.z, { cols:FXC.fire, speed:6, up:8, life:.5, spread:TOWER_R }); });
         sfx.boom(); fxShake(3, .25);
       }],
       [T.trapHit, () => {
-        const holders = [p.trapT, p.trapD];
+        const holders = [p.trapT, p.trapD]; healerHit(165000, 'つぎつぎトラップ');
         const inT = holders.filter(h => h === me || dist(S.player, pos(h)) <= TRAP_R);
         if (!holders.includes(me)){
           if (inT.length >= 2) hurt('つぎつぎトラップの頭割りに2つ入った');
@@ -153,7 +156,7 @@ const P1A = {
         } else if (holders.some(h => h !== me && dist(S.player, pos(h)) <= TRAP_R)) hurt('つぎつぎトラップ：もう一つの頭割りに入った');
         holders.forEach(h => {
           const c = { x:pos(h).x, z:pos(h).z };
-          fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:['#ff7ad8', '#ffe070', '#7ad8ff'], dur:.5 }); fxParts(14, c.x, c.z, { cols:['#ff7ad8', '#ffe070', '#7ad8ff', '#b07aff'], speed:8, up:6, life:.7, spread:3 });
+          fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
           SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return; push(k, c, { x:(q.x - c.x) / d * TRAP_KB, z:(q.z - c.z) / d * TRAP_KB }, S.t); });
         });
         sfx.boom(); fxShake(3, .25);
@@ -172,7 +175,8 @@ const P1A = {
     };
     const statueOnScreen = { x:0, z:-22.3 };
     return {
-      bossR:6, markers:MARKERS, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
+      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
       casts:[
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
         { name:'なぞなぞマジック', start:T.mm1Cast, len:T.ice1 - T.mm1Cast },
@@ -206,7 +210,7 @@ const P1A = {
         if (beamShow && S.t - beamShow.t < .6){
           const k = 1 - (S.t - beamShow.t) / .6;
           beamShow.beams.forEach(b => { const far = { x:b.a.x + b.d.x * 80, z:b.a.z + b.d.z * 80 }, n = { x:-b.d.z, z:b.d.x };
-            alpha(.6 * k, () => { for (let w = -BEAM_HW; w <= BEAM_HW; w += .5) line(px(b.a.x + n.x * w), px(b.a.z + n.z * w), px(far.x + n.x * w), px(far.z + n.z * w), w === 0 ? '#ffffff' : '#ff8a2a'); }); });
+            alpha(.75 * k, () => { for (let w = -BEAM_HW; w <= BEAM_HW; w += .25) line(px(b.a.x + n.x * w), px(b.a.z + n.z * w), px(far.x + n.x * w), px(far.z + n.z * w), Math.abs(w) < .8 ? '#ffffff' : Math.abs(w) < 1.5 ? '#a8d8ff' : '#3a8aff'); }); });
         }
         if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k))); else SLOTS.forEach(k => spreadMark(pos(k))); }
         if (t >= T.mm2Cast - .1 && t < T.mm2) kefkaOrbs(m2.iceTrue, m2.thTrue, null);

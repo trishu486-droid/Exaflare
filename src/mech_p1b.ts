@@ -2,11 +2,13 @@
 import { mySlot } from './jobs.js';
 import { S, shuffle, pick } from './state.js';
 import { sfx } from './audio.js';
+import { healerHit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, drawStatue, tether } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -28,7 +30,7 @@ const VIT_SPOTS = [{ x:-10.2, z:2.4 }, { x:10.2, z:2.4 }, { x:-12, z:13.5 }, { x
 const flipZ = q => ({ x:q.x, z:-q.z });
 
 const P1B = {
-  id:'p1b', name:'神々の像（2回目）', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
+  id:'p1b', name:'神々の像　第二楽章', sub:'', view:24, start:{ x:0, z:3 }, slots:true,
   gen(){
     return { me:mySlot(), mm:rollMystery(), gravTH:Math.random() < .5, half1East:Math.random() < .5, half2East:Math.random() < .5,
       trapT:pick(TH), trapD:pick(DPS), pass:{ T:pick([0, 1, 2]), D:pick([0, 1, 2]) } };
@@ -92,18 +94,19 @@ const P1B = {
     // 重力弾：重力弾の線の人（4人）の真ん中に頭割り。沼が残る
     const gravitas = round => {
       const G = SLOTS.filter(k => isGrav(k, round)), c = { x:G.reduce((s, k) => s + pos(k).x, 0) / 4, z:G.reduce((s, k) => s + pos(k).z, 0) / 4 };
-      if (dist(S.player, c) > PUDDLE_R) hurt(`重力弾（${round}回目）の頭割りに入っていない`);
+      if (dist(S.player, c) > PUDDLE_R) hurt(`重力弾（${round}回目）の頭割りに入っていない`); else healerHit(210000, '重力弾');
       puddles.push(c);
-      fxAdd('burst', c.x, c.z, { r:PUDDLE_R, cols:['#3a3aff', '#8a8aff', '#ffffff'], dur:.6 }); sfx.big(); fxShake(3, .25);
+      fxAdd('burst', c.x, c.z, { r:PUDDLE_R, cols:['#6a1ab8', '#c87aff', '#ffffff'], dur:.6 }); sfx.big(); fxShake(3, .25);
     };
     // 岩石弾：岩石弾の線の人のまわり半径5。ほかの人・沼に重なるとだめ
     const vitrophyre = round => {
       const V = SLOTS.filter(k => !isGrav(k, round));
       if (!isGrav(me, round)){
+        healerHit(20000, '岩石弾');
         if (SLOTS.some(k => k !== me && dist(S.player, pos(k)) <= ROCK_R)) hurt('岩石弾：ほかの人に近すぎた');
         if (puddles.some(c => dist(S.player, c) < PUDDLE_R + ROCK_R)) hurt('岩石弾が重力弾の沼に重なった（ワイプ）');
       } else if (V.some(k => dist(S.player, pos(k)) <= ROCK_R)) hurt('岩石弾の人に近すぎた');
-      V.forEach(k => { const q = pos(k); fxAdd('burst', q.x, q.z, { r:ROCK_R, cols:['#c8a070', '#8a6a40', '#ffe0a0'], dur:.5 }); fxParts(8, q.x, q.z, { cols:['#c8a070', '#8a6a40'], speed:6, up:6, life:.5, spread:3 }); });
+      V.forEach(k => { const q = pos(k); fxAdd('burst', q.x, q.z, { r:ROCK_R, cols:['#3a8aff', '#a8d8ff', '#ffffff'], dur:.5 }); fxParts(8, q.x, q.z, { cols:['#a8d8ff', '#ffffff'], speed:6, up:6, life:.5, spread:3 }); });
       sfx.boom(); fxShake(2, .2);
     };
     const halfRoom = east => {
@@ -130,7 +133,7 @@ const P1B = {
       [T.vit2, () => vitrophyre(2)],
       [T.half2, () => halfRoom(p.half2East)],
       [T.trapHit, () => {
-        const holders = [p.trapT, p.trapD];
+        const holders = [p.trapT, p.trapD]; healerHit(165000, 'つぎつぎトラップ');
         const inT = holders.filter(h => h === me || dist(S.player, pos(h)) <= TRAP_R);
         if (!holders.includes(me)){
           if (inT.length >= 2) hurt('つぎつぎトラップの頭割りに2つ入った');
@@ -138,7 +141,7 @@ const P1B = {
         }
         holders.forEach(h => {
           const c = { x:pos(h).x, z:pos(h).z };
-          fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:['#ff7ad8', '#ffe070', '#7ad8ff'], dur:.5 }); fxParts(14, c.x, c.z, { cols:['#ff7ad8', '#ffe070', '#7ad8ff', '#b07aff'], speed:8, up:6, life:.7, spread:3 });
+          fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
           SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return;
             const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB }; kb[k] = { t0:S.t, from:{ x:q.x, z:q.z }, to, len:TRAP_KB / KB_SPEED };
             if (k === me && Math.hypot(to.x, to.z) > 20) hurt('ノックバックで外へ落ちた'); });
@@ -147,7 +150,7 @@ const P1B = {
       }],
       [T.soak, () => {
         // グラビガ：沼（8つ）を全部踏む。タンヒラは北、DPS は南
-        const want = isTH(me) ? puddles[1] : puddles[0];
+        const want = isTH(me) ? puddles[1] : puddles[0]; healerHit(65000, 'グラビガ');
         if (want && dist(S.player, want) > PUDDLE_R) hurt(`グラビガ：${isTH(me) ? '北' : '南'}の沼に入っていない`);
         puddles.forEach(c => fxAdd('burst', c.x, c.z, { r:PUDDLE_R, cols:['#8a8aff', '#ffffff'], dur:.5 }));
         sfx.boom();
@@ -163,7 +166,8 @@ const P1B = {
     const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 8) * .3; alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
     const halfCol = east => east ? '#ffe040' : '#b05aff'; // 黄＝撲殺の神気（東が危ない）、紫＝重力波（西が危ない）
     return {
-      bossR:6, markers:MARKERS, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
+      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
       casts:[
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
         { name:'ひろげるブリザガ', start:T.mmCast, len:T.ice - T.mmCast },
@@ -184,7 +188,9 @@ const P1B = {
       drawFloor(t){
         if (t >= T.mmCast && t < T.ice) drawTell(mm, true, false);
         // 沼（グラビガ）
-        puddles.forEach(c => { const X = px(c.x), Z = px(c.z), R = Math.round(PUDDLE_R * PPY); alpha(.45, () => disc(X, Z, R, '#2a2ad8')); ring(X, Z, R, '#8a8aff'); ring(X, Z, R - 2, '#5a5aff'); });
+        puddles.forEach(c => puddle(c, PUDDLE_R, t));
+        // ばりばりルインガ（赤い扇・実機の動画）
+        if (cleaveShow && S.t - cleaveShow.t < .5){ const k = (S.t - cleaveShow.t) / .5; alpha(.55 * (1 - k), () => fillCone(cleaveShow.u, CLEAVE_HALF, k < .3 ? '#ffffff' : '#e8283a')); }
         // 半面（着弾の光）
         if (halfShow && S.t - halfShow.t < .5) alpha(.5 * (1 - (S.t - halfShow.t) / .5), () => fillArena(z => halfShow.east ? [0, 99] : [-99, 0], halfCol(halfShow.east)));
       },
@@ -196,8 +202,6 @@ const P1B = {
           const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
           if (round && t >= T.graven) SLOTS.forEach(k => tether(isGrav(k, round) ? GRAV_STATUE : VIT_STATUE, pos(k), isGrav(k, round) ? '#8a8aff' : '#e0b070'));
         }
-        // タンク強攻撃の扇（白い線）
-        if (cleaveShow && S.t - cleaveShow.t < .5){ const u = cleaveShow.u, a0 = Math.atan2(u.z, u.x); alpha(1 - (S.t - cleaveShow.t) / .5, () => [-1, 1].forEach(s => { const a = a0 + s * CLEAVE_HALF * Math.PI / 180; line(px(0), px(0), px(Math.cos(a) * 20), px(Math.sin(a) * 20), '#ff8a2a'); })); }
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
         const trapHolders = t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
         trapHolders.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });

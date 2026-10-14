@@ -188,7 +188,7 @@ const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピア�
   'コンジャンクション・ヘリオス':'コンヘリ', 'フォールマレフィク':'マレフィク', 'エクストリームガード':'エクスガ' };
 // ボタンにはスキルの絵を貼る（元の画像がない技は文字だけ）。左上にキー、下に名前。リキャスト中は真ん中に秒数
 function setBtn(el, key, name, p, ready, combo = false){
-  // 絵の住所はページから見た完全な住所にする（CSS の変数に相対の住所を入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
+  // 絵のURLはページから見た完全なURLにする（CSS の変数に相対のURLを入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
   const art = skillIconUrl(opt.job, name), bg = art ? `url("${new URL(art, document.baseURI).href}")` : '';
   // 絵は CSS の変数を通さず、直接ボタンの背景に入れる（絵が変わったときだけ）
   if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.backgroundImage = bg; el.classList.toggle('art', !!art); }

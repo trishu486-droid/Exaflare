@@ -22,21 +22,21 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 | 種類 | 場所 | 中身 |
 |---|---|---|
 | **本番（メイン）** | https://dancing-mad-sim.pages.dev/ （Cloudflare Pages、プロジェクト名 `dancing-mad-sim`） | `main` ブランチの最新。プッシュで自動更新（1〜2分） |
-| 本番（旧住所・移行中） | https://trishu486-droid.github.io/Exaflare/ （GitHub Pages） | 移行が終わったら「移転しました」の案内だけにする |
+| 本番（旧URL・移行中） | https://trishu486-droid.github.io/Exaflare/ （GitHub Pages） | 移行が終わったら「移転しました」の案内だけにする |
 | **開発版** | https://dev.dancing-mad-sim.pages.dev/ （Cloudflare のプレビュー） | `dev` ブランチの最新。確定前の確認用 |
 | **P1 の作業場所** | https://p1-dev.dancing-mad-sim.pages.dev/ （Cloudflare のプレビュー。ユーザーが設定に `p1-dev` を足したら見られる） | `p1-dev` ブランチの最新。P1 ができるまでの途中経過 |
 | リポジトリ | GitHub `trishu486-droid/Exaflare`（名前は変更予定） | 公開中。移行が終わったら非公開にする予定 |
 
 - **ブランチは `main`（本番）・`dev`（開発）と、P1 を作っている間だけの `p1-dev`**。ほかのブランチは作らない（2026-10-09 に整理。2026-10-13 に `p2-dev` を `dev` に取り込み、`p1-dev` に切り替え。`p2-dev` はユーザーに GitHub の画面で消してもらう）。Jules がプルリクエスト用に作るブランチは、取り込んだら消す。
 - Claude のクラウド環境からはブランチを消せない（プロキシが止める）。消すときはユーザーに GitHub の画面（Code → branches → ゴミ箱）で消してもらう。
-- ランキング：Firebase（Firestore、プロジェクト `kefka-d3de5`）。お問い合わせ：Google フォーム（届くとユーザーにメール）。アクセス解析：Cloudflare Web Analytics と Google Search Console。どれも住所が変わってもそのまま動く。
+- ランキング：Firebase（Firestore、プロジェクト `kefka-d3de5`）。お問い合わせ：Google フォーム（届くとユーザーにメール）。アクセス解析：Cloudflare Web Analytics と Google Search Console。どれもURLが変わってもそのまま動く。
 - Artifact（claude.ai）は使わない方針（開発版は Cloudflare のプレビューで見る）。Artifact の中ではランキングとお問い合わせが動かない。
 
 ## 3. 作業の流れ
 
 1. **作業の前に `dev` の最新を取り込む**：`git fetch origin && git checkout dev && git pull origin dev`。`main` に `dev` にないコミットがあれば `git merge origin/main` で取り込む。
 2. **`dev` で作業する**。見た目を変えるものは、先にイメージ画像で提案して OK をもらう（`common-spec.md` 2 章）。
-3. **ユーザーに見てもらうとき**：「開発版に出していい？」と聞いて OK なら `dev` にコミット・プッシュ → 開発版の住所で見てもらう。
+3. **ユーザーに見てもらうとき**：「開発版に出していい？」と聞いて OK なら `dev` にコミット・プッシュ → 開発版のURLで見てもらう。
 4. **「確定」をもらったら本番へ**：`src/news.ts` の `NEWS` のいちばん上にお知らせを1件足す（文書だけの変更なら不要）→ `dev` にコミット → `main` に `dev` を取り込んで（`git checkout main && git merge --ff-only dev`）プッシュ → 公開を確認。
 5. **公開の確認**：`curl -s https://dancing-mad-sim.pages.dev/ | grep -o 'assets/index-[^"]*'` が、手元の `npm run build` の `dist/assets/index-*.js` と同じ名前になるか。この環境のブラウザは外のサイトを開くと証明書エラーになることがあるので、確認は curl で。
 
@@ -48,12 +48,12 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 | 担当 | 何をする | ブランチ |
 |---|---|---|
 | Claude（Claude Code） | 細かい修正・調整・資料 | `dev` → 確定で `main` |
-| Claude（Claude Code） | P2 の続き（ミッシング・トラインは 2026-10-13 に `dev` に取り込み済み。P2 通し・南調整などは後で） | `dev` |
+| Claude（Claude Code） | P2 の続き（ミッシング・トラインは 2026-10-13 に `dev` に取り込み済み。P2 通し・南調整は 2026-10-14 に追加） | `dev` |
 | Claude（Claude Code） | P1 をゼロから作る（2026-10-13〜） | `p1-dev` |
 
 **P1 の流れ**（P2 と同じ進め方）
 1. 調査は `docs/dmu/research-p1.md`。
-2. `p1-dev` にプッシュ → `p1-dev` の住所で確認。（ほかの AI に頼むときは、`p1-dev` 向けのプルリクエストで受け取る）
+2. `p1-dev` にプッシュ → `p1-dev` のURLで確認。（ほかの AI に頼むときは、`p1-dev` 向けのプルリクエストで受け取る）
 3. P1 の作業中も、ときどき `dev` の最新を `p1-dev` に取り込む（細かい修正とのずれを小さく保つ）。
 4. P1 ができたら：`dev` の最新を `p1-dev` に取り込む → `p1-dev` を `dev` に取り込む → 開発版で確認 → 「確定」で `main` へ（お知らせを1件）。終わったら `p1-dev` を消す。
 5. P1 はフェーズを足すときの決まり（`common-spec.md` 7 章・10 章）に従う。新しいフェーズはランキング対象外から始める。
@@ -68,9 +68,9 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 - 済んだこと：GitHub Pages を `main` から公開・標準ブランチを `main` に・Cloudflare の本番を `main`／プレビューを `dev` だけに・旧ブランチ（`claude/ff14-exaflare-trainer-3ssqps`・`p3-dev`・`p4-dev`）を削除・使わない Artifact 4つを削除。
 - この環境からはブランチを消せない（プロキシが 403 で止める）。消すときはユーザーに GitHub の画面（Code → branches → ゴミ箱）で消してもらう。
 
-1. リポジトリ名の変更（案：`dancing-mad-sim`）と、旧住所の案内用の公開リポジトリ（名前 `Exaflare`、中身は新しい住所へ飛ばす1ページだけ）。
+1. リポジトリ名の変更（案：`dancing-mad-sim`）と、旧URLの案内用の公開リポジトリ（名前 `Exaflare`、中身は新しいURLへ飛ばす1ページだけ）。
 2. 1〜2週間たったらリポジトリを非公開にする（そのとき `.github/workflows/deploy.yml` を消す）。
-3. Google Search Console に新しい住所を登録する。
+3. Google Search Console に新しいURLを登録する。
 
 ## 6. まだ残っていること（ゲームの中身）
 

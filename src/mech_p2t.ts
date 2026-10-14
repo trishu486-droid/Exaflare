@@ -46,6 +46,7 @@ const P2T = {
   },
   create(p){
     // トラインだけの練習は、トラインの詠唱の1秒前から（裁きの光は P2 通しのときだけ。p.withLoj）。時刻をまとめてずらす
+    // P2 通しでは裁きの光の判定はミッシングの側で1回だけ（p.lojDone）
     const SH = p.withLoj ? 0 : T_BASE.trineCast - 1;
     const T = Object.fromEntries(Object.entries(T_BASE).map(([k, v]) => [k, Array.isArray(v) ? v.map(x => x - SH) : v - SH]));
     const me = p.me;
@@ -91,6 +92,7 @@ const P2T = {
       const emb = t ? { x:s === 'MT' ? -.6 : .6, z:-9.5 } : add(partySpot, o); // 終末の双腕：タンク2人はボスの北で重なる
       return [
         { until:T.spawn[0] + 1.5, spot:center(s) },
+        { until:T.wing + .05, spot:add(waitSpot, OFF(s)) },       // 半面（破壊の翼）までに、中央の安全な側へ（味方が翼の側に残らないように）
         { until:T.det[0] + .05, spot:add(waitSpot, OFF(s)) },     // 半面よけ〜1回目の爆発まで、中央の安全な側
         { until:T.det[1] - .1, spot:fin },                        // 1回目が爆発したら、その三角の方へ（2回目の爆発の前に着く）
         { until:T.tb + .1, spot:fin },                            // 3回目（中央）の爆発と強攻撃をここで
@@ -111,7 +113,7 @@ const P2T = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
-      ...(p.withLoj ? [[T.loj, () => { healerHit(70000, '裁きの光'); screenFx('judgment'); sfx.big(); fxShake(6, .5); }]] : []),
+      ...(p.withLoj && !p.lojDone ? [[T.loj, () => { healerHit(70000, '裁きの光'); screenFx('judgment'); sfx.big(); fxShake(6, .5); }]] : []),
       ...T.det.map((dt, s) => [dt, () => {
         const vs = circlesOf([s]);
         if (vs.some(v => dist(S.player, v) <= CIR)) hurt(`トライン ${s + 1}回目の爆発に当たった`);
@@ -196,7 +198,7 @@ const P2T = {
           [...b.k].forEach((ch, i) => { const g = FONT[ch]; for (let n = 0; n < 15; n++) if (g[n] === '1') rect(X - 4 + i * 4 + (n % 3), Z - 2 + (n / 3 | 0), 1, 1, P.white); });
         });
       },
-      _spotAt: spotAt, _me: me, _tris: TRIS,
+      _spotAt: spotAt, _me: me, _tris: TRIS, _bots: bots,
     };
   },
 };

@@ -11,7 +11,7 @@ const SKILL: Record<string, string> = {
   '漆黒の剣':'drk_edge', 'カーヴ・アンド・スピット':'drk_carve', 'リビングデッド':'drk_living', 'シャドウヴィジル':'drk_vigil',
   'スライス':'rpr_slice', 'ワクシングスライス':'rpr_waxing', 'インファナルスライス':'rpr_infernal', 'ストークスウェーズ':'rpr_stalk',
   'フォールマレフィク':'ast_malefic', 'コンジャンクション・ヘリオス':'ast_helios', '運命の輪':'ast_cu', 'ニュートラルセクト':'ast_ns', 'サンサイン':'ast_sun', 'ベネフィラ':'ast_bene',
-  '極炎法':'sch_broil', '士気高揚の策':'sch_concit', '野戦治療の陣':'sch_soil', '疾風怒濤の計':'sch_exped', '鼓舞激励の策':'sch_adlo',
+  '極炎法':'sch_broil', '意気軒昂の策':'sch_concit', '野戦治療の陣':'sch_soil', '疾風怒濤の計':'sch_exped', '鼓舞激励の策':'sch_adlo',
   'ヒートスプリットショット':'mch_split', 'ヒートスラッグショット':'mch_slug', 'ヒートクリーンショット':'mch_clean', 'ドリル':'mch_drill', 'チェックメイト':'mch_checkmate', 'ダブルチェック':'mch_double',
   'ファイジャ':'blm_fire', '三連魔':'blm_triple', '迅速魔':'blm_swift', 'ゼノグロシー':'blm_xeno',
   '猿舞連撃':'mnk_a', '竜頷正拳撃':'mnk_b', '虎襲崩拳':'mnk_y', '陰陽闘気斬':'mnk_x',

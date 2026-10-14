@@ -11,6 +11,9 @@ import { begin } from './game.js';
 import { jobIconSvg } from './gfx.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
+// β版（ユーザーの決定 2026-10-14）：P2〜P4 はフェーズ選択とギミック選択の見出しに「β」。P1 も作りかけなので β
+const BETA = ['p1', 'p2', 'p3', 'p4'];
+const beta = (id: string) => BETA.includes(id) ? '<em class="beta">β</em>' : '';
 const PHASES = [['p1', 'P1', 'ケフカ'], ['p2', 'P2', 'ゴッドケフカ'], ['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 // 文を「かたまり」ごとに折り返す（| ・全角空白と「・」「〜」のあと・（ の前で区切る。かたまりの途中では折り返さない）
 const ph = (s: string) => s.split(/\||(?=（)|(?<=[　・〜])/).filter(Boolean).map(x => `<span class="ph">${x}</span>`).join('');
@@ -29,7 +32,7 @@ function renderMenu(){
   if (S.menu === 'phase'){
     head.innerHTML = ph(`フェーズ選択（${job().name}）`);
     note.innerHTML = ph('十字で選んで|A／STARTで決定');
-    list.innerHTML = PHASES.map(([id, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${id === 'omake' ? ' extra' : ''}"><span>${name}</span><small>${ph(sub)}</small></button>`).join('');
+    list.innerHTML = PHASES.map(([id, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${id === 'omake' ? ' extra' : ''}"><span>${name}${beta(id)}</span><small>${ph(sub)}</small></button>`).join('');
     return;
   }
   if (S.menu === 'omake'){
@@ -47,6 +50,12 @@ function renderMenu(){
     $('menuList').innerHTML = job().slots.map((sl, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${sl}</span><small>${mech().name}</small></button>`).join('');
     return;
   }
+  if (S.menu === 'missm'){
+    head.innerHTML = ph(`${mech().name}の処理法`);
+    note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
+    $('menuList').innerHTML = MISS_METHODS.map(([, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${name}</span><small>${ph(sub)}</small></button>`).join('');
+    return;
+  }
   if (S.menu === 'orchn'){
     head.innerHTML = ph(`${job().name}（${mySlot()}）`);
     note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
@@ -57,13 +66,13 @@ function renderMenu(){
     return;
   }
   // ギミック一覧（選んだフェーズの分）。左右で P1〜P5 を切り替え
-  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ${ph(`ギミック選択|（${job().name}）${opt.phase.toUpperCase()}`)} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ${ph(`ギミック選択|（${job().name}）${opt.phase.toUpperCase()}`)}${beta(opt.phase)} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
   note.innerHTML = ph('A／STARTで開始　Y／iで解説　←→でフェーズ切替');
 
   const L = menuMechs();
   $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${ph(m.sub)}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
-function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : 1; }
+function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : S.menu === 'missm' ? MISS_METHODS.length : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
 function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
 // フェーズ選択を開く。at：カーソルを置く項目（省略時は前に選んだフェーズ）
@@ -73,6 +82,11 @@ function openMechs(phase = opt.phase){ opt.phase = phase; store.set('phase', pha
 // タンクでオーケストラを選んだら、1回目か2回目かを選ぶ
 const needOrchN = () => mech().id === 'orch' && job().role === 'tank';
 function openOrchN(){ S.menu = 'orchn'; S.cursor = opt.orch - 1; renderMenu(); }
+// P2 のミッシング（と P2 通し）は、選んだあとに処理法（優先順／南調整）を選ぶ（ユーザーの決定 2026-10-14。設定ではなくメニューで）
+const MISS_METHODS = [['prio', '優先順', 'ヤーン速報'], ['south', '南調整', 'ヤーン速報']];
+const needMissM = () => mech().id === 'p2m' || mech().id === 'p2';
+function openMissM(){ S.menu = 'missm'; S.cursor = Math.max(0, MISS_METHODS.findIndex(m => m[0] === opt.miss)); renderMenu(); }
+const nextStep = () => { if (needOrchN()) openOrchN(); else if (needMissM()) openMissM(); else begin(); };
 function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
   if (S.menu === 'job'){
@@ -87,26 +101,26 @@ function menuConfirm(i = S.cursor){
   }
   if (S.menu === 'slot'){
     opt.slot[opt.job] = job().slots[i]; store.set('slot', opt.slot); applyTitle();
-    if (needOrchN()) openOrchN(); else begin();
+    nextStep();
     return;
   }
   if (S.menu === 'omake'){ openOmake(i); return; }
   const L = menuMechs();
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
+  if (S.menu === 'missm'){ opt.miss = MISS_METHODS[i][0]; store.set('miss', opt.miss); begin(); return; }
   if ((L[i] as any).wip){ sfx.back(); return; } // まだ作っていない（P3 の開発中）
   opt.mech = L[i].id; store.set('mech', opt.mech); applyTitle();
   if (L[i].slots && job().slots.length > 1){
     S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); renderMenu();
     return;
   }
-  if (needOrchN()){ openOrchN(); return; }
-  begin();
+  nextStep();
 }
 function menuBack(){
   if (S.menu === 'job') return;
   if (S.menu === 'phase'){ openJobs(); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'mech' || S.menu === 'omake'){ openPhases(S.menu === 'omake' ? 'omake' : opt.phase); sfx.unlock(); sfx.back(); return; }
-  if (S.menu === 'orchn' && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
+  if ((S.menu === 'orchn' || S.menu === 'missm') && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
   else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }

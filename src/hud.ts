@@ -182,15 +182,16 @@ const buffIcon = id => {
 // ボタンに出す略称（攻略記事・ブログ・掲示板で使われているのを確認できたものだけ）
 const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピアシオン':'エクスピ', 'インビンシブル':'インビン', 'ランパート':'ランパ',
   'リビングデッド':'リビデ', 'シャドウヴィジル':'ヴィジル', 'ゼノグロシー':'ゼノ', 'ニュートラルセクト':'ニューセク',
-  '士気高揚の策':'士気', '野戦治療の陣':'陣', '疾風怒濤の計':'疾風',
+  '野戦治療の陣':'陣', '疾風怒濤の計':'疾風',
   'ヒートスプリットショット':'スプリット', 'ヒートスラッグショット':'スラッグ', 'ヒートクリーンショット':'クリーン',
   'ワクシングスライス':'ワクシング', 'インファナルスライス':'インファナル',
   'コンジャンクション・ヘリオス':'コンヘリ', 'フォールマレフィク':'マレフィク', 'エクストリームガード':'エクスガ' };
 // ボタンにはスキルの絵を貼る（元の画像がない技は文字だけ）。左上にキー、下に名前。リキャスト中は真ん中に秒数
 function setBtn(el, key, name, p, ready, combo = false){
-  // 絵の住所はページから見た完全な住所にする（CSS の変数に相対の住所を入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
+  // 絵のURLはページから見た完全なURLにする（CSS の変数に相対のURLを入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
   const art = skillIconUrl(opt.job, name), bg = art ? `url("${new URL(art, document.baseURI).href}")` : '';
-  if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.setProperty('--art', bg || 'none'); el.classList.toggle('art', !!art); }
+  // 絵は CSS の変数を通さず、直接ボタンの背景に入れる（絵が変わったときだけ）
+  if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.backgroundImage = bg; el.classList.toggle('art', !!art); }
   el.classList.toggle('cd', /^\d+$/.test(key));
   name = SHORT[name] || name;
   el.classList.toggle('longname', name.length > 10);

@@ -15,11 +15,13 @@ import { P2T } from './mech_p2t.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
+import { RUN2 } from './mech_p2run.js';
 
 // フェーズごとのギミック。P5 は来る順：フラッド → オーケストラ → スリースターズ → 混沌の終末 →（オーケストラ2回目）→ ミッシング
+// P2：ミッシング → トライン → 通し
 // P3：前半（バウル・オブ・アゴニー＋アルテマブラスター）→ じしん＆ブラックホール → どんどこ地団駄 → 通し
 const P1_MECHS = [P1A, P1B, P1C]; // 3つに分ける（神々の像1回目・2回目・ずびずばテレポ）。名前はユーザーの資料のフォルダに合わせる予定
-const P2_MECHS = [P2M, P2T];
+const P2_MECHS = [P2M, P2T, RUN2];
 const P3_MECHS = [P3A, P3C, P3D, RUN3];
 const P3_HIDDEN = [P3A0, P3B]; // メニューには出さない（前半の部品。テスト用に名前で呼べる）
 const P4_MECHS = [P4];

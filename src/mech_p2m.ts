@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { mySlot } from './jobs.js';
+import { opt } from './store.js';
 import { S, shuffle, pick } from './state.js';
 import { healerHit } from './action.js';
 import { sfx } from './audio.js';
@@ -32,12 +33,13 @@ const T_BASE = {
 };
 const HIT = .6, FP_LEN = 6, LEG_LEN = 5, MARK_SHOW = 6;
 // ---- 大きさ（推定） ----
-const TOWER_R = 4, STACK_R = 5, CIRC_R = 5, FAN_LEN = 16, FAN_HALF = 45, FP_R = 5, CLONE_D = 3.2, EMB_R = 3, BOT_SPEED = 24;
-// ---- 立ち位置（相対：ケフカが北、塔が南。塔の中心は (±6, 6)） ----
-const TOWER_REL = [{ x:-6, z:6 }, { x:6, z:6 }];
-const ODD = { stack1:{ x:-4.6, z:5.0 }, fan:{ x:-7.2, z:8.6 }, bait:{ x:-10.5, z:8.0 }, joinL:{ x:-1.4, z:6.4 },
-  stack2:{ x:4.4, z:4.4 }, circ:{ x:6.3, z:9.6 }, joinR1:{ x:1.2, z:6.0 }, joinR2:{ x:1.6, z:4.0 } };
-const EVEN = { fan1:{ x:-4.4, z:3.8 }, fan2:{ x:4.4, z:3.8 }, circ1:{ x:-6.4, z:9.6 }, circ2:{ x:6.4, z:9.6 },
+// 塔 半径4・頭割り／円 半径5・扇 90°×長さ40 はゲームデータ（XIVAPI の Action：光の波動・スペルハザード・ドライブ／スキャッター／ウェーブ）。2026-10-14 確認
+const TOWER_R = 4, STACK_R = 5, CIRC_R = 5, FAN_LEN = 40, FAN_HALF = 45, FP_R = 5, CLONE_D = 3.2, EMB_R = 3, BOT_SPEED = 24;
+// ---- 立ち位置（相対：ケフカが北、塔が南。塔の中心は (±5.66, 5.66)。塔の中の位置は塔といっしょに 2026-10-14 にずらした） ----
+const TOWER_REL = [{ x:-5.657, z:5.657 }, { x:5.657, z:5.657 }]; // 塔の中心はケフカから 8（AnoMech の再現データ。前は推定 8.5）
+const ODD = { stack1:{ x:-4.26, z:4.66 }, fan:{ x:-6.86, z:8.26 }, bait:{ x:-10.5, z:8.0 }, joinL:{ x:-1.4, z:6.4 },
+  stack2:{ x:4.06, z:4.06 }, circ:{ x:5.96, z:9.26 }, joinR1:{ x:1.2, z:6.0 }, joinR2:{ x:1.6, z:4.0 } };
+const EVEN = { fan1:{ x:-4.06, z:3.46 }, fan2:{ x:4.06, z:3.46 }, circ1:{ x:-6.06, z:9.26 }, circ2:{ x:6.06, z:9.26 },
   baitL:{ x:-10, z:4.0 }, baitR:{ x:10, z:4.0 }, takeL:{ x:-5.6, z:-5.4 }, takeR:{ x:5.6, z:-5.4 } };
 // 消滅の脚を待つ所：過去＝塔の側（塔と塔の間）、未来＝塔の反対側。少し外周寄りに立たないと、脚の角度が急になって次の塔で当たる
 const WAIT_D = 9.5; // 8 より内側だと当たる人が出る（全パターンで確認）
@@ -93,11 +95,11 @@ const bgImg = gold => {
 };
 
 const P2M = {
-  id:'p2m', name:'ミッシング', sub:'ヤーン優先順', view:24, start:{ x:-7, z:1 }, slots:true,
+  id:'p2m', name:'ミッシング', sub:'ヤーン速報', view:24, start:{ x:-7, z:1 }, slots:true,
   gen(){
     const thStack = pick(TH), dStack = pick(DPS);
     return {
-      me:mySlot(), thType:pick(['fan', 'circ']), thStack, dStack,
+      me:mySlot(), method:opt.miss === 'south' ? 'south' : 'prio', thType:pick(['fan', 'circ']), thStack, dStack,
       theta1:pick([0, 45, 90, 135, 180, 225, 270, 315]), dir:pick([1, -1]),
       fp:[0, 1, 2, 3].map(() => pick(['future', 'past'])),
       cloneSkip:[0, 1, 2, 3].map(() => Math.random() * 4 | 0),
@@ -125,6 +127,30 @@ const P2M = {
       if (k <= 6){ g.forEach((s, i) => { cur[s] = p.newMarks[k - 1][i]; given.push({ k:s, t:T.tower[k - 1] + HIT + .5, mark:cur[s] }); }); }
       else g.forEach(s => { cur[s] = null; });
     }
+    // ---- 南調整（ヤーン②・設定で選ぶ）：塔の左右は「前の塔と同じ側」。同じ予兆の2人が同じ側になったら、南（下）にいた人が反対側へ ----
+    //   1回目：頭割りは左タンヒラ・右DPS。4回目：左＝ヒーラー・近接、右＝タンク・遠隔。8回目はマーカーの数字（優先順と同じ）
+    //   奇数回：扇は左下・円は右下（決まり）、頭割りは上。偶数回：扇は上・円は下
+    const southSide = {};
+    if (p.method === 'south'){
+      const prev = {};
+      for (let k = 1; k <= 7; k++){
+        const g = soakers(k), hold = plan[k - 1], side = {};
+        if (k === 1) g.forEach(s => { const m = hold[s]; side[s] = m === 'stack' ? (TH.includes(s) ? 'L' : 'R') : m === 'fan' ? 'L' : 'R'; });
+        else if (k === 4) g.forEach(s => { side[s] = roleOf(s) === 'H' || (roleOf(s) === 'D' && !isRanged(s)) ? 'L' : 'R'; });
+        else {
+          if (k % 2) g.forEach(s => { if (hold[s] !== 'stack') side[s] = hold[s] === 'fan' ? 'L' : 'R'; });
+          (k % 2 ? ['stack'] : ['fan', 'circ']).forEach(m => {
+            const hs = g.filter(s => hold[s] === m); if (hs.length !== 2) return;
+            const [a, b] = hs, pa = prev[a]?.side ?? 'L', pb = prev[b]?.side ?? 'R';
+            if (pa !== pb){ side[a] = pa; side[b] = pb; return; }
+            const mover = prev[a]?.bottom ? a : b, stay = mover === a ? b : a; // 被ったら南（下）の人が動く
+            side[stay] = pa; side[mover] = pa === 'L' ? 'R' : 'L';
+          });
+        }
+        g.forEach(s => { prev[s] = { side:side[s], bottom:k % 2 ? hold[s] !== 'stack' : hold[s] === 'circ' }; });
+        southSide[k] = side;
+      }
+    }
     // ---- 塔の向き ----
     const theta = k => p.theta1 + p.dir * 45 * (k - 1);                  // 塔のある側（北0・時計回り）
     const abs = (q, k) => rot(q, theta(k) - 180);                          // 相対 → 実際の座標
@@ -136,7 +162,7 @@ const P2M = {
       if (k % 2){
         if (g.includes(s)){
           const m = hold[s];
-          if (m === 'stack') return byPrio(g, 'stack', hold).indexOf(s) === 0 ? ODD.stack1 : ODD.stack2;
+          if (m === 'stack') return (southSide[k] ? southSide[k][s] === 'L' : byPrio(g, 'stack', hold).indexOf(s) === 0) ? ODD.stack1 : ODD.stack2;
           return m === 'fan' ? ODD.fan : ODD.circ;
         }
         // 塔を踏まない4人：ヒーラー＝左の扇の誘導、タンク＝左の頭割り、DPS 2人＝右の頭割り
@@ -145,7 +171,7 @@ const P2M = {
         return isRanged(s) ? ODD.joinR2 : ODD.joinR1;
       }
       if (g.includes(s)){
-        const m = hold[s], i = byPrio(g, m, hold).indexOf(s);
+        const m = hold[s], i = southSide[k] ? (southSide[k][s] === 'L' ? 0 : 1) : byPrio(g, m, hold).indexOf(s);
         return m === 'fan' ? (i === 0 ? EVEN.fan1 : EVEN.fan2) : (i === 0 ? EVEN.circ1 : EVEN.circ2);
       }
       // 塔を踏まない4人：遠隔＝扇の誘導（ヒーラー左・DPS 右）、近接＝未来過去の円（タンク左・DPS 右）
@@ -305,7 +331,7 @@ const P2M = {
     return {
       bossR:6, // ゴッドケフカのターゲットサークル（ヤーンの図から測ると 6 くらい）
       start: { ...(p.withEmb ? embSpot(me) : standby(me)) }, // ミッシングだけのときは、最初から整列している
-      intro:`あなたは ${me}（${A.includes(me) ? '先に塔：1・2・3・8回目' : '後に塔：4・5・6・7回目'}）`,
+      intro:`あなたは ${me}（${p.method === 'south' ? '南調整' : '優先順'}）`, // 先に塔か後に塔かは予兆が付くまで分からないので出さない（ユーザーの指摘 2026-10-14）
       end:T.end,
       casts:[
         ...(p.withEmb ? [{ name:'終末の双腕', start:T.embCast, len:T.emb - T.embCast }] : []),
@@ -378,7 +404,7 @@ const P2M = {
         SLOTS.forEach(s => { const m = markOf(s, t); if (m) drawMark(pos(s), m); });
       },
       // テスト用（?debug）：担当の位置
-      _spotAt: spotAt, _plan: plan, _A: A, _me: me,
+      _spotAt: spotAt, _plan: plan, _A: A, _me: me, _bots: bots,
     };
   },
 };

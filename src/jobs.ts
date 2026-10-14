@@ -105,7 +105,8 @@ const GCD = 2.5, QUEUE = 0.5, GCD_QUEUE = 0.3, MELEE = 3, SLIDECAST = 0.5;
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
 // P3 前半（バウル・オブ・アゴニー）の MT は、エクスデスの強攻撃を無敵で受けるので Y が無敵
-const tankRole = () => mech().id === 'p3a' ? (mySlot() === 'MT' ? 'inv' : 'atk') : mech().id === 'p5' ? (S.inst?.tankRole?.(S.t) ?? 'atk') : mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
+// P1 第二楽章（ばりばりルインガ）：ST は B 挑発・Y 無敵（2発とも受ける）、MT は B 挑発（1発目のあと）
+const tankRole = () => mech().id === 'p1b' ? (mySlot() === 'ST' ? 'holy' : 'prov') : mech().id === 'p3a' ? (mySlot() === 'MT' ? 'inv' : 'atk') : mech().id === 'p5' ? (S.inst?.tankRole?.(S.t) ?? 'atk') : mech().id !== 'orch' ? 'atk' : (mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy';
 const jobCache: Record<string, any> = {};
 const job = () => {
   const j = JOBS[opt.job];
@@ -115,7 +116,7 @@ const job = () => {
   if (j.role !== 'tank') return j;
   const key = opt.job + tankRole();
   // オーケストラ以外はバフ・ヘイト管理なし：B・X・Y は攻撃アビリティ
-  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'inv' ? { ...j, ...j.atk, y:j.invuln } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
+  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'inv' ? { ...j, ...j.atk, y:j.invuln } : tankRole() === 'prov' ? { ...j, ...j.atk, b:PROVOKE } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
 };
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };

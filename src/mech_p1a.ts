@@ -200,10 +200,10 @@ const P1A = {
         // 塔
         if (t >= T.cannon && t < T.explosion) towers.forEach(tw => { const X = px(tw.x), Z = px(tw.z), R = Math.round(TOWER_R * PPY); alpha(.3, () => disc(X, Z, R, '#ff8a2a')); ring(X, Z, R, '#ffe070'); ring(X, Z, R - 2, '#ff8a2a'); });
       },
+      drawBack: () => drawStatue(statueOnScreen.x, statueOnScreen.z, { part:1 }), // 像（塔）はフィールドの奥に最初から。カウントダウンの間に足元から上ってくる
       draw(t){
         if (t >= T.gravenCast){
           if (t >= T.cannonWarn && t < T.cannon + .2){ const k = .5 + Math.sin(t * 8) * .3; alpha(k, () => { ring(px(0), px(statueOnScreen.z), 13, '#ff8a2a'); ring(px(0), px(statueOnScreen.z), 15, '#ffe070'); }); }
-          drawStatue(statueOnScreen.x, statueOnScreen.z, { eye:'#ff6a3a' });
           if (t >= T.graven && t < T.pulse) SLOTS.filter(tethered).forEach(k => tether(statueOnScreen, pos(k), '#ffb84a'));
         }
         // 波動砲のビーム（0.6秒）

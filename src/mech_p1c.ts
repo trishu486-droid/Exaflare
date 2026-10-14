@@ -263,7 +263,7 @@ const P1C = {
     };
     const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 6) * .3; alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
     // 像はフィールドの外（北）。画面の北の端に、東西の位置だけ合わせて描く
-    const statueOnScreen = q => ({ x:q.x, z:-22.3 });
+    const statueOnScreen = q => ({ x:q.x * .6, z:-22.3 }); // 画面の上の端の像の上の点（像は1つ。横の位置は像の幅に収まるように縮める。視線の判定は実際の位置のまま）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
       bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
@@ -294,13 +294,15 @@ const P1C = {
           alpha(pending ? .35 : grace ? .6 : 1, () => arrowPlate(X, Z, R + 2, DVEC[a.dir]));
         });
       },
+      // 像（塔）は1つ。フィールドの奥に最初から（カウントダウンの間に第二楽章の段から上る）
+      // 線の出どころ（混乱＝北西・睡眠＝北東。AnoMech の位置）に、神々の像の詠唱から後ろの光（桃・青）
+      drawBack: t => { const on = t >= T.gravenCast; const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE); drawStatue((sc.x + ss.x) / 2, -22.3, { part:3, lights:on ? [{ x:sc.x, col:'#c03a8a' }, { x:ss.x, col:'#3a6ad8' }] : [] }); },
       draw(t){
         // 像と線
         const showStatues = t >= T.gravenCast;
         if (showStatues){
           const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE);
           if (t >= T.gazeWind && t < T.gaze + .3) statueGlow(p.gazeInv ? statueOnScreen(GAZE_INV) : statueOnScreen(GAZE_NORM), p.gazeInv ? '#ff7ad8' : '#7ab8ff', t);
-          drawStatue(sc.x, sc.z, { eye:'#c03a8a' }); drawStatue(ss.x, ss.z, { eye:'#3a6ad8' });
           if (t >= T.gazeWind && t < T.gaze + .3 && p.gazeInv) glyph('?', px(sc.x), px(sc.z) - 22, '#ff7ad8');
           if (t >= T.tether && t < T.wills) SLOTS.forEach(k => tether(isConf(k) ? sc : ss, pos(k), isConf(k) ? '#ff7ad8' : '#7ab8ff'));
         }

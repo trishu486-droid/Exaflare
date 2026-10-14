@@ -2,7 +2,7 @@
 import { mySlot } from './jobs.js';
 import { S, shuffle, pick } from './state.js';
 import { sfx } from './audio.js';
-import { healerHit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
+import { A, healerHit, hasInvuln, hasMit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
@@ -13,17 +13,20 @@ import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
 // 時刻は cactbot のタイムライン −75 秒。立ち位置はヤーン速報の図から読んだもの
-// ① 全員に線（タンヒラと DPS で別の像）。左上の像＝重力弾（真ん中へ）、右下の像＝岩石弾（散開）。2回目は線が入れ替わる
+// ① 1つの像から全員に線（タンヒラと DPS で色が違う）。紫＝重力弾（真ん中へ）、黄＝岩石弾（散開）。2回目は線が入れ替わる
 // ② 1回目：ひろげるブリザガ＋重力弾。全員で南に集まって頭割り（ブリザガの当たらない側に寄る）→ その場に沼（グラビガ）が残る
 //    岩石弾の人は散開（沼と自分の岩（半径5）が重なるとワイプ）、重力弾の人は真ん中へ
-// ③ ばりばりルインガ（タンク強攻撃・北）＋半面（黄＝撲殺の神気で東が危ない／紫＝重力波で西が危ない）。ほかの人は中央の安全な側
+// ③ ばりばりルインガ（タンク強攻撃2連：1発目ヘイト1位、2発目ヘイト2位）。この回（P1 で2回目のルインガ）は ST が無敵で2発とも受ける
+//    （ユーザーの軽減表：0:16・0:19 は MT、1:37・1:40 は ST の列に無敵）。ST は1発目の前に挑発、MT は1発目のあとに挑発して ST を2位に（2026-10-14 ユーザーの指摘）
+//    ＋半面（黄＝撲殺の神気で東が危ない／紫＝重力波で西が危ない）。ほかの人は中央の安全な側
 // ④ 2回目：北で頭割り（沼は北にも）→ 散開は1回目の上下反転 → 半面
 // ⑤ つぎつぎトラップ（2回目）：西タンヒラ・東DPS で頭割り＋ノックバック → タンヒラは北の沼、DPS は南の沼へ（持っている人は歩いて入る）
 // 大きさ：沼・岩は半径5（Splatoon のスクリプト）、ノックバックは 8（推定）
 // =====================================================================
 const T = { gravenCast:2.3, graven:5.0, mmCast:7.4, ice:12.1, grav1:12.2, vit1:16.2, ruin1Cast:17.1, ruin1:22.1, ruin2:25.2, half1Tell:21.1, half1:26.1,
   grav2:30.8, vit2:34.8, half2Tell:34.4, half2:39.4, gravity:42.0, trapHit:43.0, soak:45.0, end:46.2 };
-const GRAV_STATUE = { x:-4, z:-22.3 }, VIT_STATUE = { x:8, z:-22.3 }; // 画面の北の端に描く位置（実際はもっと北の外）
+// 像は1つ（ユーザーの指摘 2026-10-14）。紫の線（重力弾）と黄の線（岩石弾）は同じ像から出る。線の出どころだけ少し左右にずらして見分けやすく
+const STATUE_Q = { x:0, z:-22.3 }, GRAV_STATUE = { x:-1.2, z:-22.3 }, VIT_STATUE = { x:1.2, z:-22.3 }; // 画面の北の端に描く位置（実際はもっと北の外）
 const PUDDLE_R = 5, ROCK_R = 5, KB_SPEED = 20, TRAP_R = 6, TRAP_KB = 8, CLEAVE_HALF = 45;
 // 1回目の散開（沼が南）：岩石弾の人（4人）の位置。タンヒラなら MT・ST・H1・H2、DPS なら D1・D2・D3・D4 の順
 const VIT_SPOTS = [{ x:-10.2, z:2.4 }, { x:10.2, z:2.4 }, { x:-12, z:13.5 }, { x:12, z:13.5 }]; // 沼の中心から 10 以上（岩5＋沼5）
@@ -49,7 +52,12 @@ const P1B = {
     const after2 = k => isGrav(k, 2) ? add({ x:0, z:0 }, OFF(k, .8)) : flipZ(VIT_SPOTS[vitIndex(k)]);
     // ③ タンクは北（1回目の沼は南）、ほかは中央の安全な側
     const halfSafeX = east => east ? -1 : 1; // 東が危ない（黄）なら西へ
-    const ruinSpot = k => k === 'MT' ? { x:halfSafeX(p.half1East) * .8, z:-6 } : k === 'ST' ? { x:halfSafeX(p.half1East) * 2.4, z:-6 } : add({ x:halfSafeX(p.half1East) * 3.2, z:3 }, OFF(k, .8));
+    // ST は北で2発とも受ける。MT はほかの人と一緒に中央の安全な側（扇の外）
+    const ruinSpot = k => k === 'ST' ? { x:halfSafeX(p.half1East) * 1.6, z:-6 } : add({ x:halfSafeX(p.half1East) * 3.2, z:3 }, OFF(k, .8));
+    // ヘイト：最後に挑発した方が1位（どちらも挑発していなければ MT）。味方のタンクは決まった時刻に挑発する
+    const ST_PROV = T.ruin1Cast + 1, MT_PROV = T.ruin1 + .6;
+    const provAt = k => k === me ? A.provoke : k === 'ST' ? ST_PROV : MT_PROV;
+    const hateTop = t => { const L = ['MT', 'ST'].map(k => [k, provAt(k)]).filter(([, v]) => v != null && v <= t).sort((a, b) => b[1] - a[1]); return L.length ? L[0][0] : 'MT'; };
     const half2Spot = k => k === 'MT' || k === 'ST' ? add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8)) : add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8));
     // ⑤ つぎつぎトラップ（2回目）：タンヒラの組は西で北の沼へ、DPS は東で南の沼へ飛ぶ
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
@@ -113,11 +121,20 @@ const P1B = {
       if (east ? S.player.x > 0 : S.player.x < 0) hurt(east ? '撲殺の神気（東の半面）に当たった' : '重力波（西の半面）に当たった');
       halfShow = { t:S.t, east }; sfx.big(); fxShake(3, .3);
     };
-    const cleave = tank => {
+    const cleave = n => {
+      // 1発目はヘイト1位、2発目はヘイト2位へ
+      const top = hateTop(S.t), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
       const tq = pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (me !== 'MT' && me !== 'ST' && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
-      if ((me === 'MT' || me === 'ST') && me !== tank && inCone(S.player) && dist(S.player, tq) > 3) hurt('ばりばりルインガ：相方の扇に入った');
+      if (me === 'ST'){
+        if (tank !== 'ST') hurt(n === 1 ? 'ばりばりルインガ1発目：挑発していない（1発目の前に挑発してヘイト1位に）' : 'ばりばりルインガ2発目：1発目のあとにまた挑発した（2発目はヘイト2位へ来る）');
+        else if (!hasInvuln() && !hasMit()) hurt(`ばりばりルインガ${n}発目を無敵も軽減もなしで受けた`);
+      }
+      if (me === 'MT'){
+        if (tank === 'MT') hurt(n === 1 ? 'ばりばりルインガ1発目を受けた（挑発が早い。1発目は ST）' : 'ばりばりルインガ2発目を受けた（1発目のあとに挑発して、ST をヘイト2位に）');
+        else if (inCone(S.player) && dist(S.player, tq) > 3) hurt('ばりばりルインガ：ST の扇に入った');
+      }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
     let lastT = 0;
@@ -126,8 +143,8 @@ const P1B = {
       [T.ice, () => { if (iceHit(mm, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(mm) }); sfx.boom(); }],
       [T.grav1, () => gravitas(1)],
       [T.vit1, () => vitrophyre(1)],
-      [T.ruin1, () => cleave('MT')],
-      [T.ruin2, () => cleave('ST')],
+      [T.ruin1, () => cleave(1)],
+      [T.ruin2, () => cleave(2)],
       [T.half1, () => halfRoom(p.half1East)],
       [T.grav2, () => gravitas(2)],
       [T.vit2, () => vitrophyre(2)],
@@ -167,7 +184,9 @@ const P1B = {
     const halfCol = east => east ? '#ffe040' : '#b05aff'; // 黄＝撲殺の神気（東が危ない）、紫＝重力波（西が危ない）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
-      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
+      intro:me === 'ST' ? 'あなたは ST（ルインガ2発：1発目の前に挑発＋無敵）' : me === 'MT' ? 'あなたは MT（ルインガ：1発目のあとに挑発）' : `あなたは ${me}`,
+      enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === me })),
       casts:[
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
         { name:'ひろげるブリザガ', start:T.mmCast, len:T.ice - T.mmCast },
@@ -194,13 +213,15 @@ const P1B = {
         // 半面（着弾の光）
         if (halfShow && S.t - halfShow.t < .5) alpha(.5 * (1 - (S.t - halfShow.t) / .5), () => fillArena(z => halfShow.east ? [0, 99] : [-99, 0], halfCol(halfShow.east)));
       },
+      drawBack: () => drawStatue(STATUE_Q.x, STATUE_Q.z, { part:2 }), // 像（塔）はフィールドの奥に最初から。カウントダウンの間に第一楽章の段から上る
       draw(t){
         if (t >= T.gravenCast){
-          if (t >= T.half1Tell && t < T.half1) statueGlow(p.half1East ? VIT_STATUE : GRAV_STATUE, halfCol(p.half1East), t);
-          if (t >= T.half2Tell && t < T.half2) statueGlow(p.half2East ? VIT_STATUE : GRAV_STATUE, halfCol(p.half2East), t);
-          drawStatue(GRAV_STATUE.x, GRAV_STATUE.z, { eye:'#5a5aff' }); drawStatue(VIT_STATUE.x, VIT_STATUE.z, { eye:'#c8a070' });
+          if (t >= T.half1Tell && t < T.half1) statueGlow(STATUE_Q, halfCol(p.half1East), t);
+          if (t >= T.half2Tell && t < T.half2) statueGlow(STATUE_Q, halfCol(p.half2East), t);
+          // 線：紫＝重力弾（沼を捨てる）、黄＝岩石弾（岩を捨てる）。紫の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14）
           const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
-          if (round && t >= T.graven) SLOTS.forEach(k => tether(isGrav(k, round) ? GRAV_STATUE : VIT_STATUE, pos(k), isGrav(k, round) ? '#8a8aff' : '#e0b070'));
+          const gravGone = t >= (round === 1 ? T.grav1 : T.grav2);
+          if (round && t >= T.graven) SLOTS.forEach(k => { const g = isGrav(k, round); if (g && gravGone) return; tether(g ? GRAV_STATUE : VIT_STATUE, pos(k), g ? '#b05aff' : '#ffe040'); });
         }
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
         const trapHolders = t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];

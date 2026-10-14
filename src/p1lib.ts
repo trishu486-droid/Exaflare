@@ -84,14 +84,21 @@ function orb(X, Y, truth, big = false){
   else { disc(X, Y, r, '#e8283a'); const q = r >= 7 ? 2 : 1;
     rect(X - q, Y - 2 * q - 1, 3 * q, q, '#fff'); rect(X + q, Y - q - 1, q, q, '#fff'); rect(X, Y - 1, q, q, '#fff'); rect(X, Y + q, q, q, '#fff'); }
 }
-const ellipse = (X, Y, rx, ry, col) => { for (let a = 0; a < 64; a++) rect(X + Math.round(Math.cos(a * Math.PI / 32) * rx), Y + Math.round(Math.sin(a * Math.PI / 32) * ry), 2, 1, col); };
-// ケフカのまわりの輪：上の紫＝サンダガ、下の青＝ブリザガ（P4 と同じ）、真ん中の赤＝ファイガ（P1 だけ・色は推定）
 function kefkaOrbs(iceT, thT, fireT = null){
-  const X = px(0), Y = px(0), a = performance.now() / 300, rx = 16, ry = 4;
-  const ringOrb = (Yc, col, truth, ph) => { ellipse(X, Yc, rx, ry, col); orb(X + Math.round(Math.cos(a + ph) * rx), Yc + Math.round(Math.sin(a + ph) * ry), truth); };
-  if (thT !== null) ringOrb(Y - 12, '#c05aff', thT, 0);
-  if (fireT !== null) ringOrb(Y - 4, '#ff6a3a', fireT, Math.PI / 2);
-  if (iceT !== null) ringOrb(Y + 4, '#5ab0ff', iceT, Math.PI);
+  const X = px(0), Y = px(0), a = performance.now() / 300, rx = 16, ry = 4, spark = Math.floor(performance.now() / 120);
+  // 輪の色は組み合わせで変わる（ユーザーがくれた実機の画像。2026-10-14）
+  //   ブリザガ＋サンダガ：上の紫＝サンダガ、下の青＝ブリザガ（P4 と同じ）
+  //   ブリザガ＋ファイガ：金のオレンジ＝ファイガ、白っぽい水色＝ブリザガ
+  //   サンダガ＋ファイガ：金のオレンジ＝ファイガ、青白い電気（紫の火花）＝サンダガ
+  const fire = fireT !== null;
+  const ringOrb = (Yc, cols, truth, ph) => {
+    for (let i = 0; i < 64; i++) rect(X + Math.round(Math.cos(i * Math.PI / 32) * rx), Yc + Math.round(Math.sin(i * Math.PI / 32) * ry), 2, 1, cols[(i + spark) % cols.length]);
+    orb(X + Math.round(Math.cos(a + ph) * rx), Yc + Math.round(Math.sin(a + ph) * ry), truth);
+  };
+  // 輪は上下2本で、間隔は P4 と同じ（上 Y−12・下 Y+4）。ファイガがあるときはファイガが上
+  if (fire) ringOrb(Y - 12, ['#ffa828', '#ffa828', '#ffd060'], fireT, 0);
+  if (thT !== null) ringOrb(fire ? Y + 4 : Y - 12, fire ? ['#c8dcff', '#c8dcff', '#ffffff', '#c8dcff', '#a070ff'] : ['#c05aff'], thT, fire ? Math.PI : 0);
+  if (iceT !== null) ringOrb(Y + 4, fire ? ['#e8f8ff', '#e8f8ff', '#a8e0ff'] : ['#5ab0ff'], iceT, Math.PI);
 }
 // 頭上のマーカー：散開＝オレンジの三角（下向き）、頭割り＝4つの矢印が中へ
 function spreadMark(q){ const X = px(q.x), Y = px(q.z) - 16; for (let r = 0; r < 7; r++){ const w = 6 - r; rect(X - w, Y - 3 + r, w * 2 + 1, 1, r < 1 ? '#101018' : '#ff8a2a'); } rect(X - 1, Y - 1, 3, 2, '#ffe070'); }
@@ -101,15 +108,23 @@ function stackMark(q){
   disc(X, Y, 2, '#ffe070');
 }
 
-// ---- 神々の像（北のフィールドの外）。絵は仮（ドットの白い像の頭と目）。線の元になる ----
+// ---- 神々の像（北のフィールドの外）。線の元になる ----
+// 絵は FF6 の神々の像（ユーザーがくれた画像）を縦長の1枚のドット絵にしたもの（tools/make_statue.py。2026-10-14）
+// 像は3段で、下＝第一楽章・中＝第二楽章・上＝第三楽章。画面の上の端に「窓」（高さ VIS）で一部だけ出し、楽章ごとに窓を上へずらす（塔を上る）
+// 像はフィールドの奥：床より先に描く（ギミックの drawBack から呼ぶ）。床の縁より上だけが見える（手前に描くと床を突き抜けて見えた。ユーザーの指摘）
+// カウントダウンの間に、前の楽章の段から今の段へ窓が上がる（像が下へ流れる）。第一楽章は像の足元が下から出てくる
+// 像はどの楽章も1つ（ユーザーの指摘）。線の出どころが2つある楽章（第三楽章の混乱・睡眠）は、その場所に後ろの光（o.lights：{ x, col }）
+const STATUE = new Image(); STATUE.src = 'img/p1/statue.png';
+const VIS = 48, WIN = { 1:82, 2:40, 3:1 }, WIN_FROM = { 1:120, 2:82, 3:40 }; // 見えるのは上の 20 行ほど（その下は床の後ろ）
 function drawStatue(cx, cz, o = {}){
-  const X = px(cx), Z = px(cz), s = o.size || 1;
-  alpha(o.a ?? 1, () => {
-    disc(X, Z, Math.round(10 * s), '#cfc8b8'); disc(X, Z, Math.round(8 * s), '#e8e2d0');
-    rect(X - Math.round(7 * s), Z - Math.round(14 * s), Math.round(14 * s), Math.round(5 * s), '#b8b0a0'); // かんむり
-    const eye = o.eye || '#3a2a20';
-    rect(X - Math.round(4 * s), Z - Math.round(2 * s), Math.round(3 * s), Math.round(2 * s), eye); rect(X + Math.round(1 * s), Z - Math.round(2 * s), Math.round(3 * s), Math.round(2 * s), eye);
-  });
+  const part = o.part || 1, X = px(cx), a = o.a ?? 1, w = STATUE.width || 57;
+  const k = Math.min(1, Math.max(0, (S.t + 2.7) / 2.4)), e = k * k * (3 - 2 * k); // カウントダウン −2.7〜−0.3 秒で上る
+  const oy = Math.round(WIN_FROM[part] + (WIN[part] - WIN_FROM[part]) * e);
+  const lights = o.lights || (o.eye ? [{ x:cx, col:o.eye }] : []);
+  lights.forEach(L => { const LX = px(L.x); alpha(a * (.25 + .1 * Math.sin(performance.now() / 250)), () => disc(LX, 12, 8, L.col)); alpha(a * .3, () => disc(LX, 12, 4, L.col)); });
+  if (!STATUE.complete || !STATUE.width) return;
+  const sh = Math.max(0, Math.min(VIS, STATUE.height - oy));
+  if (sh > 0) alpha(a, () => ctx.drawImage(STATUE, 0, oy, w, sh, Math.round(X - w / 2), 1, w, sh));
 }
 // 線（像から人へ）。点線がゆっくり流れる
 function tether(a, b, col){
@@ -122,10 +137,11 @@ function tether(a, b, col){
 function arrowPlate(X, Z, R, v){
   disc(X, Z, R, '#1a1420'); ring(X, Z, R, '#e0b040'); ring(X, Z, R - 1, '#8a6a20');
   const n = { x:-v.z, z:v.x }, L = Math.max(3, R - 4);
+  // 山形の先（とがった所）が進む向き。2026-10-14 まで先が後ろ向きに描かれていた（ユーザーの指摘）
   for (let w = 0; w < 3; w++) for (let i = 0; i <= L; i++){
-    const f = i / L, back = L * .6 * (1 - f) - w; // 山形（∧）を3重に
-    rect(Math.round(X + v.x * (back + L * .4 - L * .5) + n.x * (L - i) * .9), Math.round(Z + v.z * (back + L * .4 - L * .5) + n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
-    rect(Math.round(X + v.x * (back + L * .4 - L * .5) - n.x * (L - i) * .9), Math.round(Z + v.z * (back + L * .4 - L * .5) - n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
+    const f = i / L, along = L * .3 - L * .6 * (1 - f) - w; // 山形を3重に（後ろの2本は暗い色）
+    rect(Math.round(X + v.x * along + n.x * (L - i) * .9), Math.round(Z + v.z * along + n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
+    rect(Math.round(X + v.x * along - n.x * (L - i) * .9), Math.round(Z + v.z * along - n.z * (L - i) * .9), 2, 2, w ? '#a07820' : '#ffd860');
   }
 }
 // 重力弾の沼（グラビガ）：紫に光るうず

@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
-  BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, drawStatue, tether } from './p1lib.js';
+  BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -284,7 +284,10 @@ const P1C = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+      // 神々の像（第三楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
+      screenBg: t => statueScreenBg(3, t),
       drawFloor(t){
+        clearOutside();
         // なぞなぞマジックの予兆（サンダガの帯）
         if (t >= T.mmCast && t < T.thunder){ drawTell(mm, false, true); drawRails(mm.thO, thTell(mm).map(i => BAND_C[i])); }
         // 矢印（床のテレポ）：暗い丸い台に金のふちと金の矢印（実機の動画）。使えるまでの間（3秒）は薄い
@@ -294,14 +297,12 @@ const P1C = {
           alpha(pending ? .35 : grace ? .6 : 1, () => arrowPlate(X, Z, R + 2, DVEC[a.dir]));
         });
       },
-      // 像（塔）は1つ。フィールドの奥に最初から（カウントダウンの間に第二楽章の段から上る）
-      // 線の出どころ（混乱＝北西・睡眠＝北東。AnoMech の位置）に、神々の像の詠唱から後ろの光（桃・青）
-      drawBack: t => { const on = t >= T.gravenCast; const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE); drawStatue((sc.x + ss.x) / 2, -22.3, { part:3, lights:on ? [{ x:sc.x, col:'#c03a8a' }, { x:ss.x, col:'#3a6ad8' }] : [] }); },
       draw(t){
         // 像と線
         const showStatues = t >= T.gravenCast;
         if (showStatues){
           const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE);
+          statueLights([{ ...sc, col:'#c03a8a' }, { ...ss, col:'#3a6ad8' }]); // 線の出どころ（混乱＝北西・睡眠＝北東）の光
           if (t >= T.gazeWind && t < T.gaze + .3) statueGlow(p.gazeInv ? statueOnScreen(GAZE_INV) : statueOnScreen(GAZE_NORM), p.gazeInv ? '#ff7ad8' : '#7ab8ff', t);
           if (t >= T.gazeWind && t < T.gaze + .3 && p.gazeInv) glyph('?', px(sc.x), px(sc.z) - 22, '#ff7ad8');
           if (t >= T.tether && t < T.wills) SLOTS.forEach(k => tether(isConf(k) ? sc : ss, pos(k), isConf(k) ? '#ff7ad8' : '#7ab8ff'));

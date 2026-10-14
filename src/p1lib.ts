@@ -109,23 +109,38 @@ function stackMark(q){
 }
 
 // ---- 神々の像（北のフィールドの外）。線の元になる ----
-// 絵は FF6 の神々の像（ユーザーがくれた画像）を縦長の1枚のドット絵にしたもの（tools/make_statue.py。2026-10-14）
-// 像は3段で、下＝第一楽章・中＝第二楽章・上＝第三楽章。画面の上の端に「窓」（高さ VIS）で一部だけ出し、楽章ごとに窓を上へずらす（塔を上る）
-// 像はフィールドの奥：床より先に描く（ギミックの drawBack から呼ぶ）。床の縁より上だけが見える（手前に描くと床を突き抜けて見えた。ユーザーの指摘）
-// カウントダウンの間に、前の楽章の段から今の段へ窓が上がる（像が下へ流れる）。第一楽章は像の足元が下から出てくる
-// 像はどの楽章も1つ（ユーザーの指摘）。線の出どころが2つある楽章（第三楽章の混乱・睡眠）は、その場所に後ろの光（o.lights：{ x, col }）
+// 絵は FF6 の神々の像（ユーザーがくれた画像）を縦長の1枚のドット絵にしたもの（tools/make_statue.py。104×218。2026-10-14）
+// 像は3段で、下＝第一楽章・中＝第二楽章・上＝第三楽章。像はどの楽章も1つ
+// 画面全体の背景（screenBg）に、星空と像を描いた縦長の絵を置く。フィールドの外を消して（clearOutside）、像はフィールドの奥から画面の上の端まで見える
+// 楽章ごとに見える段を下から上へずらす（塔を上る）。カウントダウン（−2.7〜−0.3 秒）の間に前の楽章の段から今の段へ流れる。第一楽章は足元が下から出てくる
 const STATUE = new Image(); STATUE.src = 'img/p1/statue.png';
-const VIS = 48, WIN = { 1:82, 2:40, 3:1 }, WIN_FROM = { 1:120, 2:82, 3:40 }; // 見えるのは上の 20 行ほど（その下は床の後ろ）
-function drawStatue(cx, cz, o = {}){
-  const part = o.part || 1, X = px(cx), a = o.a ?? 1, w = STATUE.width || 57;
-  const k = Math.min(1, Math.max(0, (S.t + 2.7) / 2.4)), e = k * k * (3 - 2 * k); // カウントダウン −2.7〜−0.3 秒で上る
-  const oy = Math.round(WIN_FROM[part] + (WIN[part] - WIN_FROM[part]) * e);
-  const lights = o.lights || (o.eye ? [{ x:cx, col:o.eye }] : []);
-  lights.forEach(L => { const LX = px(L.x); alpha(a * (.25 + .1 * Math.sin(performance.now() / 250)), () => disc(LX, 12, 8, L.col)); alpha(a * .3, () => disc(LX, 12, 4, L.col)); });
-  if (!STATUE.complete || !STATUE.width) return;
-  const sh = Math.max(0, Math.min(VIS, STATUE.height - oy));
-  if (sh > 0) alpha(a, () => ctx.drawImage(STATUE, 0, oy, w, sh, Math.round(X - w / 2), 1, w, sh));
+const BGW = 440, BGH = 900, ST_Y = 300; // 背景の絵の大きさと、像の上の端の行
+const ROW = { 1:132, 2:63, 3:0 }, ROW_FROM = { 1:200, 2:132, 3:63 }; // その段の上の端（像の中の行）を、見える範囲の上の端に
+const ABOVE = 74; // フィールドの縁より上に見える行の数（縦長の画面で、上の端まで）
+let statueBg = null;
+const buildStatueBg = () => {
+  const c = document.createElement('canvas'); c.width = BGW; c.height = BGH;
+  const g = c.getContext('2d');
+  g.fillStyle = P.space; g.fillRect(0, 0, BGW, BGH);
+  g.fillStyle = P.star; for (let i = 0; i < 260; i++) g.fillRect((i * 97 + 13) % BGW, (i * 53 + 29) % BGH, 1, 1);
+  g.drawImage(STATUE, Math.round(BGW / 2 - STATUE.width / 2), ST_Y);
+  return c.toDataURL();
+};
+function statueScreenBg(part, t){
+  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); }
+  const k = Math.min(1, Math.max(0, (t + 2.7) / 2.4)), e = k * k * (3 - 2 * k);
+  const row = ROW_FROM[part] + (ROW[part] - ROW_FROM[part]) * e;
+  // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）
+  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY), color:P.space };
 }
+// フィールドの外（星空）を消して、画面全体の背景を見せる（P2 と同じ）
+const clearOutside = () => {
+  const W = ctx.canvas.width, C = W / 2, R = 20 * PPY + 1;
+  ctx.save(); ctx.beginPath(); ctx.rect(-40, -40, W + 80, W + 80); ctx.arc(C, C, R, 0, Math.PI * 2, true); ctx.clip('evenodd');
+  ctx.clearRect(-40, -40, W + 80, W + 80); ctx.restore();
+};
+// 線の出どころが2つある楽章（第三楽章の混乱・睡眠）は、像の上のその場所に小さな光
+function statueLights(L){ L.forEach(q => { const X = px(q.x), Y = px(-22.3); alpha(.3 + .1 * Math.sin(performance.now() / 250), () => disc(X, Y, 8, q.col)); alpha(.35, () => disc(X, Y, 4, q.col)); }); }
 // 線（像から人へ）。点線がゆっくり流れる
 function tether(a, b, col){
   const A = { x:px(a.x), z:px(a.z) }, B = { x:px(b.x), z:px(b.z) }, L = Math.hypot(B.x - A.x, B.z - A.z) || 1, n = Math.floor(L / 3), ph = Math.floor(performance.now() / 60) % 3;
@@ -162,4 +177,4 @@ const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
-  orb, kefkaOrbs, spreadMark, stackMark, drawStatue, tether };
+  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether };

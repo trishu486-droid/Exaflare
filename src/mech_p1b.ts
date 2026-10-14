@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
-  iceHit, rollMystery, drawTell, icePts, kefkaOrbs, drawStatue, tether } from './p1lib.js';
+  iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -204,7 +204,10 @@ const P1B = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+      // 神々の像（第二楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
+      screenBg: t => statueScreenBg(2, t),
       drawFloor(t){
+        clearOutside();
         if (t >= T.mmCast && t < T.ice) drawTell(mm, true, false);
         // 沼（グラビガ）
         puddles.forEach(c => puddle(c, PUDDLE_R, t));
@@ -213,7 +216,6 @@ const P1B = {
         // 半面（着弾の光）
         if (halfShow && S.t - halfShow.t < .5) alpha(.5 * (1 - (S.t - halfShow.t) / .5), () => fillArena(z => halfShow.east ? [0, 99] : [-99, 0], halfCol(halfShow.east)));
       },
-      drawBack: () => drawStatue(STATUE_Q.x, STATUE_Q.z, { part:2 }), // 像（塔）はフィールドの奥に最初から。カウントダウンの間に第一楽章の段から上る
       draw(t){
         if (t >= T.gravenCast){
           if (t >= T.half1Tell && t < T.half1) statueGlow(STATUE_Q, halfCol(p.half1East), t);

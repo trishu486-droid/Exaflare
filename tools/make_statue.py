@@ -29,8 +29,14 @@ yy, xx = np.mgrid[0:H, 0:W]
 m &= ~(yy < 38) & ~((xx < 75) & (yy < 210)) & ~((xx > 225) & (yy < 75)) & ~((yy > 600) & ((xx < 45) | (xx > 215)))
 cloud = (lum > 150) & (sat < 40)
 m &= ~(cloud & (((xx > 225) & (yy > 235) & (yy < 300)) | (yy > 615) | ((xx < 45) & (yy > 440) & (yy < 480))))
+purple = (b > r + 10) & (b > g)
+m &= ~((xx > 262) & (yy > 215) & (yy < 312) & ~purple)          # 中段の右の雲
+m &= ~((xx > 232) & (yy > 222) & (yy < 262) & ~purple)
+m &= ~((xx > 250) & (yy < 130))                                  # 右上の柱の線
+m &= ~((yy > 585) & ((xx < 50) | (xx > 205)))                    # 足元の雲
+m &= ~((yy > 640) & (lum > 120) & (sat < 50))
 # 像は3段：下＝第一楽章、中＝第二楽章、上＝第三楽章（ユーザーの説明 2026-10-14）。1枚の縦長のドット絵にして、楽章ごとに見える所（窓）を下から上へずらす（塔を上る）
-SC = 5.5                                   # 元の画像の 5.5 ドット → 1マス
+SC = 3.0                                   # 元の画像の 3 ドット → 1マス（2026-10-14 に 5.5 から細かく。画面の上の端まで大きく出すため）
 x0, y0, x1, y1 = 0, 30, 305, 679
 w, h = round((x1 - x0) / SC), round((y1 - y0) / SC)
 out = np.zeros((h + 2, w + 2, 4), 'uint8')
@@ -49,4 +55,4 @@ f = os.path.join(os.path.dirname(__file__), '..', 'public', 'img', 'p1', 'statue
 os.makedirs(os.path.dirname(f), exist_ok=True)
 Image.fromarray(out).save(f, optimize=True)
 # 楽章ごとの窓の上の端（絵の中の行）：上の段（元 y=35）・中の段（220）・下の段（425）
-print(f, out.shape[1], 'x', out.shape[0], '窓の上端', {n:round((yy - y0) / SC) for n, yy in ((3, 35), (2, 220), (1, 425))})
+print(f, out.shape[1], 'x', out.shape[0], '段の上端', {n:round((yy - y0) / SC) for n, yy in ((3, 35), (2, 220), (1, 425))})

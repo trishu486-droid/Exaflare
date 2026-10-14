@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
-  BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, drawStatue, tether } from './p1lib.js';
+  BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -194,13 +194,15 @@ const P1A = {
       safeActive: () => true,
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
+      // 神々の像（第一楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
+      screenBg: t => statueScreenBg(1, t),
       drawFloor(t){
+        clearOutside();
         if (t >= T.mm1Cast && t < T.ice1) drawTell(m1, true, false);
         if (t >= T.mm2Cast && t < T.mm2){ drawTell(m2, true, true); drawRails(m2.thO, thTell(m2).map(i => BAND_C[i])); }
         // 塔
         if (t >= T.cannon && t < T.explosion) towers.forEach(tw => { const X = px(tw.x), Z = px(tw.z), R = Math.round(TOWER_R * PPY); alpha(.3, () => disc(X, Z, R, '#ff8a2a')); ring(X, Z, R, '#ffe070'); ring(X, Z, R - 2, '#ff8a2a'); });
       },
-      drawBack: () => drawStatue(statueOnScreen.x, statueOnScreen.z, { part:1 }), // 像（塔）はフィールドの奥に最初から。カウントダウンの間に足元から上ってくる
       draw(t){
         if (t >= T.gravenCast){
           if (t >= T.cannonWarn && t < T.cannon + .2){ const k = .5 + Math.sin(t * 8) * .3; alpha(k, () => { ring(px(0), px(statueOnScreen.z), 13, '#ff8a2a'); ring(px(0), px(statueOnScreen.z), 15, '#ffe070'); }); }

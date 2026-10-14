@@ -60,9 +60,10 @@ function screenBgDraw(){
   const img = S.phase !== 'menu' ? S.inst?.screenBg?.(S.t) : null;
   let bg = '';
   if (img){
-    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k;
-    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y = c.top - s.top + c.height / 2 - size / 2 - screenEl.clientTop;
-    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px no-repeat ${img.color}`;
+    // img.h（縦の大きさ）と img.cy（フィールドの中心に合わせる行）があれば縦長の絵（P1 の神々の像。cy を変えると上下に流れる）
+    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k, cy = (img.cy ?? img.size / 2) * k;
+    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y = c.top - s.top + c.height / 2 - cy - screenEl.clientTop;
+    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px ${img.h ? (img.h * k).toFixed(1) + 'px' : ''} no-repeat ${img.color}`;
   }
   if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
 }

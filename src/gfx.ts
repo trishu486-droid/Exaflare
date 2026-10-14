@@ -129,7 +129,6 @@ function drawIcon(X, Z, hurt){
 function drawField(){
   rect(0, 0, W, W, P.space);
   for (let i = 0; i < 60; i++) rect((i * 97 + 13) % W, (i * 53 + 29) % W, 1, 1, P.star);
-  S.inst?.drawBack?.(S.t); // フィールドの奥（床より先に描く。P1 の神々の像など）
   const R = ARENA_R * PPY;
   disc(C0, C0, R, P.floor);
   // 床の模様：2yグリッド + 10yごとの斜め線

@@ -20,8 +20,13 @@
 <meta property="og:image" content="https://dancing-mad-sim.pages.dev/icon-512.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary">
-<!-- アクセス数の集計（Cloudflare Web Analytics。Cookie なし・個人を追跡しない） -->
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "f05716273ac74f3d939a3dd65975cfae"}'></script>
+<!-- アクセス数の集計（Cloudflare Web Analytics。Cookie なし・個人を追跡しない）。本番の住所（と移行中の旧住所）のときだけ読み込む。開発版（dev.〜・p1-dev.〜 など）や手元では数えない -->
+<script>
+  if (location.hostname === 'dancing-mad-sim.pages.dev' || location.hostname.endsWith('github.io')){
+    const s = document.createElement('script'); s.defer = true; s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    s.setAttribute('data-cf-beacon', '{"token": "f05716273ac74f3d939a3dd65975cfae"}'); document.head.appendChild(s);
+  }
+</script>
 <link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#1c1a3c">
 <link rel="icon" href="./icon-192.png">

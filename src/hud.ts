@@ -190,7 +190,8 @@ const SHORT = { 'ロイヤルアソリティ':'ロイアソ', 'エクスピア�
 function setBtn(el, key, name, p, ready, combo = false){
   // 絵の住所はページから見た完全な住所にする（CSS の変数に相対の住所を入れると、iPhone の Safari ではスタイルシートの場所から探してしまい、絵が出ない）
   const art = skillIconUrl(opt.job, name), bg = art ? `url("${new URL(art, document.baseURI).href}")` : '';
-  if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.setProperty('--art', bg || 'none'); el.classList.toggle('art', !!art); }
+  // 絵は CSS の変数を通さず、直接ボタンの背景に入れる（絵が変わったときだけ）
+  if (el.dataset.art !== bg){ el.dataset.art = bg; el.style.backgroundImage = bg; el.classList.toggle('art', !!art); }
   el.classList.toggle('cd', /^\d+$/.test(key));
   name = SHORT[name] || name;
   el.classList.toggle('longname', name.length > 10);

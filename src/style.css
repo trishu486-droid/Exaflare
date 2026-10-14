@@ -264,15 +264,18 @@ canvas:focus{outline:none}
 .round{--p:0;width:54px;height:54px;border-radius:50%;font:18px/1 var(--px);color:#fff;cursor:pointer;touch-action:none;border:3px solid #6d1840;padding:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.18);
-  background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--ab)}
-.abw.x .round,.abw.y .round{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), #5b2a86;border-color:#3a1660}
+  background:var(--ab)}
+/* リキャストの暗い部分は別の層（::before）に描く。絵と同じ背景にまとめると、iPhone の Safari では暗い部分が動くたびに絵が消える（2026-10-14） */
+.round::before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(transparent calc((1 - var(--p)) * 360deg), rgba(0,0,0,.66) 0)}
+.round b,.round small{position:relative;z-index:1}
+.abw.x .round,.abw.y .round{background:#5b2a86;border-color:#3a1660}
 .round small{font-size:8px;line-height:1.05;max-width:48px;max-height:2.1em;overflow:hidden;white-space:normal;word-break:break-all;text-align:center;color:#ffe7f2}
 .round.longname small{font-size:7px;max-height:3.2em}
 .round.ready{border-color:var(--gold)}
 /* スキルの絵（実機の画像を元にした 20×20 のドット絵）をボタンいっぱいに。左上にキー、下の帯に名前。リキャスト中は暗くして真ん中に秒数 */
-.round.art{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--art) center/cover no-repeat;image-rendering:pixelated;justify-content:flex-end;padding-bottom:3px}
-.abw.x .round.art,.abw.y .round.art{background:conic-gradient(rgba(0,0,0,.66) calc(var(--p) * 360deg), transparent 0), var(--art) center/cover no-repeat}
-.round.art b{position:absolute;left:4px;top:3px;font-size:13px;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
+.round.art{background:center/cover no-repeat;image-rendering:pixelated;justify-content:flex-end;padding-bottom:3px}
+.abw.x .round.art,.abw.y .round.art{background:center/cover no-repeat}
+.round.art b{position:absolute;z-index:1;left:4px;top:3px;font-size:13px;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
 .round.art.cd b{left:50%;top:50%;transform:translate(-50%,-62%);font-size:20px}
 .round.art small{background:rgba(10,6,20,.72);padding:1px 2px;border-radius:3px;max-width:46px;color:#fff;text-shadow:none}
 .round{position:relative}

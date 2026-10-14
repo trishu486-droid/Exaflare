@@ -195,6 +195,7 @@ FF14 の絶・零式の練習ツールを作るときに、どのコンテンツ
 - お知らせ：`src/news.ts` の `NEWS`（新しい順）。未読は端末に保存した日時と比べる。
 - お問い合わせ：Google フォームへ `no-cors` で送る（`src/contact.ts`、入力欄の ID はユーザーのフォームのもの。触らない）。届くとユーザーにメールが行く。
 - アクセス解析：Cloudflare Web Analytics（Cookie なし・個人を特定しない）と Google Search Console。どちらも滞在時間は出ない。
+  - Cloudflare Web Analytics は本番の住所（`dancing-mad-sim.pages.dev`）と移行中の旧住所（`github.io`）のときだけ読み込む（`index.html`。2026-10-14 ユーザーの希望）。開発版（`dev.`・`p1-dev.` など）と手元では数えない。
 - 作業用のファイル（テストのスクリプト・スクショ・動画のコマ）はスクラッチパッドへ。リポジトリには入れない。
 
 ## 9. 決まっていないこと・提案中（全体にかかわるもの）

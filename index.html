@@ -31,6 +31,14 @@
 <meta name="theme-color" content="#1c1a3c">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-180.png">
+<script>
+  // 開発版のURL（dev.〜・p1-dev.〜 などのプレビュー。?devbadge でも）では、アイコンを下に赤い「DEV」の帯が入ったものにする（ホーム画面に置いても本番と見分けられる）
+  if (/^[^.]+\.dancing-mad-sim\.pages\.dev$/.test(location.hostname) || new URLSearchParams(location.search).has('devbadge')){
+    document.querySelector('link[rel="icon"]').href = './icon-dev-192.png';
+    document.querySelector('link[rel="apple-touch-icon"]').href = './icon-dev-180.png';
+    document.querySelector('link[rel="manifest"]').href = './manifest-dev.webmanifest';
+  }
+</script>
 </head>
 <body>
 <div class="gb" id="game">

@@ -1,6 +1,7 @@
 # ホーム画面のアイコン（public/icon-512・192・180.png）を、ユーザーからもらった実機のムービーの1コマ（クリア後のケフカ）から
 # ドット絵にして作る（2026-10-14 ユーザー了承。48マスの版を採用）。元の画像はリポジトリに入れない
 # 使い方：python3 tools/make_app_icon.py <元画像（600×328 の jpg）> [出力先フォルダ]
+# 開発版（dev.・p1-dev. など）用に、下に赤い帯と白い「DEV」を入れた icon-dev-512・192・180.png も作る（2026-10-14 ユーザーが案 B を選んだ）
 # しくみ：ケフカの絵はもともとドット絵なので、そのドットの格子（2.5 前後）と位置のずれを探して1マスずつ読み取り、
 #   決まった色（金髪・白・赤・緑・青・紫など）に寄せる。背景（空と舞台）は同じ格子でならして色を減らす
 import sys, os, itertools
@@ -47,4 +48,16 @@ def emit(size, name):
   k = -(-size // CELLS); big = dot.resize((CELLS * k, CELLS * k), Image.NEAREST); o = (CELLS * k - size) // 2
   big.crop((o, o, o + size, o + size)).save(os.path.join(OUT, name), optimize=True)
 emit(512, 'icon-512.png'); emit(192, 'icon-192.png'); emit(180, 'icon-180.png')
+# 開発版：下の 13 マスに赤い帯、3×5 の字を横3・縦2倍にした「DEV」
+FONT = {'D':['110','101','101','101','110'],'E':['111','100','110','100','111'],'V':['101','101','101','101','010']}
+dev = np.asarray(dot).copy()
+dev[35:, :] = (200, 30, 40); dev[35, :] = (20, 16, 24)
+x0 = 6
+for ch in 'DEV':
+  for r, row in enumerate(FONT[ch]):
+    for c, v in enumerate(row):
+      if v == '1': dev[37 + r * 2:39 + r * 2, x0 + c * 3:x0 + c * 3 + 3] = (255, 255, 255)
+  x0 += 13
+dot = Image.fromarray(dev.astype('uint8'))
+emit(512, 'icon-dev-512.png'); emit(192, 'icon-dev-192.png'); emit(180, 'icon-dev-180.png')
 print('格子', round(S, 2), 'ずれ', round(ox, 2), round(oy, 2))

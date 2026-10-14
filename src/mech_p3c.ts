@@ -294,7 +294,9 @@ const P3C = {
         const myD = dutyOf(label[k], nd), du0 = nextDuty(k, t), mustTake = du0 && myD != null && tether[myD] && tether[myD] !== k; // 自分の担当の線を、ほかの人が持っている → 待たずに取りに行く
         if (foreign != null && !mustTake){
           const prev = nd > 1 && setOf(nd).n[0] !== nd && dutyOf(label[k], nd - 1) === +foreign;
-          return prev && k === me ? holdSpot(+foreign, nd - 1) : { x:pos(k).x, z:pos(k).z };
+          // 見えない味方は、セットの最初に一番近い人として付いた線を持ったまま、すぐ中央へ（線が長くなって、自分が取りやすい。ユーザーの指摘 2026-10-14）
+          if (prev) return k === me ? holdSpot(+foreign, nd - 1) : { x:pos(k).x, z:pos(k).z };
+          return k === me ? { x:pos(k).x, z:pos(k).z } : idle(k);
         }
       }
       // 線を持つ担当
@@ -733,8 +735,15 @@ const P3C = {
         // 見えない味方：次に位置が大事になる瞬間（DEADLINES）の直前まで動かず、ギリギリで駆け込む（P5 のオーケストラと同じ。答えが見えないように）
         // このコマで締め切りをまたいだときは、まだその締め切りを使う（攻撃の判定はこの移動のあとに来るので、先に持ち場を離れない）
         const D = DEADLINES.find(x => x > lt) ?? T.end;
+        // 線が出てから、そのセットの最初の無の波動まで：線の担当でない味方は、待たずにすぐ中央へ（ユーザーの指摘 2026-10-14）
+        const rush = T.sets.find(s => !s.direct && t >= s.at && t < nTime(s.n[0]));
         bots.forEach(b => {
           if (mem[b.k].dead) return;
+          if (rush && dutyOf(label[b.k], rush.n[0]) == null){
+            const g = spot(b.k, t), d = dist(b, g);
+            if (d > .05){ const k = Math.min(1, BOT_SPEED * dt / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; }
+            return;
+          }
           const g = spot(b.k, D > t ? Math.max(t, D - .1) : D - .1), d = dist(b, g), step = BOT_SPEED * dt;
           if (t < D - d / BOT_SPEED - BOT_MARGIN) return;
           if (d > .05){ const k = Math.min(1, step / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; }

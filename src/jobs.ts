@@ -74,7 +74,7 @@ const JOBS = {
          y:{ name:'ニュートラルセクト', cd:120, buff:'ns' } },
   sch: { name:'学者', role:'healer', melee:false, slots:['H2'],
          a:{ name:'極炎法', pot:310, cast:1.5 },
-         b:{ name:'士気高揚の策', gcd:true, cd:0, cast:2.0, buff:'galv' },
+         b:{ name:'意気軒昂の策', gcd:true, cd:0, cast:2.0, buff:'galv' },
          x:{ name:'野戦治療の陣', cd:30, buff:'soil' },
          y:{ name:'疾風怒濤の計', cd:120, buff:'exped' } },
 };

@@ -7,7 +7,7 @@ import { healerHit, hasMit, hasInvuln } from './action.js';
 import { fxFlash, fxShake } from './fx.js';
 import { hurt, alpha } from './gfx.js';
 import { TH, DPS, dist } from './p1lib.js';
-import { fillCone } from './p1lib.js';
+import { fillCone, hyperFx } from './p1lib.js';
 import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
@@ -134,7 +134,13 @@ const RUN1 = {
         if (cleaveShow && S.t - cleaveShow.t < .5){ const k = (S.t - cleaveShow.t) / .5; alpha(.55 * (1 - k), () => fillCone(cleaveShow.u, CLEAVE_HALF, k < .3 ? '#ffffff' : '#e8283a')); }
       },
       draw: t => call('draw', t),
-      drawTop: (t, g) => call('drawTop', t, g),
+      drawTop(t, g){
+        call('drawTop', t, g);
+        // ハイパードライブ：ヘイト1位のタンクのまわり（半径5）に、たらいと黄色寄りの光（ユーザーの動画 2026-10-15）。0.8 秒前から降ってくる
+        GAPS.forEach(gp => gp.hyper.forEach(h => { const a = S.t - h; if (a < -.8 || a >= .6) return;
+          const q = a >= 0 && hyperShow && Math.abs(hyperShow.t - h) < .2 ? hyperShow : (hateTop(S.t) === me ? S.player : segs[idx(S.t)]._debug.pos(hateTop(S.t)));
+          hyperFx(g, q, HYPER_R, a); }));
+      },
       // テスト用（?debug）
       _segs:segs, _idx:idx, _AT:AT, _me:me,
       _botGoal:(k, t) => { const i = idx(t); return segs[i]._botGoal(k, t - AT[i]); },

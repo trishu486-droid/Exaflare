@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
   BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, gazeEye, topFieldFlash } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：ずびずばテレポ 〜 神々の像（3回目）〜 なぞなぞマジック。docs/dmu/research-p1.md §4
@@ -240,7 +240,6 @@ const P1C = {
         const cos = ((src.x - q.x) * f.x + (src.z - q.z) * f.z) / d; // 像の方を向いているほど 1
         if (p.gazeInv && cos < Math.SQRT1_2) hurt('アヴェ・マリア（？の像）を見ていなかった');
         if (!p.gazeInv && cos >= Math.SQRT1_2) hurt('惰眠の神気：像を見てしまった');
-        efx.add('gaze');
       }],
       [T.fire, () => {
         const q = S.player; healerHit(220000, 'めらめらファイガ');
@@ -267,9 +266,6 @@ const P1C = {
       if (t >= T.confused && t < T.confusedEnd) s.push({ icon:isConf(me) ? 'confused' : 'sleep', name:isConf(me) ? '混乱' : '睡眠', sec:Math.ceil(T.confusedEnd - t), art:1 });
       return s;
     };
-    const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 6) * .3; alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
-    // 像はフィールドの外（北）。画面の北の端に、東西の位置だけ合わせて描く
-    const statueOnScreen = q => ({ x:q.x * .6, z:-22.3 }); // 画面の上の端の像の上の点（像は1つ。横の位置は像の幅に収まるように縮める。視線の判定は実際の位置のまま）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
       bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
@@ -304,13 +300,7 @@ const P1C = {
         });
       },
       draw(t){
-        // 像と線
-        const showStatues = t >= T.gravenCast;
-        if (showStatues){
-          const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE);
-          if (t >= T.gazeWind && t < T.gaze + .3) statueGlow(p.gazeInv ? statueOnScreen(GAZE_INV) : statueOnScreen(GAZE_NORM), p.gazeInv ? '#ff7ad8' : '#7ab8ff', t);
-          if (t >= T.gazeWind && t < T.gaze + .3 && p.gazeInv) glyph('?', px(sc.x), px(sc.z) - 22, '#ff7ad8');
-        }
+        // 像・線・視線の目は上の層（drawTop）
         // ケフカの真偽の玉（サンダガ・ファイガ）と頭上のマーカー
         if (t >= T.mmMark && t < T.fire){
           kefkaOrbs(null, mm.thTrue, mm.fireTrue);
@@ -325,6 +315,9 @@ const P1C = {
       },
       // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：男の像の胸の桃色の光＝睡眠（実機の動画）、女神の光＝混乱（色は推定）
       drawTop(t, g){
+        // 視線：像に目が描かれる。見る（アヴェ・マリア）＝黄色の目に赤い「？」、見ない（惰眠の神気）＝紫の目。着弾でフィールドが黄／紫に光る（ユーザーの画像・動画 2026-10-15）
+        if (t >= T.gazeWind && t < T.gaze + .2) gazeEye(g, statuePt(3, t, 'gaze'), p.gazeInv, (t - T.gazeWind) / (T.gaze - T.gazeWind));
+        if (t >= T.gaze && t < T.gaze + .45) topFieldFlash(g, p.gazeInv ? '#ffe050' : '#a040ff', 1 - (t - T.gaze) / .45);
         if (t < T.tether || t >= T.wills) return;
         const cp = statuePt(3, t, 'conf'), sp = statuePt(3, t, 'sleep');
         topGlow(g, cp, '#fff0b0'); topGlow(g, sp, '#ff6ad8');

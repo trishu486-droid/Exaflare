@@ -195,7 +195,9 @@ function statueScreenBg(part, t){
 // 像の上の、線などの出どころ（像の絵 statue.png の点。2026-10-15 ユーザーの動画に合わせて選んだ）
 //   face：下段の悪魔の顔（波動砲・第一楽章の線）、grav：中段の渦の柱の上（重力弾。紫の光）、rock：中段の像の手（岩石弾。黄色の光）
 //   sleep：上段の男の像の胸（睡眠。桃色の光）、conf：上段の女神（混乱。色は推定）
-const STATUE_PTS = { face:[158, 456], grav:[136, 206], rock:[240, 296], sleep:[158, 110], conf:[100, 46] };
+const STATUE_PTS = { face:[158, 456], grav:[136, 206], rock:[240, 296], sleep:[158, 110], conf:[100, 46],
+  halfW:[77, 291], halfE:[268, 308], // 第二楽章の半面の予兆の球（重力波＝像の左・撲殺の神気＝像の右。ユーザーの画像 2026-10-15）
+  gaze:[133, 98] };                  // 第三楽章の視線の目（女神の前。ユーザーの動画）
 // その点のキャンバスの座標（フィールドより上は負。上の層 drawTop に描く）。背景の絵の位置（statueScreenBg）と同じ計算
 function statuePt(part, t, name){
   const [sx, sy] = STATUE_PTS[name], { row, sink, dx } = statueGeom(part, t);
@@ -229,6 +231,50 @@ function cannonOrb(g, k){
     const an = a / 36 + j * 1.6 + t * 1.6, rr = R * (.62 + .34 * Math.sin(a / 25 + j)); gAlpha(g, .75, () => gDot(g, X + Math.cos(an) * rr, Y + Math.sin(an) * rr * .8, j % 2 ? '#ffffff' : '#3ab8ff'));
   }
 }
+// 第二楽章の半面の予兆：像の横に濃い大きな光の球（渦が巻いて真ん中が白い）。col：'purple'（重力波）か 'yellow'（撲殺の神気）。k：育ち（0〜1）
+const ORB_PAL = { purple:['#6a4aff', '#2a0a6a', '#6a2ad0', '#ff5ad8', '#6a9aff', '#e8b0ff'], yellow:['#ffb030', '#7a3a00', '#d88a10', '#ffe060', '#ff8a2a', '#fff0a0'] };
+function bigOrb(g, q, col, k){
+  const [haze, body, mid, sw1, sw2, core] = ORB_PAL[col], R = Math.round(10 + 10 * Math.min(1, k * 1.5)), t = performance.now() / 1000;
+  for (let i = 0; i < 18; i++){ const a = i * 2.4 + t * .8, d = R + 2 + (i * 7) % 8; gAlpha(g, .3, () => gDisc(g, q.X + Math.cos(a) * d, q.Y + Math.sin(a) * d, 2 + i % 3, haze)); }
+  gAlpha(g, .45, () => gDisc(g, q.X, q.Y, R + 2, haze)); gAlpha(g, .92, () => gDisc(g, q.X, q.Y, R, body)); gAlpha(g, .82, () => gDisc(g, q.X, q.Y, Math.round(R * .78), mid));
+  for (let j = 0; j < 4; j++) for (let a = 0; a < 300; a += 4){ const an = a * Math.PI / 180 + j * 1.57 + t * 3, r = R * (.25 + a / 300 * .72); gDot(g, q.X + Math.cos(an) * r, q.Y + Math.sin(an) * r, j % 2 ? sw1 : sw2); }
+  gAlpha(g, .9, () => gDisc(g, q.X, q.Y, Math.round(R * .42), core)); gDisc(g, q.X, q.Y, Math.max(1, Math.round(R * .22)), '#ffffff');
+}
+// 第三楽章の視線：像に描かれる目。look＝見る（黄色の目に赤い「？」）／見ない（紫の目に光る桃色の瞳）
+const QMARK = ['.###.', '#...#', '....#', '..##.', '..#..', '.....', '..#..'];
+function gazeEye(g, q, look, k){
+  const RX = Math.round(10 + 12 * Math.min(1, k * 1.6)), RY = Math.round(RX / 2), [edge, body, inner] = look ? ['#a86a00', '#ffc828', '#fff0a0'] : ['#3a0a6a', '#9a3ae0', '#d890ff'];
+  for (let dy = -RY; dy <= RY; dy++){ const hw = RX * (1 - Math.pow(Math.abs(dy) / (RY + 1), 1.6));
+    for (let dx = -Math.floor(hw); dx <= Math.floor(hw); dx++) gDot(g, q.X + dx, q.Y + dy, Math.abs(dx) > hw - 1.5 || Math.abs(dy) > RY - 1 ? edge : Math.abs(dx) > hw * .55 ? body : inner); }
+  const pr = Math.max(2, Math.round(RY * .75));
+  if (look){ gDisc(g, q.X, q.Y, pr, '#ff5a6a'); gDisc(g, q.X, q.Y, pr - 1, '#ff8a9a'); const s = pr >= 6 ? 2 : 1; QMARK.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') { g.fillStyle = '#e02848'; g.fillRect(Math.round(q.X + (c - 2) * s), Math.round(q.Y + (r - 3) * s), s, s); } })); }
+  else { gDisc(g, q.X, q.Y, pr, '#ff40e0'); gDisc(g, q.X, q.Y, Math.max(1, pr - 3), '#ffb0ff'); gDisc(g, q.X, q.Y, 1, '#ffffff'); }
+}
+// ハイパードライブ：小さなたらい（横から見た形）
+function tarai(g, X, Y){
+  for (let dy = 0; dy < 3; dy++){ const hw = 3 - dy * .5; for (let dx = -Math.floor(hw); dx <= Math.floor(hw); dx++) gDot(g, X + dx, Y + dy, dx < 0 ? '#c8b8a0' : '#8a7a5a'); }
+  for (let dx = -3; dx <= 3; dx++) gDot(g, X + dx, Y - 1, '#f0e8d8');
+}
+// ハイパードライブ：タンクのまわりの範囲（半径 r）に、黄色寄りの光の柱とたらい。a：着弾からの秒（負＝降ってくる途中、0〜＝着弾）
+function hyperFx(g, q, r, a){
+  const X = px(q.x), Y = px(q.z), R = Math.round(r * PPY);
+  const pillar = (top, hw, k) => { for (let dy = -top; dy <= 0; dy++){ const f = Math.min(1, (dy + top) / 20) * k;
+    gAlpha(g, f, () => { g.fillStyle = '#ffa040'; g.fillRect(X - hw - 2, Y + dy, hw * 2 + 5, 1); g.fillStyle = '#ffd860'; g.fillRect(X - hw, Y + dy, hw * 2 + 1, 1); g.fillStyle = '#fff4b0'; g.fillRect(X - Math.round(hw * .7), Y + dy, Math.round(hw * 1.4) + 1, 1); g.fillStyle = '#ffffff'; g.fillRect(X - Math.round(hw * .35), Y + dy, Math.round(hw * .7) + 1, 1); }); } };
+  const DROP = [[-14, 30], [10, 52], [-3, 74], [17, 20], [-20, 62]];
+  if (a < 0){ // 降ってくる：範囲の円がうすく黄色に光り、上から黄色の光が差し込む。たらいが落ちてくる
+    const k = 1 + a / .8;
+    gAlpha(g, .2, () => gDisc(g, X, Y, R, '#ffe070')); gAlpha(g, .8, () => { g.strokeStyle = '#fff0a0'; g.beginPath(); g.arc(X + .5, Y + .5, R, 0, Math.PI * 2); g.stroke(); });
+    pillar(110, 6, .55 * k);
+    DROP.forEach(([dx, h]) => tarai(g, X + dx * R / 30, Y - h * (1 - k * .85)));
+  } else if (a < .6){ // 着弾：範囲いっぱいに黄色寄りの光（真ん中は白）、黄色の光の柱。たらいが散らばる
+    const k = 1 - a / .6;
+    gAlpha(g, .3 * k, () => gDisc(g, X, Y, R + 7, '#ff9a50')); gAlpha(g, .7 * k, () => gDisc(g, X, Y, R + 2, '#ffc050')); gAlpha(g, .9 * k, () => gDisc(g, X, Y, R, '#ffe070')); gAlpha(g, k, () => gDisc(g, X, Y, Math.max(1, R - 8), '#fff4b0')); gAlpha(g, k, () => gDisc(g, X, Y, 12, '#ffffff'));
+    pillar(130, 10, k);
+    [[-22, 8], [20, -4], [-6, 22], [14, 18]].forEach(([dx, dy]) => tarai(g, X + dx * R / 30 * (1 + a), Y + dy * R / 30 * (1 + a)));
+  }
+}
+// フィールド全体がその色で一瞬光る（視線の着弾など）
+function topFieldFlash(g, col, k){ gAlpha(g, .55 * k, () => gDisc(g, px(0), px(0), Math.round(20 * PPY), col)); }
 // 波動砲の光線：白い芯 → 水色 → 青、ふちに白い稲妻（枝分かれ）。a：出どころ（フィールドの座標）、d：向き、k：消えていく割合（0〜1）
 function topBeam(g, a, d, hw, k, seed){
   const n = { x:-d.z, z:d.x }, far = 80, P0 = w => ({ X:px(a.x + n.x * w), Y:px(a.z + n.z * w) }), P1 = w => ({ X:px(a.x + d.x * far + n.x * w), Y:px(a.z + d.z * far + n.z * w) });
@@ -289,4 +335,4 @@ const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
-  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB };
+  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB, bigOrb, gazeEye, hyperFx, topFieldFlash };

@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
   BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：ずびずばテレポ 〜 神々の像（3回目）〜 なぞなぞマジック。docs/dmu/research-p1.md §4
@@ -205,14 +205,15 @@ const P1C = {
     };
     // ---- 判定の予定 ----
     const efx = makeP4Fx();
-    let lastT = 0;
+    const ffx = makeFireFx(); // めらめらファイガの着弾（実機に合わせた炎）
+    let lastT = null; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
     const fired = new Set();
     const events: [number, () => void][] = [
       // 神々の像の詠唱の手前で、塔が上段へ上る：ゴゴゴゴ（p1lib の towerRumble）
       [Math.max(0, TOWER_MOVE[3].from), () => towerRumble(3, fxShake, sfx)],
       [T.exp[0], () => { placeArrows(0); sfx.blip(520, .08); }],
       [T.exp[1], () => { placeArrows(1); sfx.blip(520, .08); }],
-      [T.trap, () => resolveTrap(S.t)],
+      [T.trap, () => resolveTrap(S.t - (p.off || 0))], // P1 通しでは p.off だけずれる
       [T.wills, () => {
         healerHit(220000, isConf(me) ? '聖母の神気' : '睡魔の神気');
         // 睡魔の神気（睡眠の人のまわり半径5）→ 聖母の神気（混乱）。混乱の人が睡眠の範囲にいると死ぬ。睡眠どうしも重ならない
@@ -244,10 +245,10 @@ const P1C = {
           const mine = isTH(me) ? p.fireT : p.fireD, other = isTH(me) ? p.fireD : p.fireT;
           if (me !== mine && dist(q, pos(mine)) > STACK_R) hurt('めらめらファイガ：頭割りに入っていない');
           if (dist(q, pos(other)) <= STACK_R && me !== other) hurt('めらめらファイガ：もう一つの頭割りに入った');
-          [p.fireT, p.fireD].forEach(k => efx.add('stack', { x:pos(k).x, z:pos(k).z }));
+          [p.fireT, p.fireD].forEach(k => ffx.add(pos(k).x, pos(k).z, STACK_R));
         } else {
           if (SLOTS.some(k => k !== me && dist(q, pos(k)) <= SPREAD_R)) hurt('めらめらファイガ：散開で近すぎた');
-          SLOTS.forEach(k => efx.add('spread', { x:pos(k).x, z:pos(k).z }));
+          SLOTS.forEach(k => ffx.add(pos(k).x, pos(k).z, SPREAD_R));
         }
         sfx.boom(); fxShake(2, .2);
       }],
@@ -277,7 +278,7 @@ const P1C = {
       progress: t => t < T.exp[1] ? 'ずびずばテレポ' : t < T.trap ? 'つぎつぎトラップ' : t < T.confusedEnd ? '神々の像（混乱・睡眠）' : t < T.fire + .2 ? 'なぞなぞマジック' : '終了',
       lockMove: t => locked(me, t),
       tick(t){
-        const dt = Math.max(0, t - lastT); lastT = t;
+        const dt = lastT == null ? 0 : Math.max(0, t - lastT); lastT = t;
         stepBots(bots, botGoal, t, dt);
         tickKb(t); tickConfused(t, dt); tickArrows(t, dt);
         events.forEach(([et, fn], i) => { if (t >= et && !fired.has(i)){ fired.add(i); fn(); } });
@@ -304,22 +305,27 @@ const P1C = {
         const showStatues = t >= T.gravenCast;
         if (showStatues){
           const sc = statueOnScreen(CONF_STATUE), ss = statueOnScreen(SLEEP_STATUE);
-          statueLights([{ ...sc, col:'#c03a8a' }, { ...ss, col:'#3a6ad8' }]); // 線の出どころ（混乱＝北西・睡眠＝北東）の光
           if (t >= T.gazeWind && t < T.gaze + .3) statueGlow(p.gazeInv ? statueOnScreen(GAZE_INV) : statueOnScreen(GAZE_NORM), p.gazeInv ? '#ff7ad8' : '#7ab8ff', t);
           if (t >= T.gazeWind && t < T.gaze + .3 && p.gazeInv) glyph('?', px(sc.x), px(sc.z) - 22, '#ff7ad8');
-          if (t >= T.tether && t < T.wills) SLOTS.forEach(k => tether(isConf(k) ? sc : ss, pos(k), isConf(k) ? '#ff7ad8' : '#7ab8ff'));
         }
         // ケフカの真偽の玉（サンダガ・ファイガ）と頭上のマーカー
         if (t >= T.mmMark && t < T.fire){
           kefkaOrbs(null, mm.thTrue, mm.fireTrue);
-          if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k))); else SLOTS.forEach(k => spreadMark(pos(k)));
+          if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), STACK_R)); else SLOTS.forEach(k => spreadMark(pos(k)));
         }
         // つぎつぎトラップを持っている人（頭上に紙ふぶきの印）
         if (t < T.trap) [p.trapT, p.trapD].forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         // 混乱・睡眠の印
         if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (isConf(k)) { ring(X, Z, 3, '#ff7ad8'); rect(X, Z, 1, 1, '#ff7ad8'); } else glyph('Z', X, Z, '#7ab8ff'); });
         bots.forEach(drawBot);
-        efx.draw();
+        efx.draw(); ffx.draw();
+      },
+      // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：男の像の胸の桃色の光＝睡眠（実機の動画）、女神の光＝混乱（色は推定）
+      drawTop(t, g){
+        if (t < T.tether || t >= T.wills) return;
+        const cp = statuePt(3, t, 'conf'), sp = statuePt(3, t, 'sleep');
+        topGlow(g, cp, '#fff0b0'); topGlow(g, sp, '#ff6ad8');
+        SLOTS.forEach(k => topTether(g, isConf(k) ? cp : sp, pos(k)));
       },
       _debug:{ p, PLAN, FINAL, TETHER, arrows, st, pos, soak:() => ({ placed, soaked, soakFail }), isConf, bots, spotAt },
       // テスト用：自分を味方と同じに動かす（tools のテストから使う）

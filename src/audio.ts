@@ -390,13 +390,13 @@ const P1_TRACKS = {
 // P2 は「堕ちる星」、P3・P4 は「魔導の祭壇」（実機の曲の分け方に合わせる。2026-10-15）
 const P2_TRACK = { name:'堕ちる星（イ短調・P2 の曲）', player:makePlayer(.15, fallingStar, .15) };
 const P34_TRACK = { name:'魔導の祭壇（嬰ハ短調・P3 と P4 の曲）', player:makePlayer(.2, altar, .3) };
-const PHASE_TRACKS = { ...P1_TRACKS, p2:P2_TRACK, p3:P34_TRACK, p4:P34_TRACK };
+const PHASE_TRACKS = { ...P1_TRACKS, p1:P1_TRACKS.p1a, p2:P2_TRACK, p3:P34_TRACK, p4:P34_TRACK };
 const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })),
   { name:'混沌への決戦（ト短調・16bit プログレ）', player:makePlayer(.21, p4Battle) }, RUSH_TRACK, ...Object.values(P1_TRACKS),
   P2_TRACK, P34_TRACK]; // 混沌への決戦は音数が少ない分、音量を上げる
 let forced = null; // フェーズで決まった曲（P1〜P4）。null なら設定で選んだ曲（P5）
 const bgm = {
-  use(key: string | null){ forced = PHASE_TRACKS[key] || null; }, // key：P1 は区切りの id（p1a〜p1c）、ほかはフェーズ（p2〜p5）
+  use(key: string | null){ forced = PHASE_TRACKS[key] || null; }, // key：P1 は区切りの id（p1a〜p1c。P1 通し p1 は第一楽章から。楽章が変わると通しの側で切り替える）、ほかはフェーズ（p2〜p5）
   start(){ (forced || BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
   stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },
 };

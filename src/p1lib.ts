@@ -100,12 +100,66 @@ function kefkaOrbs(iceT, thT, fireT = null){
   if (thT !== null) ringOrb(fire ? Y + 4 : Y - 12, fire ? ['#c8dcff', '#c8dcff', '#ffffff', '#c8dcff', '#a070ff'] : ['#c05aff'], thT, fire ? Math.PI : 0);
   if (iceT !== null) ringOrb(Y + 4, fire ? ['#e8f8ff', '#e8f8ff', '#a8e0ff'] : ['#5ab0ff'], iceT, Math.PI);
 }
-// 頭上のマーカー：散開＝オレンジの三角（下向き）、頭割り＝4つの矢印が中へ
-function spreadMark(q){ const X = px(q.x), Y = px(q.z) - 16; for (let r = 0; r < 7; r++){ const w = 6 - r; rect(X - w, Y - 3 + r, w * 2 + 1, 1, r < 1 ? '#101018' : '#ff8a2a'); } rect(X - 1, Y - 1, 3, 2, '#ffe070'); }
-function stackMark(q){
-  const X = px(q.x), Y = px(q.z) - 18, c = '#ff5a3a';
-  [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dy]) => { const cx = X + dx * 6, cy = Y + dy * 6; for (let i = 0; i < 4; i++){ const w = 3 - i; if (dx) rect(cx - dx * i, cy - w, 1, w * 2 + 1, c); else rect(cx - w, cy - dy * i, w * 2 + 1, 1, c); } });
-  disc(X, Y, 2, '#ffe070');
+// ---- めらめらファイガ（ユーザーがくれた実機の画像・動画に合わせた。2026-10-15） ----
+// 点ごとに描いた小さな絵を一度だけ作って使い回す（毎フレーム点を打つと重いので）
+const sprite = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  fn((x, y, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), 1, 1); }); return c; };
+// 散開の頭上マーカー：金のふちに黒白の目盛りの横長の輪（真ん中は暗い）＋上に桃色の下向き三角
+const SPREAD_ART = sprite(19, 22, P1 => {
+  const X = 9, Y = 13, RX = 8, RY = 7;
+  for (let dy = -RY - 1; dy <= RY + 1; dy++) for (let dx = -RX - 1; dx <= RX + 1; dx++){
+    const e = Math.hypot(dx / RX, dy / RY); if (e > 1.08) continue;
+    const a = Math.atan2(dy, dx);
+    P1(X + dx, Y + dy, e > .86 ? (e > 1 ? '#c86a10' : Math.floor((a + Math.PI) / (2 * Math.PI) * 20) % 2 ? '#201008' : '#fff0c8') : e > .7 ? '#f0b030' : e > .58 ? '#ffe070' : e > .3 ? '#2a1010' : '#5a2a1a');
+  }
+  for (let k = 0; k < 6; k++){ const hw = 5 - k; for (let dx = -hw; dx <= hw; dx++) P1(X + dx, Y - 9 + k, Math.abs(dx) === hw ? '#c02068' : k < 3 ? '#e8408a' : '#ff7ab8'); }
+});
+// 頭割りの頭上マーカー：光るオレンジの下向きの山形
+const STACK_ART = sprite(25, 10, P1 => {
+  for (let k = 0; k < 9; k++) for (let s = -(12 - k); s <= 12 - k; s++){
+    if (Math.abs(s) < 8 - k * 1.1 && k < 6) continue;
+    P1(12 + s, k, k >= 6 ? '#fff8d0' : Math.abs(s) < 10 - k ? '#ffe070' : '#ff7a1a');
+  }
+});
+// 頭割りの足元：黄と赤の点線の輪（範囲の半径）＋四隅に内向きに光るカギ形
+const ringCache = {};
+const stackRingArt = R => ringCache[R] ||= sprite(R * 2 + 16, R * 2 + 16, P1 => {
+  const X = R + 8, Y = R + 8;
+  for (let i = 0; i < 96; i++){ const a = i / 96 * 2 * Math.PI, c = Math.floor(i / 4) % 2 ? '#ffe040' : '#e82020'; for (const w of [-1, 0, 1, 2]) P1(X + Math.cos(a) * (R - w), Y + Math.sin(a) * (R - w), c); }
+  for (let k = 0; k < 4; k++){
+    const a = Math.PI / 4 + k * Math.PI / 2, cx = X + Math.cos(a) * (R + 1), cy = Y + Math.sin(a) * (R + 1), ux = -Math.cos(a), uy = -Math.sin(a), vx = -uy, vy = ux;
+    for (let s = -8; s <= 8; s++) for (let w = -1; w <= 2; w++) P1(cx + vx * s + ux * (Math.abs(s) * .8 + w), cy + vy * s + uy * (Math.abs(s) * .8 + w), w === 0 || w === 1 ? '#ffffff' : '#f0ff8a');
+  }
+});
+function spreadMark(q){ ctx.drawImage(SPREAD_ART, px(q.x) - 9, px(q.z) - 32); }
+function stackMark(q, r = 6){
+  const R = Math.round(r * PPY), art = stackRingArt(R), X = px(q.x), Z = px(q.z);
+  alpha(.13, () => disc(X, Z, R, '#ffb040'));
+  ctx.drawImage(art, X - R - 8, Z - R - 8);
+  const glow = .7 + Math.sin(performance.now() / 120) * .3;
+  alpha(glow, () => ctx.drawImage(STACK_ART, X - 12, Z - 30));
+}
+// めらめらファイガの着弾：足元に炎の輪（0.35秒）→ 黒い芯の火の玉が広がって消える（0.55秒）
+function makeFireFx(){
+  const L = [];
+  return {
+    add(x, z, r){ L.push({ x, z, r, t0:S.t }); },
+    draw(){
+      for (let i = L.length - 1; i >= 0; i--){
+        const e = L[i], a = S.t - e.t0; if (a > .9){ L.splice(i, 1); continue; } if (a < 0) continue;
+        const X = px(e.x), Z = px(e.z), R = Math.round(e.r * PPY);
+        if (a < .35){
+          alpha(.3, () => disc(X, Z, R, '#ff8a1a'));
+          [['#fff0a0', 0], ['#ffd040', 1], ['#ff8a1a', 2], ['#e04010', 3]].forEach(([c, w]) => ring(X, Z, R - w, c));
+          for (let j = 0; j < 16; j++){ const an = j / 16 * Math.PI * 2, h = 2 + (j * 5 + Math.floor(performance.now() / 70)) % 5, x0 = X + Math.round(Math.cos(an) * R), y0 = Z + Math.round(Math.sin(an) * R);
+            for (let n = 0; n < h; n++) rect(x0, y0 - n, 1, 1, n < 2 ? '#ffe070' : '#ff8a1a'); }
+        } else {
+          const k = (a - .35) / .55, r = Math.round(R * (.85 + k * .25));
+          alpha(1 - k, () => { disc(X, Z, r, '#ff6a10'); disc(X, Z, Math.max(1, r - 5), '#ffb030'); disc(X, Z, Math.max(1, r - 10), '#2a1008'); disc(X, Z, Math.max(1, r - 15), '#100404'); });
+        }
+      }
+    },
+  };
 }
 
 // ---- 神々の像（北のフィールドの外）。線の元になる ----
@@ -139,16 +193,70 @@ function towerRumble(part, fxShake, sfx){
   const len = MOVE[part].to - Math.max(0, MOVE[part].from);
   fxShake(2, len); sfx.tone(46, len, 'sawtooth', .05, -8); sfx.tone(62, len, 'triangle', .08, -12);
 }
-// part：楽章（1〜3）
-function statueScreenBg(part, t){
-  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); starBg = buildStarBg(); }
+// 今の楽章・時刻で、像のどの行が見えているか（row）・どれだけ沈んでいるか（sink）・横の揺れ（dx）
+function statueGeom(part, t){
   const mv = MOVE[part], k = Math.min(1, Math.max(0, (t - mv.from) / (mv.to - mv.from))), moving = k > 0 && k < 1;
   let row = VIEW[part], sink = 0;
   if (part === 1) sink = SINK * (1 - k) * (1 - k); // 生えてくる：はじめは速く、最後はゆっくり
   else { const e = k * k * (3 - 2 * k); row = VIEW[part - 1] + (VIEW[part] - VIEW[part - 1]) * e; } // 上る：なめらかに
   const dx = moving ? (Math.floor(performance.now() / 45) % 2 ? 1 : -1) : 0; // 動く間は小刻みに横に揺れる
+  return { row, sink, dx };
+}
+// part：楽章（1〜3）
+function statueScreenBg(part, t){
+  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); starBg = buildStarBg(); }
+  const { row, sink, dx } = statueGeom(part, t);
   // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
   return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:P.space, cover:{ url:starBg, h:COVER_H } };
+}
+// 像の上の、線などの出どころ（像の絵 statue.png の点。2026-10-15 ユーザーの動画に合わせて選んだ）
+//   face：下段の悪魔の顔（波動砲・第一楽章の線）、grav：中段の渦の柱の上（重力弾。紫の光）、rock：中段の像の手（岩石弾。黄色の光）
+//   sleep：上段の男の像の胸（睡眠。桃色の光）、conf：上段の女神（混乱。色は推定）
+const STATUE_PTS = { face:[158, 456], grav:[136, 206], rock:[240, 296], sleep:[158, 110], conf:[100, 46] };
+// その点のキャンバスの座標（フィールドより上は負。上の層 drawTop に描く）。背景の絵の位置（statueScreenBg）と同じ計算
+function statuePt(part, t, name){
+  const [sx, sy] = STATUE_PTS[name], { row, sink, dx } = statueGeom(part, t);
+  return { X:(144 - BGW / 2) + (BGW * RES - STATUE.width) / 2 / RES + sx / RES + dx, Y:sy / RES - row - ABOVE - 20 * PPY + 144 + sink };
+}
+// ---- 上の層（hud.ts の drawTop。フィールドの外の像の上まで描ける）に描く部品。g は上の層の 2D コンテキスト ----
+const gDot = (g, x, y, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), 1, 1); };
+const gLine = (g, x0, y0, x1, y1, col) => { const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)))); g.fillStyle = col; for (let i = 0; i <= n; i++) g.fillRect(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), 1, 1); };
+const gDisc = (g, X, Y, R, col) => { g.fillStyle = col; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); g.fillRect(Math.round(X - hw), Math.round(Y + dy), hw * 2 + 1, 1); } };
+const gAlpha = (g, a, fn) => { const p0 = g.globalAlpha; g.globalAlpha = p0 * Math.max(0, Math.min(1, a)); fn(); g.globalAlpha = p0; };
+// 出どころの光る点（色で見分ける）
+function topGlow(g, q, col, r = 3){
+  const k = .75 + Math.sin(performance.now() / 160) * .25;
+  gAlpha(g, .25 * k, () => gDisc(g, q.X, q.Y, r + 3, col)); gAlpha(g, .65, () => gDisc(g, q.X, q.Y, r + 1, col)); gDisc(g, q.X, q.Y, Math.max(1, r - 1), '#ffffff');
+}
+// 線：どの楽章も黄色い細い実線（実機）。人の胸のあたりまで
+function topTether(g, a, b){
+  const B = { X:px(b.x), Y:px(b.z) - 4 }, d = Math.hypot(B.X - a.X, B.Y - a.Y) || 1, nx = -(B.Y - a.Y) / d, ny = (B.X - a.X) / d;
+  gAlpha(g, .8, () => gLine(g, a.X + nx, a.Y + ny, B.X + nx, B.Y + ny, '#a87018'));
+  gLine(g, a.X, a.Y, B.X, B.Y, '#ffe060');
+  gAlpha(g, .55, () => gLine(g, a.X - nx * .5, a.Y - ny * .5, B.X - nx * .5, B.Y - ny * .5, '#fff8c8'));
+}
+// 波動砲の予告：像の足元（フィールドの北のふち）に青白い光の玉ともや。k：予告の進み（0〜1）
+function cannonOrb(g, k){
+  const X = px(0), Y = px(-20.5), t = performance.now() / 1000, r = Math.round(6 + 9 * Math.min(1, k * 1.4));
+  for (let i = 0; i < 14; i++){ const a = i * 2.4 + t * .7, d = r + 6 + (i * 7) % 12; gAlpha(g, .22, () => gDisc(g, X + Math.cos(a) * d * 1.4, Y + Math.sin(a) * d * .5, 3 + i % 4, i % 3 ? '#c8e8ff' : '#8ac0ff')); }
+  gAlpha(g, .55, () => gDisc(g, X, Y, r, '#3a8aff')); gAlpha(g, .8, () => gDisc(g, X, Y, Math.round(r * .72), '#8ad0ff')); gDisc(g, X, Y, Math.max(2, Math.round(r * .38)), '#ffffff');
+  for (let j = 0; j < 3; j++) for (let a = 0; a < 140; a += 3){ const rr = r * .5 + j * 3 + a / 40, an = a / 22 + j * 2.1 + t * 4; gAlpha(g, .8, () => gDot(g, X + Math.cos(an) * rr, Y + Math.sin(an) * rr * .7, '#ffffff')); }
+}
+// 波動砲の光線：白い芯 → 水色 → 青、ふちに白い稲妻（枝分かれ）。a：出どころ（フィールドの座標）、d：向き、k：消えていく割合（0〜1）
+function topBeam(g, a, d, hw, k, seed){
+  const n = { x:-d.z, z:d.x }, far = 80, P0 = w => ({ X:px(a.x + n.x * w), Y:px(a.z + n.z * w) }), P1 = w => ({ X:px(a.x + d.x * far + n.x * w), Y:px(a.z + d.z * far + n.z * w) });
+  const band = (w0, w1, col, al) => gAlpha(g, al * (1 - k), () => { const A0 = P0(w0), A1 = P0(w1), B1 = P1(w1), B0 = P1(w0); g.fillStyle = col; g.beginPath(); g.moveTo(A0.X, A0.Y); g.lineTo(A1.X, A1.Y); g.lineTo(B1.X, B1.Y); g.lineTo(B0.X, B0.Y); g.closePath(); g.fill(); });
+  band(-hw * 2.2, hw * 2.2, '#3a6ad8', .35); band(-hw, hw, '#7ab8ff', .9); band(-hw * .65, hw * .65, '#d8f0ff', 1); band(-hw * .4, hw * .4, '#ffffff', 1);
+  let s = seed * 9301 + Math.floor(performance.now() / 50) * 7; const R = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  gAlpha(g, 1 - k, () => [-1, 1].forEach(side => {
+    let t0 = 0, prev = null;
+    while (t0 < far){
+      const off = side * (hw * 1.1 + R() * hw * .8), q = { X:px(a.x + d.x * t0 + n.x * off), Y:px(a.z + d.z * t0 + n.z * off) };
+      if (prev) gLine(g, prev.X, prev.Y, q.X, q.Y, '#ffffff');
+      if (R() < .25){ const b = side * (1 + R() * 2); gLine(g, q.X, q.Y, q.X + n.x * b * PPY + d.x * 1.5 * PPY, q.Y + n.z * b * PPY + d.z * 1.5 * PPY, '#c8f0ff'); }
+      prev = q; t0 += 1.2 + R() * 1.5;
+    }
+  }));
 }
 // フィールドの外（星空）を消して、画面全体の背景を見せる（P2 と同じ）
 const clearOutside = () => {
@@ -194,4 +302,4 @@ const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
-  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether };
+  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb };

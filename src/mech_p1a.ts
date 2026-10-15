@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（1回目）〜 波動砲 〜 つぎつぎトラップ 〜 なぞなぞマジック（2回目）。docs/dmu/research-p1.md §2
@@ -42,6 +42,7 @@ const P1A = {
   },
   create(p){
     const me = p.me, m1 = p.mm1, m2 = p.mm2;
+    const now = () => S.t - (p.off || 0); // このギミックの時刻（P1 通しでは p.off だけずれる）
     const tethered = k => isTH(k) === p.tetherTH;
     const shown1Stack = m1.fireTrue ? m1.fireStack : !m1.fireStack;
     // ---- ② ブリザガの安全な側：タンヒラ（西）は北西か南西、DPS（東）はその反対 ----
@@ -86,7 +87,10 @@ const P1A = {
     SLOTS.forEach(k => { const L = landing(k); safe2[k] = add(nearestSafe({ x:L.x * .6, z:L.z }), k === holderOf(k) ? { x:0, z:0 } : OFF(k, .6)); });
     // ---- 道のり ----
     const startSpot = k => add({ x:isTH(k) ? -7 : 7, z:0 }, OFF(k, 1.2));
+    // P1 通し：最初のばりばりルインガの間だけ、p.pre.spot の位置（MT は北で受ける）。p.pre.until（この区切りの時刻）まで
+    const spot0 = k => p.pre?.spot(k) ?? startSpot(k);
     const { spotAt, botGoal } = makeRoutes([
+      ...(p.pre ? [{ until:p.pre.until, spot:spot0 }] : []),
       { until:T.graven, spot:startSpot },
       { until:T.mm1Cast + .3, spot:startSpot },
       { until:T.pulse - .15, spot:prePulse },
@@ -102,7 +106,7 @@ const P1A = {
       { until:T.end + 9, spot:k => safe2[k] },
     ]);
     // ---- 人 ----
-    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...startSpot(k) }));
+    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...spot0(k) }));
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
     const kb = {};
     bots.forEach(b => { b.lock = () => !!kb[b.k]; });
@@ -111,12 +115,13 @@ const P1A = {
     const vuln = new Set(); // 波動砲に当たった人（塔に入ると死ぬ）
     let beamShow = null;
     const efx = makeP4Fx();
-    let lastT = 0;
+    const ffx = makeFireFx(); // めらめらファイガの着弾（実機に合わせた炎）
+    let lastT = null; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
     const fired = new Set();
     const events: [number, () => void][] = [
       // 塔（神々の像）が下から生えてくる：ゴゴゴゴ（揺れと低い音。p1lib の towerRumble）
       [0, () => towerRumble(1, fxShake, sfx)],
-      [T.pulse, () => { SLOTS.filter(tethered).forEach(k => { const d = kbDir(pos(k)); push(k, STATUE, { x:d.x * PULSE_KB, z:d.z * PULSE_KB }, S.t); }); sfx.boom(); fxShake(3, .25); }],
+      [T.pulse, () => { SLOTS.filter(tethered).forEach(k => { const d = kbDir(pos(k)); push(k, STATUE, { x:d.x * PULSE_KB, z:d.z * PULSE_KB }, now()); }); sfx.boom(); fxShake(3, .25); }],
       [T.ice1, () => { if (iceHit(m1, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(m1) }); sfx.boom(); }],
       [T.fire1, () => {
         const q = S.player; healerHit(220000, 'めらめらファイガ');
@@ -124,10 +129,10 @@ const P1A = {
           const mine = isTH(me) ? p.fireT : p.fireD, other = isTH(me) ? p.fireD : p.fireT;
           if (me !== mine && dist(q, pos(mine)) > STACK_R) hurt('めらめらファイガ：頭割りに入っていない');
           if (me !== other && dist(q, pos(other)) <= STACK_R) hurt('めらめらファイガ：もう一つの頭割りに入った');
-          [p.fireT, p.fireD].forEach(k => efx.add('stack', { x:pos(k).x, z:pos(k).z }));
+          [p.fireT, p.fireD].forEach(k => ffx.add(pos(k).x, pos(k).z, STACK_R));
         } else {
           if (SLOTS.some(k => k !== me && dist(q, pos(k)) <= SPREAD_R)) hurt('めらめらファイガ：散開で近すぎた');
-          SLOTS.forEach(k => efx.add('spread', { x:pos(k).x, z:pos(k).z }));
+          SLOTS.forEach(k => ffx.add(pos(k).x, pos(k).z, SPREAD_R));
         }
         sfx.boom(); fxShake(2, .2);
       }],
@@ -161,7 +166,7 @@ const P1A = {
         holders.forEach(h => {
           const c = { x:pos(h).x, z:pos(h).z };
           fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
-          SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return; push(k, c, { x:(q.x - c.x) / d * TRAP_KB, z:(q.z - c.z) / d * TRAP_KB }, S.t); });
+          SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return; push(k, c, { x:(q.x - c.x) / d * TRAP_KB, z:(q.z - c.z) / d * TRAP_KB }, now()); });
         });
         sfx.boom(); fxShake(3, .25);
       }],
@@ -177,10 +182,9 @@ const P1A = {
       if ((me === newT || me === newD) && t >= T.trapHit + .1) s.push({ icon:'trap', name:'つぎつぎトラップ（次は神々の像2回目）', sec:Math.ceil(T.trapHit + .1 + 68 - t) });
       return s;
     };
-    const statueOnScreen = { x:0, z:-22.3 };
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
-      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...spot0(me) }, intro:`あなたは ${me}`, end:T.end,
       casts:[
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
         { name:'なぞなぞマジック', start:T.mm1Cast, len:T.ice1 - T.mm1Cast },
@@ -190,7 +194,7 @@ const P1A = {
       progress: t => t < T.fire1 + .2 ? '神々の像・なぞなぞマジック' : t < T.explosion + .2 ? '波動砲・塔' : t < T.trapHit + .5 ? 'つぎつぎトラップ' : t < T.mm2 + .2 ? 'なぞなぞマジック' : '終了',
       lockMove: () => !!kb[me],
       tick(t){
-        const dt = Math.max(0, t - lastT); lastT = t;
+        const dt = lastT == null ? 0 : Math.max(0, t - lastT); lastT = t;
         stepBots(bots, botGoal, t, dt); tickKb(t);
         events.forEach(([et, fn], i) => { if (t >= et && !fired.has(i)){ fired.add(i); fn(); } });
       },
@@ -208,23 +212,20 @@ const P1A = {
         if (t >= T.cannon && t < T.explosion) towers.forEach(tw => { const X = px(tw.x), Z = px(tw.z), R = Math.round(TOWER_R * PPY); alpha(.3, () => disc(X, Z, R, '#ff8a2a')); ring(X, Z, R, '#ffe070'); ring(X, Z, R - 2, '#ff8a2a'); });
       },
       draw(t){
-        if (t >= T.gravenCast){
-          if (t >= T.cannonWarn && t < T.cannon + .2){ const k = .5 + Math.sin(t * 8) * .3; alpha(k, () => { ring(px(0), px(statueOnScreen.z), 13, '#ff8a2a'); ring(px(0), px(statueOnScreen.z), 15, '#ffe070'); }); }
-          if (t >= T.graven && t < T.pulse) SLOTS.filter(tethered).forEach(k => tether(statueOnScreen, pos(k), '#ffb84a'));
-        }
-        // 波動砲のビーム（0.6秒）
-        if (beamShow && S.t - beamShow.t < .6){
-          const k = 1 - (S.t - beamShow.t) / .6;
-          beamShow.beams.forEach(b => { const far = { x:b.a.x + b.d.x * 80, z:b.a.z + b.d.z * 80 }, n = { x:-b.d.z, z:b.d.x };
-            alpha(.75 * k, () => { for (let w = -BEAM_HW; w <= BEAM_HW; w += .25) line(px(b.a.x + n.x * w), px(b.a.z + n.z * w), px(far.x + n.x * w), px(far.z + n.z * w), Math.abs(w) < .8 ? '#ffffff' : Math.abs(w) < 1.5 ? '#a8d8ff' : '#3a8aff'); }); });
-        }
-        if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k))); else SLOTS.forEach(k => spreadMark(pos(k))); }
+        if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), STACK_R)); else SLOTS.forEach(k => spreadMark(pos(k))); }
         if (t >= T.mm2Cast - .1 && t < T.mm2) kefkaOrbs(m2.iceTrue, m2.thTrue, null);
         // つぎつぎトラップを持っている人
         const trapHolders = t < T.trap1 ? [] : t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
         trapHolders.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         bots.forEach(drawBot);
-        efx.draw();
+        efx.draw(); ffx.draw();
+      },
+      // 上の層（像の上まで描ける）：像の顔から黄色い線（神々の像・波動砲）、波動砲の予告の青白い玉、波動砲の光線
+      drawTop(t, g){
+        const face = statuePt(1, t, 'face');
+        if (t >= T.graven && t < T.pulse){ topGlow(g, face, '#ffe070'); SLOTS.filter(tethered).forEach(k => topTether(g, face, pos(k))); }
+        if (t >= T.cannonWarn && t < T.cannon){ topGlow(g, face, '#ffe070'); p.cannon.forEach(k => topTether(g, face, pos(k))); cannonOrb(g, (t - T.cannonWarn) / (T.cannon - T.cannonWarn)); }
+        if (beamShow && S.t - beamShow.t < .6){ const k = (S.t - beamShow.t) / .6; beamShow.beams.forEach((b, i) => topBeam(g, b.a, b.d, BEAM_HW, k, i + 1)); }
       },
       _debug:{ p, towers, soakerOf, safe2, spotAt, pos, final1, prePulse },
       _botGoal:botGoal, _me:me, _lock:() => !!kb[me],

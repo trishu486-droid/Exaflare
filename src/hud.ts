@@ -70,6 +70,27 @@ function screenBgDraw(){
   }
   if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
 }
+// 上の層：フィールドの外（画面の上の像のあたり）まで描けるキャンバス。ギミックの drawTop(t, g) が描く（P1 の像から出る線・波動砲など）
+// ゲームのキャンバスと同じドットの大きさで、上に H 行ぶん伸ばして重ねる（g は y＝0 がゲームのキャンバスの上の端になるようにずらしてある）
+let topCv: HTMLCanvasElement | null = null, topG: CanvasRenderingContext2D | null = null, topOn = false;
+function topLayerDraw(){
+  const fn = S.phase === 'run' || S.phase === 'count' || S.phase === 'done' ? S.inst?.drawTop : null;
+  if (!fn){ if (topOn){ topOn = false; topCv.style.display = 'none'; } return; }
+  const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W;
+  const H = Math.max(0, Math.ceil((c.top - s.top - screenEl.clientTop) / k));
+  if (!topCv){
+    topCv = document.createElement('canvas'); topCv.className = 'toplayer';
+    Object.assign(topCv.style, { position:'absolute', pointerEvents:'none', imageRendering:'pixelated', zIndex:'2' });
+    screenEl.appendChild(topCv); topG = topCv.getContext('2d');
+  }
+  if (!topOn){ topOn = true; topCv.style.display = ''; }
+  if (topCv.width !== W || topCv.height !== H + W){ topCv.width = W; topCv.height = H + W; }
+  const left = c.left - s.left - screenEl.clientLeft, top = c.top - s.top - screenEl.clientTop - H * k;
+  Object.assign(topCv.style, { left:`${left}px`, top:`${top}px`, width:`${c.width}px`, height:`${(H + W) * k}px` });
+  const [sx, sz] = fxShakeOffset();
+  topG.setTransform(1, 0, 0, 1, 0, 0); topG.clearRect(0, 0, W, H + W); topG.translate(sx, H + sz);
+  fn(S.t, topG);
+}
 function draw(){
   screenBgDraw();
   const v = S.inst?.view ?? mech().view;
@@ -85,6 +106,7 @@ function draw(){
   drawActFx(); drawPlayer();
   ctx.restore();
   fxFlashDraw(); drawCast(); drawHurtFlash();
+  topLayerDraw();
 }
 
 const BTN = { a:$('btnA'), b:$('btnB'), x:$('btnX'), y:$('btnY') }, buffEl = $('buff');

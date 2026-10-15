@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from 
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, statuePt, topTether, topGlow } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -57,7 +57,8 @@ const P1B = {
     const ruinSpot = k => k === 'ST' ? { x:halfSafeX(p.half1East) * 1.6, z:-6 } : add({ x:halfSafeX(p.half1East) * 3.2, z:3 }, OFF(k, .8));
     // ヘイト：最後に挑発した方が1位（どちらも挑発していなければ MT）。味方のタンクは決まった時刻に挑発する
     const ST_PROV = T.ruin1Cast + 1, MT_PROV = T.ruin1 + .6;
-    const provAt = k => k === me ? A.provoke : k === 'ST' ? ST_PROV : MT_PROV;
+    const now = () => S.t - (p.off || 0); // このギミックの時刻（P1 通しでは p.off だけずれる）
+    const provAt = k => k === me ? (A.provoke == null ? null : A.provoke - (p.off || 0)) : k === 'ST' ? ST_PROV : MT_PROV;
     const hateTop = t => { const L = ['MT', 'ST'].map(k => [k, provAt(k)]).filter(([, v]) => v != null && v <= t).sort((a, b) => b[1] - a[1]); return L.length ? L[0][0] : 'MT'; };
     const half2Spot = k => k === 'MT' || k === 'ST' ? add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8)) : add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8));
     // ⑤ つぎつぎトラップ（2回目）：タンヒラの組は西で北の沼へ、DPS は東で南の沼へ飛ぶ
@@ -128,7 +129,7 @@ const P1B = {
     };
     const cleave = n => {
       // 1発目はヘイト1位、2発目はヘイト2位へ
-      const top = hateTop(S.t), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
+      const top = hateTop(now()), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
       const tq = pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (me !== 'MT' && me !== 'ST' && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
@@ -142,7 +143,7 @@ const P1B = {
       }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
-    let lastT = 0;
+    let lastT = null; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
     const fired = new Set();
     const events: [number, () => void][] = [
       // 神々の像の詠唱の手前で、塔が中段へ上る：ゴゴゴゴ（p1lib の towerRumble）
@@ -167,7 +168,7 @@ const P1B = {
           const c = { x:pos(h).x, z:pos(h).z };
           fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
           SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return;
-            const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB }; kb[k] = { t0:S.t, from:{ x:q.x, z:q.z }, to, len:TRAP_KB / KB_SPEED };
+            const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB }; kb[k] = { t0:now(), from:{ x:q.x, z:q.z }, to, len:TRAP_KB / KB_SPEED };
             if (k === me && Math.hypot(to.x, to.z) > 20) hurt('ノックバックで外へ落ちた'); });
         });
         sfx.boom(); fxShake(3, .25);
@@ -204,7 +205,7 @@ const P1B = {
       progress: t => t < T.vit1 + .2 ? '神々の像（重力弾・岩石弾）' : t < T.half1 + .2 ? 'ばりばりルインガ・半面' : t < T.half2 + .2 ? '神々の像（2回目）' : t < T.soak + .2 ? 'つぎつぎトラップ・グラビガ' : '終了',
       lockMove: () => !!kb[me],
       tick(t){
-        const dt = Math.max(0, t - lastT); lastT = t;
+        const dt = lastT == null ? 0 : Math.max(0, t - lastT); lastT = t;
         stepBots(bots, botGoal, t, dt); tickKb(t);
         events.forEach(([et, fn], i) => { if (t >= et && !fired.has(i)){ fired.add(i); fn(); } });
       },
@@ -228,16 +229,21 @@ const P1B = {
         if (t >= T.gravenCast){
           if (t >= T.half1Tell && t < T.half1) statueGlow({ x:p.half1East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half1East), t);
           if (t >= T.half2Tell && t < T.half2) statueGlow({ x:p.half2East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half2East), t);
-          // 線：紫＝重力弾（沼を捨てる）、黄＝岩石弾（岩を捨てる）。紫の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14）
-          const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
-          const gravGone = t >= (round === 1 ? T.grav1 : T.grav2);
-          if (round && t >= T.graven) SLOTS.forEach(k => { const g = isGrav(k, round); if (g && gravGone) return; tether(g ? GRAV_STATUE : VIT_STATUE, pos(k), g ? '#b05aff' : '#ffe040'); });
         }
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
         const trapHolders = t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
         trapHolders.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         bots.forEach(drawBot);
         efx.draw();
+      },
+      // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：渦の柱の上の紫の光＝重力弾（沼を捨てる）、像の手の光＝岩石弾（岩を捨てる）
+      // 重力弾の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14・15）
+      drawTop(t, g){
+        const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
+        if (!round || t < T.graven) return;
+        const gravGone = t >= (round === 1 ? T.grav1 : T.grav2), gp = statuePt(2, t, 'grav'), rp = statuePt(2, t, 'rock');
+        topGlow(g, gp, '#b05aff', 4); topGlow(g, rp, '#ffe070', 4);
+        SLOTS.forEach(k => { const gr = isGrav(k, round); if (gr && gravGone) return; topTether(g, gr ? gp : rp, pos(k)); });
       },
       _debug:{ p, puddles, spotAt, pos },
       _botGoal:botGoal, _me:me, _lock:() => !!kb[me],

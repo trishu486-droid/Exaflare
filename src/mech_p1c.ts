@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
-  BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
+  BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -208,6 +208,8 @@ const P1C = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
+      // 神々の像の詠唱の手前で、塔が上段へ上る：ゴゴゴゴ（p1lib の towerRumble）
+      [Math.max(0, TOWER_MOVE[3].from), () => towerRumble(3, fxShake, sfx)],
       [T.exp[0], () => { placeArrows(0); sfx.blip(520, .08); }],
       [T.exp[1], () => { placeArrows(1); sfx.blip(520, .08); }],
       [T.trap, () => resolveTrap(S.t)],
@@ -285,7 +287,7 @@ const P1C = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第三楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(3, t, T.end),
+      screenBg: t => statueScreenBg(3, t),
       drawFloor(t){
         clearOutside();
         // なぞなぞマジックの予兆（サンダガの帯）

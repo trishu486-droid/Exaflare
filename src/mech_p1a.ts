@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './gfx.js';
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
-  BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
+  BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -114,8 +114,8 @@ const P1A = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
-      // 塔（神々の像）が下から生えてくる：ゴゴゴゴ（揺れと低い音）
-      [0, () => { fxShake(2, 2.5); sfx.tone(46, 2.5, 'sawtooth', .05, -8); sfx.tone(62, 2.5, 'triangle', .08, -12); }],
+      // 塔（神々の像）が下から生えてくる：ゴゴゴゴ（揺れと低い音。p1lib の towerRumble）
+      [0, () => towerRumble(1, fxShake, sfx)],
       [T.pulse, () => { SLOTS.filter(tethered).forEach(k => { const d = kbDir(pos(k)); push(k, STATUE, { x:d.x * PULSE_KB, z:d.z * PULSE_KB }, S.t); }); sfx.boom(); fxShake(3, .25); }],
       [T.ice1, () => { if (iceHit(m1, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(m1) }); sfx.boom(); }],
       [T.fire1, () => {
@@ -199,7 +199,7 @@ const P1A = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第一楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(1, t, T.end),
+      screenBg: t => statueScreenBg(1, t),
       drawFloor(t){
         clearOutside();
         if (t >= T.mm1Cast && t < T.ice1) drawTell(m1, true, false);

@@ -19,7 +19,7 @@ function begin(){
   S.player = { ...(S.inst.start || m.start) };
   S.face = { x:0, z:-1 };
   hpReset();
-  bgm.use(m.id); // P4 は専用の曲
+  bgm.use(phaseOf(m.id) === 'p1' ? m.id : phaseOf(m.id)); // P1〜P4 はフェーズごとの曲（P1 は楽章ごと）
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true; applyTitle();
   sfx.unlock(); sfx.blip(660, .08);

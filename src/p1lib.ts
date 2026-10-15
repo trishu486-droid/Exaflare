@@ -112,36 +112,43 @@ function stackMark(q){
 // 絵は FF6 の神々の像（ユーザーがくれた画像）を縦長の1枚のドット絵にしたもの（tools/make_statue.py。104×218。2026-10-14）
 // 像は3段で、下＝第一楽章・中＝第二楽章・上＝第三楽章。像はどの楽章も1つ
 // 画面全体の背景（screenBg）に、星空と像を描いた縦長の絵を置く。フィールドの外を消して（clearOutside）、像はフィールドの奥から画面の上の端まで見える
-// 第一楽章の始め（神々の像の詠唱まで）に、塔が下からゴゴゴと生えてくる（揺れる）。そのあとは時間とともに少しずつ上を写していく（塔を上る）
-//   第一楽章 → 第二楽章 → 第三楽章でつながる（ユーザーの説明 2026-10-14）
+// 塔は神々の像の詠唱の手前で、ゴゴゴゴと一気に動く（揺れと低い音）。それ以外の間は止まっている（ユーザーの説明 2026-10-15）
+//   第一楽章：塔が下から生えてきて、下段を写す → 第二楽章：中段へ上る → 第三楽章：上段へ上る
 const STATUE = new Image(); STATUE.src = 'img/p1/statue.png';
 // 背景の絵はフィールドの 2 倍の細かさ（RES）。像の 1マスがフィールドの半ドット（305×649 マス → 画面では 153×325 ドットぶん）
 const RES = 2, BGW = 440, BGH = 1100, ST_Y = 300; // 大きさと像の上の端の行（フィールドのドット）
-// 見える範囲の上の端（像の中の行。フィールドのドット）：楽章の始め → 終わり
-const PATH = { 1:[228, 175], 2:[175, 110], 3:[110, 18] };
+// 見える範囲の上の端（像の中の行。フィールドのドット）：下段（悪魔）・中段（男女）・上段（女神）
+const VIEW = { 1:228, 2:120, 3:14 };
 const ABOVE = 74; // フィールドの縁より上に見える行の数（縦長の画面で、上の端まで）
-// 第一楽章：塔が生えてくる時間（カウントダウンの始めから神々の像の詠唱まで）と、始めにどれだけ下に隠れているか（てっぺんまで床の下）
-const RISE = { from:-1, to:2.4, depth:PATH[1][0] + ABOVE + 6 }; // 揺れと音は 0 秒から（カウントダウン中はギミックの時間が進まないため）
-let statueBg = null;
+// 塔が動く時間（各楽章の時刻。神々の像の詠唱の手前まで）。第一楽章はカウントダウンの終わりから生えてくる（はじめはてっぺんまで床の下）
+const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:13.2, to:15.6 } };
+const SINK = VIEW[1] + ABOVE + 6;
+let statueBg = null, starBg = null;
+const stars = (g, w, h, seed) => { g.fillStyle = P.space; g.fillRect(0, 0, w * RES, h * RES); g.fillStyle = P.star; for (let i = 0; i < h / 4; i++) g.fillRect(((i * 97 + seed) % w) * RES, ((i * 53 + 29) % h) * RES, RES, RES); };
 const buildStatueBg = () => {
   const c = document.createElement('canvas'); c.width = BGW * RES; c.height = BGH * RES;
-  const g = c.getContext('2d');
-  g.fillStyle = P.space; g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = P.star; for (let i = 0; i < 260; i++) g.fillRect(((i * 97 + 13) % BGW) * RES, ((i * 53 + 29) % BGH) * RES, RES, RES);
+  const g = c.getContext('2d'); stars(g, BGW, BGH, 13);
   g.drawImage(STATUE, Math.round((BGW * RES - STATUE.width) / 2), ST_Y * RES);
   return c.toDataURL();
 };
-// part：楽章（1〜3）、end：その楽章の終わりの時刻
-function statueScreenBg(part, t, end){
-  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); }
-  const [a, b] = PATH[part], row = a + (b - a) * Math.min(1, Math.max(0, t / end));
-  let sink = 0, dx = 0;
-  if (part === 1 && t < RISE.to){ // 生えてくる：下に隠れたところから。小刻みに横に揺れる
-    const k = Math.min(1, Math.max(0, (t - RISE.from) / (RISE.to - RISE.from))), e = 1 - (1 - k) * (1 - k);
-    sink = RISE.depth * (1 - e); dx = k > 0 && k < 1 ? (Math.floor(performance.now() / 45) % 2 ? 1 : -1) : 0;
-  }
+// フィールドの中心より下にかぶせる星空だけの絵。生えてくる途中の塔が、フィールドの下にはみ出して見えないように
+const COVER_H = 500;
+const buildStarBg = () => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = COVER_H * RES; stars(c.getContext('2d'), BGW, COVER_H, 41); return c.toDataURL(); };
+// 塔が動く間のゴゴゴゴ（揺れと低い音）。各楽章のイベントで MOVE[part].from に呼ぶ
+function towerRumble(part, fxShake, sfx){
+  const len = MOVE[part].to - Math.max(0, MOVE[part].from);
+  fxShake(2, len); sfx.tone(46, len, 'sawtooth', .05, -8); sfx.tone(62, len, 'triangle', .08, -12);
+}
+// part：楽章（1〜3）
+function statueScreenBg(part, t){
+  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); starBg = buildStarBg(); }
+  const mv = MOVE[part], k = Math.min(1, Math.max(0, (t - mv.from) / (mv.to - mv.from))), moving = k > 0 && k < 1;
+  let row = VIEW[part], sink = 0;
+  if (part === 1) sink = SINK * (1 - k) * (1 - k); // 生えてくる：はじめは速く、最後はゆっくり
+  else { const e = k * k * (3 - 2 * k); row = VIEW[part - 1] + (VIEW[part] - VIEW[part - 1]) * e; } // 上る：なめらかに
+  const dx = moving ? (Math.floor(performance.now() / 45) % 2 ? 1 : -1) : 0; // 動く間は小刻みに横に揺れる
   // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
-  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:P.space };
+  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:P.space, cover:{ url:starBg, h:COVER_H } };
 }
 // フィールドの外（星空）を消して、画面全体の背景を見せる（P2 と同じ）
 const clearOutside = () => {
@@ -187,4 +194,4 @@ const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
-  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueLights, clearOutside, tether };
+  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether };

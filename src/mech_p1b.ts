@@ -7,7 +7,7 @@ import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
-  iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, statueLights, clearOutside, tether } from './p1lib.js';
+  iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 
 // =====================================================================
@@ -145,6 +145,8 @@ const P1B = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
+      // 神々の像の詠唱の手前で、塔が中段へ上る：ゴゴゴゴ（p1lib の towerRumble）
+      [Math.max(0, TOWER_MOVE[2].from), () => towerRumble(2, fxShake, sfx)],
       [T.ice, () => { if (iceHit(mm, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(mm) }); sfx.boom(); }],
       [T.grav1, () => gravitas(1)],
       [T.vit1, () => vitrophyre(1)],
@@ -211,7 +213,7 @@ const P1B = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第二楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(2, t, T.end),
+      screenBg: t => statueScreenBg(2, t),
       drawFloor(t){
         clearOutside();
         if (t >= T.mmCast && t < T.ice) drawTell(mm, true, false);

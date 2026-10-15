@@ -7,7 +7,7 @@ import { healerHit, hasMit, hasInvuln } from './action.js';
 import { fxFlash, fxShake } from './fx.js';
 import { hurt, alpha } from './gfx.js';
 import { TH, DPS, dist } from './p1lib.js';
-import { fillCone, hyperFx } from './p1lib.js';
+import { hyperFx, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR } from './p1lib.js';
 import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
@@ -65,6 +65,7 @@ const RUN1 = {
     const gapPre = i => ({ until:GAPS[i - 1].hyper[2] + .4 - AT[i], spot:gapSpot });
     const segs = pr.map((p, i) => [P1A, P1B, P1C][i].create({ ...p, off:AT[i], pre:i === 0 ? pre : gapPre(i) }));
     let cleaveShow = null, hyperShow = null;
+    const JUDGES = [...GAPS.map(g => g.judge), ENRAGE.at];
     const ruinga = n => {
       const top = hateTop(S.t), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
       const tq = tank === me ? S.player : segs[0]._debug.pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
@@ -130,12 +131,15 @@ const RUN1 = {
       screenBg: t => call('screenBg', t),
       drawFloor(t){
         call('drawFloor', t);
-        // 最初のばりばりルインガ（赤い扇・第二楽章と同じ見せ方）
-        if (cleaveShow && S.t - cleaveShow.t < .5){ const k = (S.t - cleaveShow.t) / .5; alpha(.55 * (1 - k), () => fillCone(cleaveShow.u, CLEAVE_HALF, k < .3 ? '#ffffff' : '#e8283a')); }
+        // ばりばりルインガ：前へ飛ぶ白い扇の奥義（p1lib の ruingaFx）
+        if (cleaveShow && S.t - cleaveShow.t < RUINGA_DUR) ruingaFx(cleaveShow.u, CLEAVE_HALF, S.t - cleaveShow.t);
+        // 裁きの光：赤い溶岩 → 白く光る（金の柱は drawTop）
+        JUDGES.forEach(at => { const a = t - at; if (a >= -JUDGE_LAVA && a < JUDGE_DUR) judgeFloor(a); });
       },
       draw: t => call('draw', t),
       drawTop(t, g){
         call('drawTop', t, g);
+        JUDGES.forEach(at => judgeTop(g, t - at));
         // ハイパードライブ：ヘイト1位のタンクのまわり（半径5）に、たらいと黄色寄りの光（ユーザーの動画 2026-10-15）。0.8 秒前から降ってくる
         GAPS.forEach(gp => gp.hyper.forEach(h => { const a = S.t - h; if (a < -.8 || a >= .6) return;
           const q = a >= 0 && hyperShow && Math.abs(hyperShow.t - h) < .2 ? hyperShow : (hateTop(S.t) === me ? S.player : segs[idx(S.t)]._debug.pos(hateTop(S.t)));

@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from 
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS, statuePt, topTether, topGlow, bigOrb } from './p1lib.js';
+import { arrowPlate, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -220,8 +220,8 @@ const P1B = {
         if (t >= T.mmCast && t < T.ice) drawTell(mm, true, false);
         // 沼（グラビガ）
         puddles.forEach(c => puddle(c, PUDDLE_R, t));
-        // ばりばりルインガ（赤い扇・実機の動画）
-        if (cleaveShow && S.t - cleaveShow.t < .5){ const k = (S.t - cleaveShow.t) / .5; alpha(.55 * (1 - k), () => fillCone(cleaveShow.u, CLEAVE_HALF, k < .3 ? '#ffffff' : '#e8283a')); }
+        // ばりばりルインガ：前へ飛ぶ白い扇の奥義（p1lib の ruingaFx）
+        if (cleaveShow && S.t - cleaveShow.t < RUINGA_DUR) ruingaFx(cleaveShow.u, CLEAVE_HALF, S.t - cleaveShow.t);
         // 半面（着弾の光）
         if (halfShow && S.t - halfShow.t < .5) alpha(.5 * (1 - (S.t - halfShow.t) / .5), () => fillArena(z => halfShow.east ? [0, 99] : [-99, 0], halfCol(halfShow.east)));
       },

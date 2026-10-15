@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRoutes, stepBots, drawBot,
   BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, gazeEye, topFieldFlash } from './p1lib.js';
+import { arrowPlate, puddle, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, gazeEye, topFieldFlash } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：ずびずばテレポ 〜 神々の像（3回目）〜 なぞなぞマジック。docs/dmu/research-p1.md §4

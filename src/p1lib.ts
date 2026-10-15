@@ -324,15 +324,57 @@ function puddle(c, R, t){
   for (let i = 0; i < 3; i++){ const a0 = t * 2 + i * 2.1; for (let k = 0; k < 14; k++){ const a = a0 + k * .22, rr = r * (.25 + k / 14 * .7); rect(Math.round(X + Math.cos(a) * rr), Math.round(Z + Math.sin(a) * rr), 2, 2, k % 3 ? '#c87aff' : '#ffffff'); } }
   ring(X, Z, r, '#b05aff');
 }
-// 中心から向き u の 90° の扇を塗る（ばりばりルインガ）
-function fillCone(u, halfDeg, col){
+// 中心から向き u・半角 halfDeg・半径 R までの扇を塗る（ばりばりルインガ）
+function fillConeR(u, halfDeg, R, col){
   const c = Math.cos(halfDeg * Math.PI / 180);
-  fillArena(z => { let lo = 99, hi = -99; for (let x = -20; x <= 20; x += .25){ const r = Math.hypot(x, z); if (r > .3 && (x * u.x + z * u.z) / r >= c){ lo = Math.min(lo, x); hi = Math.max(hi, x); } } return hi >= lo ? [lo, hi] : null; }, col);
+  fillArena(z => { let lo = 99, hi = -99; for (let x = -20; x <= 20; x += .25){ const r = Math.hypot(x, z); if (r > .3 && r <= R && (x * u.x + z * u.z) / r >= c){ lo = Math.min(lo, x); hi = Math.max(hi, x); } } return hi >= lo ? [lo, hi] : null; }, col);
+}
+const rndOf = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+// ばりばりルインガ：ケフカの正面へ飛んでいく白い扇の奥義（ユーザーの動画 2026-10-15、見本で OK）
+//   扇が中心から前へ広がる（真ん中は白・ふちは桃色）→ 前へ飛ぶ白い光の筋 → 消える。a：着弾からの経過秒（0〜RUINGA_DUR）
+const RUINGA_DUR = .6;
+function ruingaFx(u, halfDeg, a){
+  const k = a / RUINGA_DUR, R = 20 * Math.min(1, .35 + k * 1.6), fade = 1 - Math.max(0, (k - .45) / .55);
+  alpha(.55 * fade, () => fillConeR(u, halfDeg, R, '#ffc8d8'));
+  alpha(.75 * fade, () => fillConeR(u, halfDeg * .72, R, '#fff0f4'));
+  alpha(.85 * fade, () => fillConeR(u, halfDeg * .42, R * .92, '#ffffff'));
+  const ang = Math.atan2(u.z, u.x), h = halfDeg * Math.PI / 180;
+  alpha(.9 * fade, () => [-1, 1].forEach(s => { const e = { x:Math.cos(ang + s * h), z:Math.sin(ang + s * h) }; line(px(0), px(0), px(e.x * R), px(e.z * R), '#ff7aa0'); line(px(0), px(0) + 1, px(e.x * (R - .2)), px(e.z * (R - .2)) + 1, '#ffd0dc'); }));
+  const rnd = rndOf(4);
+  alpha(fade, () => { for (let j = 0; j < 22; j++){ const b = ang + (rnd() - .5) * h * 1.8, r0 = rnd() * R * .7 + k * R * .25, ln = 2.4 + rnd() * 3.4, r1 = Math.min(R, r0 + ln);
+    line(px(Math.cos(b) * r0), px(Math.sin(b) * r0), px(Math.cos(b) * r1), px(Math.sin(b) * r1), '#ffffff'); } });
+  alpha(.85 * fade, () => disc(px(u.x * 6.5), px(u.z * 6.5), Math.round(2 * PPY), '#ffffff'));
+}
+// 裁きの光（P1）：詠唱の終わり 2 秒は床が赤い溶岩のように光る → 着弾で白く光り、金の光の柱が何本も立つ → 引いていく
+//   （ユーザーの動画 2026-10-15、見本で OK）。a：着弾からの経過秒（負＝詠唱中）
+const JUDGE_LAVA = 2, JUDGE_DUR = 1.2;
+function judgeFloor(a){
+  const R = Math.round(20 * PPY), C0 = px(0);
+  if (a >= -JUDGE_LAVA && a < 0){
+    const k = 1 + a / JUDGE_LAVA, ph = performance.now() / 900;
+    alpha(.6 * k, () => { for (let dy = -R; dy <= R; dy += 3) for (let dx = -R; dx <= R; dx += 3){ if (dx * dx + dy * dy > R * R) continue;
+      const n = Math.sin(dx * .09 + dy * .05 + ph) + Math.cos(dy * .11 - dx * .03 - ph * .7);
+      ctx.fillStyle = n > .5 ? '#ff3a1a' : Math.sin(dx * .07) + Math.cos(dy * .08 + ph * .5) > -.3 ? '#c81a10' : '#6a0a08'; ctx.fillRect(C0 + dx, C0 + dy, 3, 3); } });
+    const rnd = rndOf(Math.floor(performance.now() / 120) + 3);
+    alpha(k, () => { for (let j = 0; j < 40; j++){ const b = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R * .95; disc(Math.round(C0 + Math.cos(b) * d), Math.round(C0 + Math.sin(b) * d), 1 + Math.floor(rnd() * 2), '#ffb040'); } });
+  } else if (a >= 0 && a < JUDGE_DUR){
+    const k = 1 - a / JUDGE_DUR;
+    alpha(.85 * Math.min(1, k * 1.6), () => disc(C0, C0, R, a < .4 ? '#fff8e0' : '#ffe8b0'));
+  }
+}
+function judgeTop(g, a){
+  if (a < 0 || a >= JUDGE_DUR) return;
+  const k = 1 - a / JUDGE_DUR, grow = Math.min(1, a / .15), rnd = rndOf(8), R = 20 * PPY;
+  for (let j = 0; j < 14; j++){
+    const b = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R * .85, X = Math.round(px(0) + Math.cos(b) * d), Y = Math.round(px(0) + Math.sin(b) * d), w = 3 + Math.floor(rnd() * 3), top = Math.round((90 + rnd() * 80) * grow * (.5 + .5 * k));
+    for (let dy = -top; dy <= 0; dy++){ const f = Math.min(1, (dy + top) / 40) * k;
+      gAlpha(g, f, () => { g.fillStyle = '#ffb020'; g.fillRect(X - w, Y + dy, w * 2 + 1, 1); g.fillStyle = '#ffe070'; g.fillRect(X - Math.round(w * .7), Y + dy, Math.round(w * 1.4) + 1, 1); g.fillStyle = '#ffffff'; g.fillRect(X - Math.round(w * .3), Y + dy, Math.round(w * .6) + 1, 1); }); }
+  }
 }
 // つぎつぎトラップの爆発（赤い結晶）
 const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 
-export { arrowPlate, puddle, fillCone, TRAP_COLS };
+export { arrowPlate, puddle, TRAP_COLS, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
   orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB, bigOrb, gazeEye, hyperFx, topFieldFlash };

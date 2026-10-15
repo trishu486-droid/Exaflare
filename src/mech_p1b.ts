@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from 
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS, statuePt, topTether, topGlow } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, statuePt, topTether, topGlow, bigOrb } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -27,7 +27,6 @@ const T = { gravenCast:2.3, graven:5.0, mmCast:7.4, ice:12.1, grav1:12.2, vit1:1
   grav2:30.8, vit2:34.8, half2Tell:34.4, half2:39.4, gravity:42.0, trapHit:43.0, soak:47.0, end:48.2 }; // グラビガ（沼の判定）はトラップの 4 秒後（ユーザーの軽減表：トラップ 1:58 → グラビガ 2:02。前は推定 2 秒後）
 // 像は1つ（ユーザーの指摘 2026-10-14）。紫の線（重力弾）と黄の線（岩石弾）は同じ像の左と右から出る（左右ははっきり分ける。ユーザー）
 // 半面の予兆の光も、危ない側（黄＝東・紫＝西）の像の端に出す
-const STATUE_Q = { x:0, z:-22.3 }, GRAV_STATUE = { x:-4.5, z:-22.3 }, VIT_STATUE = { x:4.5, z:-22.3 }, HALF_GLOW_X = 7; // 画面の北の端に描く位置（実際はもっと北の外）
 const PUDDLE_R = 5, ROCK_R = 5, KB_SPEED = 20, TRAP_R = 6, TRAP_KB = 14, CLEAVE_HALF = 45; // トラップのノックバックはゲームのデータの 14（2026-10-14。前は推定 8）
 // 1回目の散開（沼が南）：岩石弾の人（4人）の位置。タンヒラなら MT・ST・H1・H2、DPS なら D1・D2・D3・D4 の順
 const VIT_SPOTS = [{ x:-10.2, z:2.4 }, { x:10.2, z:2.4 }, { x:-12, z:13.5 }, { x:12, z:13.5 }]; // 沼の中心から 10 以上（岩5＋沼5）
@@ -191,8 +190,6 @@ const P1B = {
       if ((me === newT || me === newD) && t >= T.trapHit + .1) s.push({ icon:'trap', name:'つぎつぎトラップ（次はずびずばテレポのあと）', sec:Math.ceil(T.trapHit + .1 + 49 - t) });
       return s;
     };
-    // 予兆の光：像の端に、色の付いた光の玉と二重の輪（左右がひと目で分かるように）
-    const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 8) * .3; alpha(.35 * k + .1, () => disc(X, Z, 10, col)); alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
     const halfCol = east => east ? '#ffe040' : '#b05aff'; // 黄＝撲殺の神気（東が危ない）、紫＝重力波（西が危ない）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
@@ -230,8 +227,6 @@ const P1B = {
       },
       draw(t){
         if (t >= T.gravenCast){
-          if (t >= T.half1Tell && t < T.half1) statueGlow({ x:p.half1East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half1East), t);
-          if (t >= T.half2Tell && t < T.half2) statueGlow({ x:p.half2East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half2East), t);
         }
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
         const trapHolders = t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
@@ -242,6 +237,8 @@ const P1B = {
       // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：渦の柱の上の紫の光＝重力弾（沼を捨てる）、像の手の光＝岩石弾（岩を捨てる）
       // 重力弾の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14・15）
       drawTop(t, g){
+        // 半面の予兆：像の横に濃い大きな光の球（重力波＝左に紫・撲殺の神気＝右に黄。ユーザーの画像 2026-10-15）
+        [[T.half1Tell, T.half1, p.half1East], [T.half2Tell, T.half2, p.half2East]].forEach(([a, b, east]) => { if (t >= a && t < b) bigOrb(g, statuePt(2, t, east ? 'halfE' : 'halfW'), east ? 'yellow' : 'purple', (t - a) / (b - a)); });
         const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
         if (!round || t < T.graven) return;
         const gravGone = t >= (round === 1 ? T.grav1 : T.grav2), gp = statuePt(2, t, 'grav'), rp = statuePt(2, t, 'rock');

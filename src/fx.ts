@@ -5,7 +5,7 @@ import { ARENA_R } from './config.js';
 
 // ===== 演出（8bit：色は段階的に切り替え、粒は四角いドット、画面の揺れとフラッシュ） =====
 // 時刻はゲーム内の S.t。座標はフィールドの y（x, z）。揺れ・フラッシュは設定で切れる
-const FX = { list:[], parts:[], shakeA:0, shakeUntil:-9, flash:null };
+const FX = { list:[], parts:[], shakeA:0, shakeUntil:-Infinity, flash:null };
 const FXC = {
   holy:['#ffffff', '#c8f0ff', '#8ad8ff', '#3a8aff'], flare:['#ffffff', '#ffe070', '#ff9a3a', '#e8442a', '#7a1a10'],
   magenta:['#ffffff', '#ff8af0', '#e040d0', '#7a2a9a', '#3a1a4a'], water:['#ffffff', '#c8f0ff', '#3ab8ff', '#1a6ad8'],
@@ -15,7 +15,8 @@ const FXC = {
   orange:['#ffffff', '#ffe08a', '#ff7a1f', '#a8400a'],
 };
 const fxStep = (k, n) => Math.min(n - 1, Math.floor(k * n)); // 0〜1 の進み具合 → 何段目の色か
-function fxReset(){ FX.list.length = 0; FX.parts.length = 0; FX.flash = null; FX.shakeUntil = -9; }
+// 揺れは「終わる時刻」で持つので、時刻がマイナスから始まるギミック（P1 通しは −21 秒から）でも揺れないように、ずっと前にしておく
+function fxReset(){ FX.list.length = 0; FX.parts.length = 0; FX.flash = null; FX.shakeUntil = -Infinity; FX.shakeA = 0; }
 function fxAdd(kind, x, z, o = {}){ FX.list.push({ kind, x, z, at:S.t, dur:.5, ...o }); }
 function fxShake(a, dur = .25){ if (!opt.fx) return; FX.shakeA = FX.shakeUntil > S.t ? Math.max(FX.shakeA, a) : a; FX.shakeUntil = S.t + dur; }
 // 攻撃の光：画面（ゲーム機の画面の枠の中）全体を光らせる（style.css の .screen.flash）。3段階で消える。

@@ -318,8 +318,8 @@ const P1C = {
         }
         // つぎつぎトラップを持っている人（頭上に紙ふぶきの印）
         if (t < T.trap) [p.trapT, p.trapD].forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
-        // 混乱・睡眠の印
-        if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (isConf(k)) { ring(X, Z, 3, '#ff7ad8'); rect(X, Z, 1, 1, '#ff7ad8'); } else glyph('Z', X, Z, '#7ab8ff'); });
+        // 睡眠の印（混乱の頭上の印は出さない。ユーザー 2026-10-15）
+        if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (!isConf(k)) glyph('Z', X, Z, '#7ab8ff'); });
         bots.forEach(drawBot);
         efx.draw(); ffx.draw();
       },

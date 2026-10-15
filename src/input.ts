@@ -132,6 +132,15 @@ cv.addEventListener('pointermove', e => {
 });
 ['pointerup','pointercancel'].forEach(t => cv.addEventListener(t, (e: PointerEvent) => { if (e.pointerId === dragId){ dragId = null; stickVec.x = stickVec.z = 0; } }));
 
+// 指を離したのにスティックが倒れたままになる（走り続けて外周から落ちる）のを防ぐ（ユーザーの指摘 2026-10-15）
+//   指を離した合図がスティックや画面の外に届いたとき・指の追跡が外れたとき・画面が隠れたときも、必ずニュートラルに戻す
+const dragEnd = () => { if (dragId == null) return; dragId = null; stickVec.x = stickVec.z = 0; };
+['pointerup','pointercancel'].forEach(t => window.addEventListener(t, (e: PointerEvent) => { if (e.pointerId === stickId) stickEnd(); if (e.pointerId === dragId) dragEnd(); }, true));
+stick.addEventListener('lostpointercapture', (e: PointerEvent) => { if (e.pointerId === stickId) stickEnd(); });
+cv.addEventListener('lostpointercapture', (e: PointerEvent) => { if (e.pointerId === dragId) dragEnd(); });
+['touchend','touchcancel'].forEach(t => window.addEventListener(t, (e: TouchEvent) => { if (!e.touches.length){ if (stickId != null) stickEnd(); dragEnd(); } }, { passive:true }));
+document.addEventListener('visibilitychange', () => { if (document.hidden){ stickEnd(); dragEnd(); } });
+
 // A/B は押した瞬間に反応させる
 function holdButton(el, fn, onUp){
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('press'); fn(); });

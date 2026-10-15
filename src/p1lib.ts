@@ -3,6 +3,7 @@
 // 座標：中心 (0,0)・半径 20・北が −z（ほかのフェーズと同じ）。味方7人は正しく動く（P2 と同じ作り）
 import { S } from './state.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, px, fillArena, glyph } from './gfx.js';
+import { tellQuad, tellBand } from './p4fx.js';
 
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
 const TH = ['MT', 'ST', 'H1', 'H2'], DPS = ['D1', 'D2', 'D3', 'D4'];
@@ -64,11 +65,10 @@ const iceHit = (m, q) => iceHits(m).includes(quadOf(q));
 const thHit = (m, q) => thHits(m).some(i => inBand(m.thO, BAND_C[i], q));
 const rollMystery = () => ({ iceTrue:Math.random() < .5, iceOff:Math.random() < .5 ? 0 : 1, thTrue:Math.random() < .5, thOff:Math.random() < .5 ? 0 : 1, thO:Math.random() < .5 ? 1 : -1,
   fireStack:Math.random() < .5, fireTrue:Math.random() < .5 });
-// 予兆の色（P4 と同じ：扇は水色、帯は黄色。点滅）
+// 予兆の床（P4 と同じ：ひし形の柄。p4fx.ts の tellQuad・tellBand）
 function drawTell(m, ice, th){
-  const blink = (Math.floor(performance.now() / 200) & 1) === 0;
-  if (ice) iceTell(m).forEach(q => alpha(blink ? .22 : .14, () => fillArena(quadSpan(q), '#a8e8ff')));
-  if (th) thTell(m).forEach(i => alpha(blink ? .22 : .14, () => fillArena(bandSpan(m.thO, BAND_C[i]), '#fff070')));
+  if (ice) iceTell(m).forEach(q => tellQuad(q, quadSpan(q)));
+  if (th) thTell(m).forEach(i => tellBand(bandSpan(m.thO, BAND_C[i])));
 }
 // 着弾の白い光（当たった所）
 const drawHitFlash = (m, ice, th) => { if (ice) iceHits(m).forEach(q => fillArena(quadSpan(q), '#a8e8ff')); if (th) thHits(m).forEach(i => fillArena(bandSpan(m.thO, BAND_C[i]), '#ff9ae8')); };

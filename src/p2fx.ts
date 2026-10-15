@@ -72,14 +72,25 @@ function drawJudgment(e, W, H){
   return e < 2.7;
 }
 
+// バウル・オブ・アゴニー（P3）：画面全体が白〜黄色の光で放射状に弾ける（2026-10-16 ユーザー：フィールドだけでなく画面全体に）
+function drawBowels(e, W, H){
+  const k = Math.min(1, e / .85), C = [W / 2, H * .42];
+  g.globalAlpha = .85 * (1 - k); g.fillStyle = '#fff4c8'; g.fillRect(0, 0, W, H);
+  g.globalAlpha = 1 - k; const r0 = 6 + k * 40, r1 = Math.hypot(W, H);
+  for (let a = 0; a < 24; a++){ const th = a * Math.PI / 12; g.strokeStyle = a % 2 ? '#ffd84a' : '#ffffff'; g.lineWidth = 2; g.beginPath(); g.moveTo(C[0] + Math.cos(th) * r0, C[1] + Math.sin(th) * r0); g.lineTo(C[0] + Math.cos(th) * r1, C[1] + Math.sin(th) * r1); g.stroke(); }
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(C[0], C[1], 14 * (1 - k) + 2, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 1;
+  return e < .85;
+}
+
 function loop(){
   if (!cur){ return; }
   const e = (performance.now() - cur.at) / 1000;
   g.clearRect(0, 0, cv.width, cv.height);
-  const more = (cur.kind === 'forsaken' ? drawForsaken : drawJudgment)(e, cv.width, cv.height);
+  const more = ({ forsaken:drawForsaken, judgment:drawJudgment, bowels:drawBowels })[cur.kind](e, cv.width, cv.height);
   if (more) requestAnimationFrame(loop); else { g.clearRect(0, 0, cv.width, cv.height); cur = null; }
 }
-// kind：'forsaken'（ミッシング）か 'judgment'（裁きの光）
+// kind：'forsaken'（ミッシング）・'judgment'（裁きの光）・'bowels'（P3 バウル・オブ・アゴニー）
 function screenFx(kind){
   if (opt.fx === false || !ensure()) return;
   const running = !!cur; cur = { kind, at:performance.now() };

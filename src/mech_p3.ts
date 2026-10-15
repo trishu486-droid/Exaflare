@@ -7,6 +7,7 @@ import { bossSprite } from './p4boss.js';
 import { fxFlash, fxShake } from './fx.js';
 import { GLYPH, P, PPY, alpha, ctx, disc, drawBossFace, hurt, line, px, rect, ring, targetLast } from './gfx.js';
 import { BLASTER_MACRO } from './p3macro.js';
+import { screenFx } from './p2fx.js';
 import { makeP3Fx, drawCrystal, drawVoid } from './p3fx.js';
 
 // =====================================================================
@@ -367,7 +368,7 @@ const P3A0 = (() => {
           if (mine !== myBoss(me)) hurt(`決戦：${myBoss(me) === 'chaos' ? 'カオス' : 'エクスデス'}の近くにいなかった`);
           fxFlash('#ffffff', .25, .15); sfx.big();
         }],
-        [T.bowels, () => { healerHit(DMG.bowels, 'バウル・オブ・アゴニー'); efx.add('bowels'); fxShake(3, .25); sfx.big(); }],
+        [T.bowels, () => { healerHit(DMG.bowels, 'バウル・オブ・アゴニー'); screenFx('bowels'); fxShake(3, .25); sfx.big(); }], // 画面全体（p2fx.ts）
         [T.thunderAoe, () => {
           const e = { x:EX.x, z:EX.z };
           if (dist(e, S.player) <= THUNDER_R) hurt('サンダガ（範囲）に当たった');

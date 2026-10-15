@@ -23,7 +23,7 @@ import { inBusterAoe, BUSTER_R, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
 const JOB_OF = { MT:'pld', ST:'drk', H1:'ast', H2:'sch', D1:'mnk', D2:'rpr', D3:'mch', D4:'blm' };
 const T = {
-  max:.9, quake:4.0, mudAuto:[9.1, 13.2], mudEnd:19.0, markEnd:21.0, battleEnd:21.0,
+  max:.9, quake:4.0, mudAuto:[9.1, 13.2], mudEnd:19.0, markEnd:21.0,
   slap:[{ tp:13.3, cast:15.5, end:19.5, hits:[20.3, 21.1, 21.8], last:22.8 },
         { tp:43.7, cast:45.9, end:49.9, hits:[50.8, 51.4, 52.2], last:53.2 },
         { tp:111.7, cast:113.9, end:117.9, hits:[118.7, 119.2, 119.9], last:121.2 }],
@@ -161,7 +161,8 @@ const P3C = {
       if (pullDir == null){ const kb = p.kefka.bok[0], e = centerPos('exdeath'); pullDir = [kb + 180 + 60, kb + 180 - 60].map(norm).sort((a, b) => { const qa = at(a, 1), qb = at(b, 1); return (qb.x * e.x + qb.z * e.z) - (qa.x * e.x + qa.z * e.z); })[0]; }
       return pullDir;
     };
-    const battleOn = t => t < T.battleEnd;
+    // 決戦（2回目）は時間では外れず、ボスのどちらかが倒れるまで続く（cactbot：After Big Bang, they fall off when one of the two bosses dies）。P3後半のあいだずっと付いたまま
+    const battleOn = t => true;
     const bosses = t => [
       { id:'chaos', name:'カオス', x:CH.x, z:CH.z, face:CH.face, r:BOSS_TC, color:BOSS_COL.chaos, attackable: tt => !battleOn(tt) || side(me) === 'chaos' },
       { id:'exdeath', name:'エクスデス', x:EX.x, z:EX.z, face:EX.face, r:BOSS_TC, color:BOSS_COL.exdeath, attackable: tt => !battleOn(tt) || side(me) === 'exdeath' },
@@ -223,7 +224,10 @@ const P3C = {
         if (t > nTime(n) + .15) continue;
         const d = dutyOf(lab, n); if (d == null) continue;
         // 各セットの最初の線は、直前（FIRST_GO 秒前）まで中央で待ってから取りに行く（早く動くと答えが分かってしまう）
-        const st = setOf(n), from = k !== me ? Math.max(st.n[0] === n ? st.at + .6 : nTime(n - 1) + .4, nTime(n) - BOT_GO)
+        // ただし、自分（プレイヤー）が番を終えた線を見えない味方が受け取りに来るときは、前の無の波動のすぐあとに来る
+        //   （直前まで待つと、自分が線を持ったままビームの通り道に残ってしまう。ユーザーの指摘 2026-10-15）
+        const st = setOf(n), fromMe = k !== me && st.n[0] !== n && (tether[d] === me || tether[d] === k); // 受け取ったあとも、そのまま持ち場へ
+        const from = k !== me ? (fromMe ? nTime(n - 1) + .4 : Math.max(st.n[0] === n ? st.at + .6 : nTime(n - 1) + .4, nTime(n) - BOT_GO))
           : st.n[0] === n ? Math.max(st.at + .6, nTime(n) - FIRST_GO) : nTime(n - 1) + .4;
         if (t >= from) return { n, d };
         return null;
@@ -717,7 +721,7 @@ const P3C = {
       debug:{ p, T, PLAN, label, tether, mem, extraLog, pos, spot, s2Spot, inBeam, CH, EX, bots, kefkaAt, holdSpot, orbPos, frames, implHit, slapSpot, bokHit, behindChaos, dutyOf, nextDuty },
       status(t){
         const s = [];
-        if (battleOn(t)) s.push({ at:0, icon:side(me) === 'chaos' ? 'heroA' : 'heroB', glyph:side(me) === 'chaos' ? 'α' : 'β', color:side(me) === 'chaos' ? '#e8283a' : '#d8a82a', name:side(me) === 'chaos' ? '決戦α［被］' : '決戦β［被］', sec:tm(T.battleEnd) });
+        if (battleOn(t)) s.push({ at:0, icon:side(me) === 'chaos' ? 'heroA' : 'heroB', glyph:side(me) === 'chaos' ? 'α' : 'β', color:side(me) === 'chaos' ? '#e8283a' : '#d8a82a', name:side(me) === 'chaos' ? '決戦α［被］' : '決戦β［被］', sec:'' });
         const m = mem[me];
         if (t >= T.quake){
           if (m.dirt) s.push({ at:T.quake, icon:'tgt' + p.line[me], glyph:['', 'Ⅰ', 'Ⅱ', 'Ⅲ'][p.line[me]], color:'#5a7ae0', name:`${['', 'ファースト', 'セカンド', 'サード'][p.line[me]]}ターゲット`, sec:'' });

@@ -58,6 +58,8 @@ function line(x0, y0, x1, y1, c){
 }
 function alpha(a, fn){ ctx.globalAlpha = a; fn(); ctx.globalAlpha = 1; }
 function thickRing(cx, cy, r, c, w){ for (let i = 0; i < w; i++) ring(cx, cy, r - i, c); }
+// 範囲攻撃の予兆の床：うすい地の色（base・濃さ a）の上に、柄（pat：CanvasPattern・濃さ pa）を重ねる。span は fillArena と同じ
+function fillTell(span, base, pat, a, pa){ alpha(a, () => fillArena(span, base)); alpha(pa, () => fillArena(span, pat)); }
 // フィールド内だけを行ごとに塗る。span(z) は x の範囲 [x0, x1] を返す
 function fillArena(span, c){
   const R = ARENA_R * PPY;
@@ -272,4 +274,4 @@ function hurt(reason, onBoard = reason){
 // 被弾の赤い光は画面全体（style.css の .screen.hurt）に移した。フィールドには描かない
 function drawHurtFlash(){}
 
-export { W, C0, PPY, setPPY, cv, ctx, px, P, rect, disc, donut, ring, line, alpha, thickRing, fillArena, GLYPH, glyph, icon5, corner, ICON, ROLE_COLOR, jobIconSvg, drawIcon, drawField, drawBoss, drawBossFace, targetLast, drawSafe, missStack, missStackT, misses, hurt, drawHurtFlash };
+export { W, C0, PPY, setPPY, cv, ctx, px, P, rect, disc, donut, ring, line, alpha, thickRing, fillArena, fillTell, GLYPH, glyph, icon5, corner, ICON, ROLE_COLOR, jobIconSvg, drawIcon, drawField, drawBoss, drawBossFace, targetLast, drawSafe, missStack, missStackT, misses, hurt, drawHurtFlash };

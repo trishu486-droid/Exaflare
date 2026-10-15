@@ -306,8 +306,6 @@ const P1C = {
           kefkaOrbs(null, mm.thTrue, mm.fireTrue);
           if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), Math.ceil(T.fire - t))); else SLOTS.forEach(k => spreadMark(pos(k)));
         }
-        // つぎつぎトラップを持っている人（頭上に紙ふぶきの印）
-        if (t < T.trap) [p.trapT, p.trapD].forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         // 睡眠の印（混乱の頭上の印は出さない。ユーザー 2026-10-15）
         if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (!isConf(k)) glyph('Z', X, Z, '#7ab8ff'); });
         bots.forEach(drawBot);

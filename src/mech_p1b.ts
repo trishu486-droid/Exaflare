@@ -229,8 +229,6 @@ const P1B = {
         if (t >= T.gravenCast){
         }
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
-        const trapHolders = t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
-        trapHolders.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         bots.forEach(drawBot);
         efx.draw();
       },

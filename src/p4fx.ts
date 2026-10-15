@@ -3,7 +3,7 @@
 // add(種類, 引数) で再生を始め、draw(t) で毎フレーム描く。座標はフィールドの座標（x＝東、z＝南）
 import { S } from './state.js';
 import { opt } from './store.js';
-import { PPY, ctx, disc, donut, fillArena, line, px, rect, ring } from './gfx.js';
+import { PPY, ctx, disc, donut, fillArena, fillTell, line, px, rect, ring } from './gfx.js';
 import { fxFlash } from './fx.js';
 
 const ARENA = 20;
@@ -88,13 +88,41 @@ function makeP4Fx(){
 }
 
 // ---- 毎フレーム描く演出（時間で決まるもの） ----
-// サンダガの帯の両ふちに黄色いレール
+// なぞなぞマジックの予兆の床（P1・P4 共通）：実機の模様に合わせる（ユーザーの実機の画像から。2026-10-15 案C で決定）
+//   ブリザガの扇＝紫の地に赤いひし形の水玉、ふちはクリーム色と赤のしましま
+//   サンダガの帯＝銅色（オレンジ）の地に青いタイル、ふちはクリーム色の2本線に赤い横木（はしご）
+const blinkA = () => (Math.floor(performance.now() / 200) & 1) === 0 ? .26 : .18;
+const pats = {};
+const tilePat = (key, N, paint) => { if (pats[key]) return pats[key]; const c = document.createElement('canvas'); c.width = c.height = N; paint(c.getContext('2d')); return (pats[key] = ctx.createPattern(c, 'repeat')); };
+const icePat = () => tilePat('ice', 10, g => { const dia = (x, y) => { g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); }; g.fillStyle = '#ff3a5a'; dia(2, 2); dia(7, 7); g.fillStyle = '#ff9ab0'; g.fillRect(2, 2, 1, 1); g.fillRect(7, 7, 1, 1); });
+const thPat = () => tilePat('th', 10, g => { g.fillStyle = '#16307a'; for (let i = 0; i < 6; i++) g.fillRect(1 + i, 1 + (i >> 1), 2, 2); g.fillStyle = '#4a7ad8'; g.fillRect(2, 1, 3, 1); g.fillStyle = '#ffe0b0'; g.fillRect(8, 6, 1, 1); g.fillRect(4, 8, 1, 1); });
+// 点を並べて線を描く（しましま用）。col(i) で i 番目の点の色
+function dotLine(x0, y0, x1, y1, col){ const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) rect(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), 1, 1, col(i)); }
+// 内側（inward の向き）へ 1 ドットずらす量
+const off = inward => ({ sx:Math.abs(inward.x) > .38 ? Math.sign(inward.x) : 0, sz:Math.abs(inward.z) > .38 ? Math.sign(inward.z) : 0 });
+// 扇のふち：クリーム色と赤のしましま（2ドットの太さ）
+function stripeEdge(a, b, inward){ const { sx, sz } = off(inward), c = i => (i >> 2) % 2 ? '#e8283a' : '#fff0c0';
+  dotLine(px(a.x), px(a.z), px(b.x), px(b.z), c); dotLine(px(a.x) + sx, px(a.z) + sz, px(b.x) + sx, px(b.z) + sz, c); }
+// 帯のふち：はしご（外と内がクリーム色、間に赤い横木）
+function ladderEdge(a, b, inward){ const { sx, sz } = off(inward);
+  dotLine(px(a.x), px(a.z), px(b.x), px(b.z), () => '#fff0c0');
+  dotLine(px(a.x) + sx, px(a.z) + sz, px(b.x) + sx, px(b.z) + sz, i => i % 3 ? '#a8182a' : '#ff5a4a');
+  dotLine(px(a.x) + sx * 2, px(a.z) + sz * 2, px(b.x) + sx * 2, px(b.z) + sz * 2, () => '#fff0c0'); }
+// ひろげるブリザガの扇（象限 q：0＝北東 1＝南東 2＝南西 3＝北西）
+function tellQuad(q, span){
+  const at = (deg, r) => ({ x:Math.sin(deg * Math.PI / 180) * r, z:-Math.cos(deg * Math.PI / 180) * r }), mid = at(q * 90 + 45, 1);
+  fillTell(span, '#8a2ad8', icePat(), blinkA() + .12, .9);
+  [q * 90, q * 90 + 90].forEach(deg => stripeEdge({ x:0, z:0 }, at(deg, ARENA), mid));
+}
+// もりもりサンダガの帯（地と柄だけ。ふちは drawRails）
+function tellBand(span){ fillTell(span, '#f08a2a', thPat(), blinkA() + .2, .9); }
+// サンダガの帯の両ふちのレール（はしご）
 function drawRails(o, cs, hw = 5){
   const n = { x:o / Math.SQRT2, z:1 / Math.SQRT2 }, d = { x:1 / Math.SQRT2, z:-o / Math.SQRT2 };
   cs.forEach(c => [c - hw, c + hw].forEach(e => {
     if (Math.abs(e) >= ARENA) return; const u = Math.sqrt(ARENA * ARENA - e * e);
-    const a = { x:n.x * e - d.x * u, z:n.z * e - d.z * u }, b = { x:n.x * e + d.x * u, z:n.z * e + d.z * u };
-    line(px(a.x), px(a.z), px(b.x), px(b.z), '#ffb84a'); line(px(a.x), px(a.z) + 1, px(b.x), px(b.z) + 1, '#a86a10');
+    const a = { x:n.x * e - d.x * u, z:n.z * e - d.z * u }, b = { x:n.x * e + d.x * u, z:n.z * e + d.z * u }, s = Math.sign(c - e);
+    ladderEdge(a, b, { x:n.x * s, z:n.z * s });
   }));
 }
 // カオスの詠唱中：ほのおなら赤、つなみなら青に光る
@@ -125,4 +153,4 @@ function drawFloodMarks(neo, right, colorOf, t){
 // マジックアウトの詠唱中の輪。真偽の玉の輪（半径16）と見分けやすいよう、外側に薄く出す
 function drawReleaseRings(t){ const X = px(0), Y = px(0); for (let i = 0; i < 3; i++){ const rx = 27 + i * 7 + Math.round(Math.sin(t * 3 + i) * 2); ga(.3, () => { for (let a = 0; a < 72; a++){ const th = a * Math.PI / 36; rect(X + Math.round(Math.cos(th) * rx), Y + Math.round(Math.sin(th) * rx * .45), 2, 1, i % 2 ? '#b05aff' : '#5ab8ff'); } }); } }
 
-export { makeP4Fx, drawRails, drawChaosGlow, drawFloodMarks, drawReleaseRings, scatter };
+export { makeP4Fx, drawRails, tellQuad, tellBand, drawChaosGlow, drawFloodMarks, drawReleaseRings, scatter };

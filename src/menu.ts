@@ -3,7 +3,6 @@ import { S } from './state.js';
 import { JOBS, JOB_ORDER, job, mySlot } from './jobs.js';
 import { OMAKE, openOmake } from './omake.js';
 import { mech, menuMechs } from './mechs.js';
-import { RUN } from './mech_run.js';
 import { titleOn } from './title.js';
 import { sfx } from './audio.js';
 import { applyTitle } from './hud.js';
@@ -70,7 +69,7 @@ function renderMenu(){
   note.innerHTML = ph('A／STARTで開始　Y／iで解説　←→でフェーズ切替');
 
   const L = menuMechs();
-  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${m === RUN ? ' secret' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${ph(m.sub)}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
+  $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${ph(m.sub)}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
 function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : S.menu === 'missm' ? MISS_METHODS.length : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;

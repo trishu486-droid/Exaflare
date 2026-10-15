@@ -6,7 +6,7 @@ import { healerHit, isActing } from './action.js';
 import { FXC, FXK, fxAdd, fxFlash, fxShake } from './fx.js';
 import { P, PPY, alpha, ctx, disc, donut, fillArena, glyph, hurt, line, px, rect, ring } from './gfx.js';
 import { bossSprite } from './p4boss.js';
-import { makeP4Fx, drawRails, drawChaosGlow, drawFloodMarks, drawReleaseRings } from './p4fx.js';
+import { makeP4Fx, drawRails, tellQuad, tellBand, drawChaosGlow, drawFloodMarks, drawReleaseRings } from './p4fx.js';
 
 // =====================================================================
 // P4 通し「おちょくりソウル」（docs/dmu/research-p4.md）
@@ -233,7 +233,8 @@ const P4 = (() => {
           if (real === moving) efx.add('launch', { x:meP.x, z:meP.z }); // ミスしたときだけ打ち上がる
         }
         sfx.big(); fxShake(2, .2);
-        efx.add(sp ? 'spread' : 'stack', { x:meP.x, z:meP.z });
+        // 着弾の演出は自分の所だけでなく、全員の分を出す：散開（フォークライトニング）は散開の人それぞれ、頭割り（水属性圧縮）は各組の頭割りの人（2026-10-16 ユーザーの指摘：散開の演出が出ないことがあった）
+        SLOTS.forEach(k => { const q = k === me ? meP : pos(k); if (isSpread(k, set)) efx.add('spread', { x:q.x, z:q.z }); else if (stackTarget(k, set)) efx.add('stack', { x:q.x, z:q.z }); });
       };
       // 視線：視線持ちはターゲットサークル（ケフカの足元の円）の中、ほかは外。本当ならケフカを見ない、嘘ならケフカを見る
       const TC_R = 8;
@@ -366,9 +367,8 @@ const P4 = (() => {
       const drawNeo = q => drawSprite('neo', q);
       const drawChaos = q => drawSprite('chaos', q);
       const tellDraw = (m, ice, th) => {
-        const blink = (Math.floor(performance.now() / 200) & 1) === 0;
-        if (ice) iceTell(m).forEach(q => alpha(blink ? .22 : .14, () => fillArena(quadSpan(q), '#a8e8ff')));
-        if (th) thTell(m).forEach(i => alpha(blink ? .22 : .14, () => fillArena(bandSpan(m.thO, BAND_C[i]), '#fff070')));
+        if (ice) iceTell(m).forEach(q => tellQuad(q, quadSpan(q)));
+        if (th) thTell(m).forEach(i => tellBand(bandSpan(m.thO, BAND_C[i])));
       };
       const ellipse = (X, Y, rx, ry, col) => { for (let a = 0; a < 64; a++) rect(X + Math.round(Math.cos(a * Math.PI / 32) * rx), Y + Math.round(Math.sin(a * Math.PI / 32) * ry), 2, 1, col); };
       const kefkaOrbs = (iceT, thT) => { // ケフカの体のまわりの輪：上の紫＝サンダガ（帯）、下の青＝ブリザガ（扇）。青い玉＝本当、？の赤い玉＝嘘
@@ -391,8 +391,10 @@ const P4 = (() => {
       return {
         start:{ x:0, z:4 }, t0:1, end:T.end + .4,
         intro:`あなたは ${me}`,
-        bossHp: dpsTarget * activeLen * .95, dpsTarget, hpGate:.25,
-        healEase: () => .45,
+        // 調整（2026-10-16 ユーザー）：DPS（リーパー・黒魔道士）は DPS チェックがきつかったので、ボスを柔らかく（.95 → .82。ヒーラーはそのまま）
+        // ヒーラーの回復はもう少しきついはずなので、敵の攻撃を痛く（味方の軽減の分の倍率 .45 → .6）
+        bossHp: dpsTarget * activeLen * (HEAL_GCDS[opt.job] ? .95 : .82), dpsTarget, hpGate:.25,
+        healEase: () => .6,
         activeTime: end => Math.max(1, end - 1),
         casts:[
           { name:'おちょくりソウル', start:1.45, len:5 },

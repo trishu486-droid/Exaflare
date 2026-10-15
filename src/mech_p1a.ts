@@ -214,9 +214,6 @@ const P1A = {
       draw(t){
         if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), Math.ceil(T.fire1 - t))); else SLOTS.forEach(k => spreadMark(pos(k))); }
         if (t >= T.mm2Cast - .1 && t < T.mm2) kefkaOrbs(m2.iceTrue, m2.thTrue, null);
-        // つぎつぎトラップを持っている人
-        const trapHolders = t < T.trap1 ? [] : t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
-        trapHolders.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });
         bots.forEach(drawBot);
         efx.draw(); ffx.draw();
       },

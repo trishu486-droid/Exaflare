@@ -60,11 +60,36 @@ function screenBgDraw(){
   const img = S.phase !== 'menu' ? S.inst?.screenBg?.(S.t) : null;
   let bg = '';
   if (img){
-    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k;
-    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y = c.top - s.top + c.height / 2 - size / 2 - screenEl.clientTop;
-    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px no-repeat ${img.color}`;
+    // img.h（縦の大きさ）と img.cy（フィールドの中心に合わせる行）があれば縦長の絵（P1 の神々の像。cy を変えると上下に流れる）
+    const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W, size = img.size * k, cy = (img.cy ?? img.size / 2) * k;
+    const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft + (img.dx || 0) * k, y = c.top - s.top + c.height / 2 - cy - screenEl.clientTop; // dx：横の揺れ
+    bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px ${img.h ? (img.h * k).toFixed(1) + 'px' : ''} no-repeat ${img.color}`;
+    // img.cover：フィールドの中心から下にかぶせる絵（P1 の塔が生えてくる途中で、フィールドの下にはみ出さないように）
+    if (img.cover){ const x0 = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft, y0 = c.top - s.top + c.height / 2 - screenEl.clientTop;
+      bg = `url(${img.cover.url}) ${x0.toFixed(1)}px ${y0.toFixed(1)}px / ${size.toFixed(1)}px ${(img.cover.h * k).toFixed(1)}px no-repeat, ${bg}`; }
   }
   if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
+}
+// 上の層：フィールドの外（画面の上の像のあたり）まで描けるキャンバス。ギミックの drawTop(t, g) が描く（P1 の像から出る線・波動砲など）
+// ゲームのキャンバスと同じドットの大きさで、上に H 行ぶん伸ばして重ねる（g は y＝0 がゲームのキャンバスの上の端になるようにずらしてある）
+let topCv: HTMLCanvasElement | null = null, topG: CanvasRenderingContext2D | null = null, topOn = false;
+function topLayerDraw(){
+  const fn = S.phase === 'run' || S.phase === 'count' || S.phase === 'done' ? S.inst?.drawTop : null;
+  if (!fn){ if (topOn){ topOn = false; topCv.style.display = 'none'; } return; }
+  const c = ctx.canvas.getBoundingClientRect(), s = screenEl.getBoundingClientRect(), k = c.width / W;
+  const H = Math.max(0, Math.ceil((c.top - s.top - screenEl.clientTop) / k));
+  if (!topCv){
+    topCv = document.createElement('canvas'); topCv.className = 'toplayer';
+    Object.assign(topCv.style, { position:'absolute', pointerEvents:'none', imageRendering:'pixelated', zIndex:'2' });
+    screenEl.appendChild(topCv); topG = topCv.getContext('2d');
+  }
+  if (!topOn){ topOn = true; topCv.style.display = ''; }
+  if (topCv.width !== W || topCv.height !== H + W){ topCv.width = W; topCv.height = H + W; }
+  const left = c.left - s.left - screenEl.clientLeft, top = c.top - s.top - screenEl.clientTop - H * k;
+  Object.assign(topCv.style, { left:`${left}px`, top:`${top}px`, width:`${c.width}px`, height:`${(H + W) * k}px` });
+  const [sx, sz] = fxShakeOffset();
+  topG.setTransform(1, 0, 0, 1, 0, 0); topG.clearRect(0, 0, W, H + W); topG.translate(sx, H + sz);
+  fn(S.t, topG);
 }
 function draw(){
   screenBgDraw();
@@ -81,6 +106,7 @@ function draw(){
   drawActFx(); drawPlayer();
   ctx.restore();
   fxFlashDraw(); drawCast(); drawHurtFlash();
+  topLayerDraw();
 }
 
 const BTN = { a:$('btnA'), b:$('btnB'), x:$('btnX'), y:$('btnY') }, buffEl = $('buff');

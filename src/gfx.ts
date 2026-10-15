@@ -72,7 +72,8 @@ function fillArena(span, c){
 // 3x5 ドット数字・英字
 const GLYPH = {
   A:'010101111101101', B:'110101110101110', C:'011100100100011', D:'110101101101110',
-  1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', 5:'111100110001110'
+  1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', 5:'111100110001110',
+  '?':'111001011000010', Z:'111001010100111'
 };
 function glyph(ch, cx, cy, c){
   const g = GLYPH[ch]; if (!g) return;
@@ -151,12 +152,13 @@ function drawField(){
   thickRing(C0, C0, R + 3, P.rim, 3);
   ring(C0, C0, R + 4, P.rim2);
   // フィールドマーカー
-  const m = 16, d = Math.round(m / SQ2);
+  // ギミックごとに置き方を変えられる（S.inst.markers：card＝A〜D の中心からの距離、num＝1〜4 の距離。P1 はヤーンの近いひし形）
+  const mk = S.inst?.markers, m = mk?.card ?? 16, d = Math.round((mk?.num ?? m) / SQ2);
   [['A',0,-m],['B',m,0],['C',0,m],['D',-m,0]].forEach(([t, x, z], i) => {
     alpha(.35, () => disc(px(x), px(z), 5, P.mk[i])); ring(px(x), px(z), 5, P.mk[i]); glyph(t, px(x), px(z), P.white);
   });
   // P3 はヤーンのマクロに合わせて北西始まりに固定
-  const corners = (S.inst?.fieldMarker || opt.marker) === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
+  const corners = (mk?.corner || S.inst?.fieldMarker || opt.marker) === 'nw' ? [[-d,-d],[d,-d],[d,d],[-d,d]] : [[d,-d],[d,d],[-d,d],[-d,-d]];
   corners.forEach(([x, z], i) => {
     const X = px(x), Z = px(z), c = P.mk[i];
     alpha(.35, () => rect(X - 5, Z - 5, 11, 11, c));

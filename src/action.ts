@@ -81,7 +81,9 @@ function hpDraw(){
   $('hp').classList.toggle('low', HP.hp < 35);
 }
 function actReset(){
-  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, walk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[] });
+  // 時刻がマイナスから始まるギミック（P1 通しは −16 秒から）でも、始まった瞬間から技を使えるように、始まりの時刻に合わせる
+  const t0 = Math.min(0, S.t0 ?? 0);
+  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:t0, queued:null, cast:null, combo:0, cds:{ b:t0, x:t0, y:t0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, walk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-99, lockAt:-99, lockKeys:[] });
   fxEl.innerHTML = ''; hotAt = -Infinity;
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
@@ -226,7 +228,7 @@ function kitSwap(j){
   if (A.kit === j) return;
   if (A.kit){
     const changed = ['b', 'x', 'y'].filter(k => A.kit[k].name !== j[k].name);
-    ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? 0; A.q[k] = false; });
+    ['b', 'x', 'y'].forEach(k => { A.cdName[A.kit[k].name] = A.cds[k]; A.cds[k] = A.cdName[j[k].name] ?? Math.min(0, S.t0 ?? 0); A.q[k] = false; });
     // 自分の技で切り替わったもの（占星のニュートラルセクト → サンサイン など。技に self:true）は知らせない。
     // ボタンのまわりが回るだけ（hud.ts）。ギミックやシステムで切り替わったときだけ、音と一覧で知らせる
     const self = changed.length && changed.every(k => A.kit[k].self || j[k].self);

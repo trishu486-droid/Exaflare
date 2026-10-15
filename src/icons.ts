@@ -25,7 +25,7 @@ const BUFF = new Set(['rampart', 'invuln', 'guardian', 'living', 'walking', 'reb
 const DEBUFF = new Set(['flare', 'holy', 'fireDown', 'iceDown', 'thunderDown']); // 被魔法ダメージ増加（magicVuln）は実機の絵がないので hud.ts の手描き
 const buffImgUrl = (id: string) => BUFF.has(id) ? `${BASE}buff/${id}.png` : DEBUFF.has(id) ? `${BASE}status/${id}.png` : null;
 // P4 の状態異常（p4icons.ts の id）のうち、実機の画像を元にしたもの。混沌の炎・水は P3 の絵をホームベース型の枠に入れたもの
-const STATUS = new Set(['water', 'fork', 'shriek', 'bomb', 'dead', 'live', 'field', 'beyond', 'flame', 'wave']);
+const STATUS = new Set(['water', 'fork', 'shriek', 'bomb', 'dead', 'live', 'field', 'beyond', 'flame', 'wave', 'tele_u', 'tele_d', 'tele_r', 'tele_l', 'trap', 'confused', 'sleep']);
 const statusImgUrl = (id: string) => STATUS.has(id) ? `${BASE}status/${id}.png` : null;
 
 // ジョブアイコン（8bit の線画。tools/make_job_icons.py）：28×28、small はフィールドの自キャラ用 15×15

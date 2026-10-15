@@ -19,7 +19,7 @@ function begin(){
   S.player = { ...(S.inst.start || m.start) };
   S.face = { x:0, z:-1 };
   hpReset();
-  bgm.use(m.id); // P4 は専用の曲
+  bgm.use(phaseOf(m.id) === 'p1' ? m.id : phaseOf(m.id)); // P1〜P4 はフェーズごとの曲（P1 は楽章ごと）
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true; applyTitle();
   sfx.unlock(); sfx.blip(660, .08);
@@ -38,6 +38,7 @@ function openMenu(){
 const FALL_OVER = .3; // 床の縁からこれだけはみ出したら落ちる（キャラの半分くらい）
 function movePlayer(dt){
   if (S.phase === 'menu' || S.fall) return; // 落ちたあとは動けない
+  if (S.phase === 'run' && S.inst?.lockMove?.(S.t)) return; // 混乱・睡眠・ノックバックの最中など（P1）。動かすのはギミックの側
   let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;

@@ -82,6 +82,9 @@ STATUS = {
     'fireDown':'B1/P5/IMG_3787', 'iceDown':'B1/P5/IMG_3788', 'thunderDown':'B1/P5/IMG_3789',
     # オーケストラのタンクのデバフ：オレンジ＝フレア、白っぽい青＝ホーリー（2026-10-13 ユーザーが教えてくれた。被魔法ダメージ増加の絵はまだない）
     'flare':'B1/P5/IMG_3785', 'holy':'B1/P5/IMG_3786',
+    # P1：ゲームデータ（XIVAPI）のアイコンを P1/ に置いて使う（docs/dmu/research-p1.md §1）
+    'tele_u':'P1/214401', 'tele_d':'P1/214402', 'tele_r':'P1/214403', 'tele_l':'P1/214404', 'trap':'P1/214406',
+    'confused':'P1/215603', 'sleep':'P1/215013',
 }
 for k, rel in STATUS.items(): save(dot(trim(load(rel)).resize((TW, TH), Image.LANCZOS), (SW, SH)), 'status', k)
 # P4 の混沌の炎・水は P3 の絵（中身だけ）をホームベース型の枠に入れる

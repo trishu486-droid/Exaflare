@@ -1,6 +1,8 @@
 import { EXTRA_TRACKS } from './bgm_tracks.js';
 import { p4Battle } from './bgm_p4.js';
 import { rush } from './bgm_rush.js';
+import { p1First, p1Second, p1Third } from './bgm_p1.js';
+import { fallingStar, altar } from './bgm_set2.js';
 import { opt } from './store.js';
 
 // ===== 効果音（8bit矩形波） =====
@@ -377,14 +379,24 @@ const menuBgm = makePlayer(.1, ({ add, bar, up8 }) => {
 });
 
 // 戦闘BGM：設定で選んだ曲を鳴らす（1曲目＋別バージョン5曲）
-// P4 は専用の曲「紅き疾走」（設定の一覧の最後にも入れて、試聴できるように）
-const RUSH_TRACK = { name:'紅き疾走（ホ短調・疾走ロック・P4 の曲）', player:makePlayer(.1, rush) };
-const P4_TRACK = RUSH_TRACK;
+// 紅き疾走：もとは P4 の曲。今は設定で選べる曲の1つ
+const RUSH_TRACK = { name:'紅き疾走（ホ短調・疾走ロック）', player:makePlayer(.1, rush) };
+// P1 は楽章ごとに専用の曲「神々の塔」（塔の足元 → 中腹 → 頂上。docs/dmu/spec.md）
+const P1_TRACKS = {
+  p1a:{ name:'神々の塔・第一楽章（嬰ハ短調・P1）', player:makePlayer(.18, p1First, .35) },
+  p1b:{ name:'神々の塔・第二楽章（ハ短調・P1）', player:makePlayer(.22, p1Second, .25) },
+  p1c:{ name:'神々の塔・第三楽章（嬰ハ長調・P1）', player:makePlayer(.16, p1Third, .3) },
+};
+// P2 は「堕ちる星」、P3・P4 は「魔導の祭壇」（実機の曲の分け方に合わせる。2026-10-15）
+const P2_TRACK = { name:'堕ちる星（イ短調・P2 の曲）', player:makePlayer(.15, fallingStar, .15) };
+const P34_TRACK = { name:'魔導の祭壇（嬰ハ短調・P3 と P4 の曲）', player:makePlayer(.2, altar, .3) };
+const PHASE_TRACKS = { ...P1_TRACKS, p1:P1_TRACKS.p1a, p2:P2_TRACK, p3:P34_TRACK, p4:P34_TRACK };
 const BGM_TRACKS = [{ name:'混沌の聖歌（ニ短調・7/8）', player:bgm1 }, ...EXTRA_TRACKS.map((t: any) => ({ name:t.name, player:makePlayer(.125, t.build, t.rev || 0) })),
-  { name:'混沌への決戦（ト短調・16bit プログレ）', player:makePlayer(.21, p4Battle) }, RUSH_TRACK]; // 混沌への決戦は音数が少ない分、音量を上げる
-let forced = null; // ギミックで決まった曲（P4）。null なら設定で選んだ曲
+  { name:'混沌への決戦（ト短調・16bit プログレ）', player:makePlayer(.21, p4Battle) }, RUSH_TRACK, ...Object.values(P1_TRACKS),
+  P2_TRACK, P34_TRACK]; // 混沌への決戦は音数が少ない分、音量を上げる
+let forced = null; // フェーズで決まった曲（P1〜P4）。null なら設定で選んだ曲（P5）
 const bgm = {
-  use(id: string | null){ forced = id === 'p4' ? P4_TRACK : null; },
+  use(key: string | null){ forced = PHASE_TRACKS[key] || null; }, // key：P1 は区切りの id（p1a〜p1c。P1 通し p1 は第一楽章から。楽章が変わると通しの側で切り替える）、ほかはフェーズ（p2〜p5）
   start(){ (forced || BGM_TRACKS[opt.track] || BGM_TRACKS[0]).player.start(); },
   stop(fade?: number){ BGM_TRACKS.forEach(t => t.player.stop(fade)); },
 };

@@ -112,26 +112,36 @@ function stackMark(q){
 // 絵は FF6 の神々の像（ユーザーがくれた画像）を縦長の1枚のドット絵にしたもの（tools/make_statue.py。104×218。2026-10-14）
 // 像は3段で、下＝第一楽章・中＝第二楽章・上＝第三楽章。像はどの楽章も1つ
 // 画面全体の背景（screenBg）に、星空と像を描いた縦長の絵を置く。フィールドの外を消して（clearOutside）、像はフィールドの奥から画面の上の端まで見える
-// 楽章ごとに見える段を下から上へずらす（塔を上る）。カウントダウン（−2.7〜−0.3 秒）の間に前の楽章の段から今の段へ流れる。第一楽章は足元が下から出てくる
+// 第一楽章の始め（神々の像の詠唱まで）に、塔が下からゴゴゴと生えてくる（揺れる）。そのあとは時間とともに少しずつ上を写していく（塔を上る）
+//   第一楽章 → 第二楽章 → 第三楽章でつながる（ユーザーの説明 2026-10-14）
 const STATUE = new Image(); STATUE.src = 'img/p1/statue.png';
-const BGW = 440, BGH = 900, ST_Y = 300; // 背景の絵の大きさと、像の上の端の行
-const ROW = { 1:132, 2:63, 3:0 }, ROW_FROM = { 1:200, 2:132, 3:63 }; // その段の上の端（像の中の行）を、見える範囲の上の端に
+// 背景の絵はフィールドの 2 倍の細かさ（RES）。像の 1マスがフィールドの半ドット（305×649 マス → 画面では 153×325 ドットぶん）
+const RES = 2, BGW = 440, BGH = 1100, ST_Y = 300; // 大きさと像の上の端の行（フィールドのドット）
+// 見える範囲の上の端（像の中の行。フィールドのドット）：楽章の始め → 終わり
+const PATH = { 1:[228, 175], 2:[175, 110], 3:[110, 18] };
 const ABOVE = 74; // フィールドの縁より上に見える行の数（縦長の画面で、上の端まで）
+// 第一楽章：塔が生えてくる時間（カウントダウンの始めから神々の像の詠唱まで）と、始めにどれだけ下に隠れているか（てっぺんまで床の下）
+const RISE = { from:-1, to:2.4, depth:PATH[1][0] + ABOVE + 6 }; // 揺れと音は 0 秒から（カウントダウン中はギミックの時間が進まないため）
 let statueBg = null;
 const buildStatueBg = () => {
-  const c = document.createElement('canvas'); c.width = BGW; c.height = BGH;
+  const c = document.createElement('canvas'); c.width = BGW * RES; c.height = BGH * RES;
   const g = c.getContext('2d');
-  g.fillStyle = P.space; g.fillRect(0, 0, BGW, BGH);
-  g.fillStyle = P.star; for (let i = 0; i < 260; i++) g.fillRect((i * 97 + 13) % BGW, (i * 53 + 29) % BGH, 1, 1);
-  g.drawImage(STATUE, Math.round(BGW / 2 - STATUE.width / 2), ST_Y);
+  g.fillStyle = P.space; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = P.star; for (let i = 0; i < 260; i++) g.fillRect(((i * 97 + 13) % BGW) * RES, ((i * 53 + 29) % BGH) * RES, RES, RES);
+  g.drawImage(STATUE, Math.round((BGW * RES - STATUE.width) / 2), ST_Y * RES);
   return c.toDataURL();
 };
-function statueScreenBg(part, t){
+// part：楽章（1〜3）、end：その楽章の終わりの時刻
+function statueScreenBg(part, t, end){
   if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); }
-  const k = Math.min(1, Math.max(0, (t + 2.7) / 2.4)), e = k * k * (3 - 2 * k);
-  const row = ROW_FROM[part] + (ROW[part] - ROW_FROM[part]) * e;
-  // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）
-  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY), color:P.space };
+  const [a, b] = PATH[part], row = a + (b - a) * Math.min(1, Math.max(0, t / end));
+  let sink = 0, dx = 0;
+  if (part === 1 && t < RISE.to){ // 生えてくる：下に隠れたところから。小刻みに横に揺れる
+    const k = Math.min(1, Math.max(0, (t - RISE.from) / (RISE.to - RISE.from))), e = 1 - (1 - k) * (1 - k);
+    sink = RISE.depth * (1 - e); dx = k > 0 && k < 1 ? (Math.floor(performance.now() / 45) % 2 ? 1 : -1) : 0;
+  }
+  // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
+  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:P.space };
 }
 // フィールドの外（星空）を消して、画面全体の背景を見せる（P2 と同じ）
 const clearOutside = () => {

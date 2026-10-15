@@ -24,10 +24,11 @@ import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 // 大きさ：沼・岩は半径5（Splatoon のスクリプト）、ノックバックは 8（推定）
 // =====================================================================
 const T = { gravenCast:2.3, graven:5.0, mmCast:7.4, ice:12.1, grav1:12.2, vit1:16.2, ruin1Cast:17.1, ruin1:22.1, ruin2:25.2, half1Tell:21.1, half1:26.1,
-  grav2:30.8, vit2:34.8, half2Tell:34.4, half2:39.4, gravity:42.0, trapHit:43.0, soak:45.0, end:46.2 };
-// 像は1つ（ユーザーの指摘 2026-10-14）。紫の線（重力弾）と黄の線（岩石弾）は同じ像から出る。線の出どころだけ少し左右にずらして見分けやすく
-const STATUE_Q = { x:0, z:-22.3 }, GRAV_STATUE = { x:-1.2, z:-22.3 }, VIT_STATUE = { x:1.2, z:-22.3 }; // 画面の北の端に描く位置（実際はもっと北の外）
-const PUDDLE_R = 5, ROCK_R = 5, KB_SPEED = 20, TRAP_R = 6, TRAP_KB = 8, CLEAVE_HALF = 45;
+  grav2:30.8, vit2:34.8, half2Tell:34.4, half2:39.4, gravity:42.0, trapHit:43.0, soak:47.0, end:48.2 }; // グラビガ（沼の判定）はトラップの 4 秒後（ユーザーの軽減表：トラップ 1:58 → グラビガ 2:02。前は推定 2 秒後）
+// 像は1つ（ユーザーの指摘 2026-10-14）。紫の線（重力弾）と黄の線（岩石弾）は同じ像の左と右から出る（左右ははっきり分ける。ユーザー）
+// 半面の予兆の光も、危ない側（黄＝東・紫＝西）の像の端に出す
+const STATUE_Q = { x:0, z:-22.3 }, GRAV_STATUE = { x:-4.5, z:-22.3 }, VIT_STATUE = { x:4.5, z:-22.3 }, HALF_GLOW_X = 7; // 画面の北の端に描く位置（実際はもっと北の外）
+const PUDDLE_R = 5, ROCK_R = 5, KB_SPEED = 20, TRAP_R = 6, TRAP_KB = 14, CLEAVE_HALF = 45; // トラップのノックバックはゲームのデータの 14（2026-10-14。前は推定 8）
 // 1回目の散開（沼が南）：岩石弾の人（4人）の位置。タンヒラなら MT・ST・H1・H2、DPS なら D1・D2・D3・D4 の順
 const VIT_SPOTS = [{ x:-10.2, z:2.4 }, { x:10.2, z:2.4 }, { x:-12, z:13.5 }, { x:12, z:13.5 }]; // 沼の中心から 10 以上（岩5＋沼5）
 const flipZ = q => ({ x:q.x, z:-q.z });
@@ -62,8 +63,12 @@ const P1B = {
     // ⑤ つぎつぎトラップ（2回目）：タンヒラの組は西で北の沼へ、DPS は東で南の沼へ飛ぶ
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
     const trapSpot = k => {
-      if (isTH(k)) return k === p.trapT ? { x:-4.8, z:0 } : add({ x:-3.4, z:-3.4 }, OFF(k, .4));
-      return k === p.trapD ? { x:4.2, z:0 } : add({ x:2.6, z:3.2 }, OFF(k, .4));
+      // 持っている人はマックスメレー（西／東 8.5）。ほかの人は持っている人の沼の側にくっつく（0.6〜1.1）→ 14 飛ばされて沼（タンヒラ北・DPS 南）に入る（2026-10-14 ユーザーの指摘）
+      const h = holderOf(k), H = { x:isTH(k) ? -8.5 : 8.5, z:0 };
+      if (k === h) return H;
+      const tgt = isTH(k) ? stack2 : stack1, d = dist(H, tgt), u = { x:(tgt.x - H.x) / d, z:(tgt.z - H.z) / d };
+      const i = (isTH(k) ? TH : DPS).filter(x => x !== h).indexOf(k);
+      return add(H, { x:u.x * (.6 + .25 * i), z:u.z * (.6 + .25 * i) });
     };
     const soakSpot = k => add(isTH(k) ? stack2 : stack1, OFF(k, 1.2));
     const nextHolder = G => { const others = G.filter(k => k !== holderOf(G[0])); return others[isTH(G[0]) ? p.pass.T : p.pass.D]; };
@@ -180,7 +185,8 @@ const P1B = {
       if ((me === newT || me === newD) && t >= T.trapHit + .1) s.push({ icon:'trap', name:'つぎつぎトラップ（次はずびずばテレポのあと）', sec:Math.ceil(T.trapHit + .1 + 49 - t) });
       return s;
     };
-    const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 8) * .3; alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
+    // 予兆の光：像の端に、色の付いた光の玉と二重の輪（左右がひと目で分かるように）
+    const statueGlow = (q, col, t) => { const X = px(q.x), Z = px(q.z), k = .5 + Math.sin(t * 8) * .3; alpha(.35 * k + .1, () => disc(X, Z, 10, col)); alpha(k, () => { ring(X, Z, 13, col); ring(X, Z, 15, col); }); };
     const halfCol = east => east ? '#ffe040' : '#b05aff'; // 黄＝撲殺の神気（東が危ない）、紫＝重力波（西が危ない）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
@@ -191,7 +197,7 @@ const P1B = {
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },
         { name:'ひろげるブリザガ', start:T.mmCast, len:T.ice - T.mmCast },
         { name:'ばりばりルインガ', start:T.ruin1Cast, len:T.ruin1 - T.ruin1Cast },
-        { name:'グラビガ', start:T.gravity - 3, len:3 },
+        { name:'グラビガ', start:T.gravity, len:T.soak - T.gravity }, // 詠唱は 42.0（cactbot）から、沼の判定（軽減表 2:02）まで
       ],
       progress: t => t < T.vit1 + .2 ? '神々の像（重力弾・岩石弾）' : t < T.half1 + .2 ? 'ばりばりルインガ・半面' : t < T.half2 + .2 ? '神々の像（2回目）' : t < T.soak + .2 ? 'つぎつぎトラップ・グラビガ' : '終了',
       lockMove: () => !!kb[me],
@@ -205,7 +211,7 @@ const P1B = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第二楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(2, t),
+      screenBg: t => statueScreenBg(2, t, T.end),
       drawFloor(t){
         clearOutside();
         if (t >= T.mmCast && t < T.ice) drawTell(mm, true, false);
@@ -218,8 +224,8 @@ const P1B = {
       },
       draw(t){
         if (t >= T.gravenCast){
-          if (t >= T.half1Tell && t < T.half1) statueGlow(STATUE_Q, halfCol(p.half1East), t);
-          if (t >= T.half2Tell && t < T.half2) statueGlow(STATUE_Q, halfCol(p.half2East), t);
+          if (t >= T.half1Tell && t < T.half1) statueGlow({ x:p.half1East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half1East), t);
+          if (t >= T.half2Tell && t < T.half2) statueGlow({ x:p.half2East ? HALF_GLOW_X : -HALF_GLOW_X, z:STATUE_Q.z }, halfCol(p.half2East), t);
           // 線：紫＝重力弾（沼を捨てる）、黄＝岩石弾（岩を捨てる）。紫の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14）
           const round = t < T.vit1 + .1 ? 1 : t >= T.half1 && t < T.vit2 + .1 ? 2 : 0;
           const gravGone = t >= (round === 1 ? T.grav1 : T.grav2);

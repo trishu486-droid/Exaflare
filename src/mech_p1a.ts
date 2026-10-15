@@ -13,17 +13,17 @@ import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 // =====================================================================
 // P1（ケフカ）：神々の像（1回目）〜 波動砲 〜 つぎつぎトラップ 〜 なぞなぞマジック（2回目）。docs/dmu/research-p1.md §2
 // 時刻は cactbot のタイムライン −24 秒（24.8 秒の「中央へ」のあと）。立ち位置はヤーン速報の図から読んだもの
-// ① 神々の像：タンヒラか DPS（4人）に像から線 → 波動弾で北の像から押される（距離は推定）
+// ① 神々の像：タンヒラか DPS（4人）に像から線 → 波動弾で北の像から押される（フィールドの半径の約半分＝10。2026-10-14 ユーザー。前は推定 6）
 // ② なぞなぞマジック：ひろげるブリザガ（向かい合う扇2つ）＋めらめらファイガ（散開か頭割り）。真偽はケフカのまわりの玉
 //    タンヒラは西、DPS は東。ブリザガの当たらない側（北か南）で、決まった形に散開／頭割り（形は北なら図のまま、南なら上下反転）
 // ③ 波動砲：横一列（西から H2・H1・ST・MT・D1・D2・D3・D4）。像からタンヒラ2人・DPS2人へ直線。当たった所に塔 → 当たっていない同じロールの人が左から順に入る
-// ④ つぎつぎトラップ：タンヒラ1人・DPS1人。持っている人は外（6.6）、ほかは内（3.2）で頭割り → 反対側へ 14 飛ばされる。デバフは同じ組の人に移る
+// ④ つぎつぎトラップ：タンヒラ1人・DPS1人。持っている人は外（マックスメレー 8.5。ユーザーの指摘 2026-10-14。前は 6.6）、ほかはそのすぐ内側（6）で頭割り → 14 飛ばされてケフカの反対側へ。デバフは同じ組の人に移る
 // ⑤ なぞなぞマジック：ブリザガ＋サンダガ。飛ばされた所から近い安全な所へ
 // =====================================================================
 const T = { gravenCast:2.5, graven:5.2, mmMark:8.6, mm1Cast:8.7, pulse:11.1, ice1:13.4, fire1:14.3, cannonWarn:13.5, cannon:18.5, explosion:22.0,
   trapCast:17.6, trap1:20.6, trapHit:25.6, mm2Cast:25.0, mm2:29.7, end:31.2 };
 const STATUE = { x:0, z:-44 }; // 神々の像（1回目）：北の外（Splatoon のスクリプトの座標）
-const PULSE_KB = 6, KB_SPEED = 20, SPREAD_R = 5, STACK_R = 6, BEAM_HW = 2, TOWER_R = 2.5, TRAP_R = 6, TRAP_KB = 8; // トラップのノックバックはヤーンの図（2回目の沼に入る位置）から 8 と推定
+const PULSE_KB = 10, KB_SPEED = 20, SPREAD_R = 5, STACK_R = 6, BEAM_HW = 2, TOWER_R = 2.5, TRAP_R = 6, TRAP_KB = 14; // トラップのノックバックはゲームのデータ（XIVAPI の Knockback 240）の 14。ユーザーの実機の画面でも約 12（2026-10-14。前は推定 8）
 // ② の形（ブリザガが南に当たる＝北が安全なとき。南が安全なら z を反転）。タンヒラは北西、DPS は南東が基本で、点対称
 const SPREAD_N = { MT:{ x:-2, z:-9.5 }, H1:{ x:-11.3, z:-10 }, ST:{ x:-7.5, z:-1.8 }, H2:{ x:-17.5, z:-1.8 } };
 const STACK_N = { T:{ x:-5, z:-5.5 } };
@@ -73,8 +73,10 @@ const P1A = {
     const towerSpot = k => isTarget(k) ? { x:LINEUP[k] * .55, z:3.4 } : lineSpot(soakerOf[k]);
     // ---- ④ つぎつぎトラップ ----
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
-    const trapSpot = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:6.6 * w, z:0 } : add({ x:3.2 * w, z:0 }, OFF(k, .5)); };
-    const landing = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:6.6 * w, z:0 } : { x:(3.2 - TRAP_KB) * w, z:0 }; };
+    const TRAP_DROP = 8.5; // 持っている人はマックスメレー（ケフカの円 6 ＋ 近接の届く 3 の少し内側）で捨てる
+    const TRAP_IN = 6; // ほかの人は持っている人のすぐ内側（中心から 6）で頭割り → ケフカの反対側の 8 へ飛ばされる（ユーザーの実機の画面：東 6 → 西 6 くらい）
+    const trapSpot = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:TRAP_DROP * w, z:0 } : add({ x:TRAP_IN * w, z:0 }, OFF(k, .3)); };
+    const landing = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:TRAP_DROP * w, z:0 } : { x:(TRAP_IN - TRAP_KB) * w, z:0 }; };
     const nextHolder = G => { const others = G.filter(k => k !== holderOf(G[0])); return others[isTH(G[0]) ? p.pass.T : p.pass.D]; };
     const newT = nextHolder(TH), newD = nextHolder(DPS);
     // ---- ⑤ 安全な所（ブリザガの扇とサンダガの帯から 1.2 離れる）。飛ばされた所から一番近い所 ----
@@ -112,6 +114,8 @@ const P1A = {
     let lastT = 0;
     const fired = new Set();
     const events: [number, () => void][] = [
+      // 塔（神々の像）が下から生えてくる：ゴゴゴゴ（揺れと低い音）
+      [0, () => { fxShake(2, 2.5); sfx.tone(46, 2.5, 'sawtooth', .05, -8); sfx.tone(62, 2.5, 'triangle', .08, -12); }],
       [T.pulse, () => { SLOTS.filter(tethered).forEach(k => { const d = kbDir(pos(k)); push(k, STATUE, { x:d.x * PULSE_KB, z:d.z * PULSE_KB }, S.t); }); sfx.boom(); fxShake(3, .25); }],
       [T.ice1, () => { if (iceHit(m1, S.player)) hurt('ひろげるブリザガに当たった'); efx.add('ice', { pts:icePts(m1) }); sfx.boom(); }],
       [T.fire1, () => {
@@ -195,7 +199,7 @@ const P1A = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第一楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(1, t),
+      screenBg: t => statueScreenBg(1, t, T.end),
       drawFloor(t){
         clearOutside();
         if (t >= T.mm1Cast && t < T.ice1) drawTell(m1, true, false);

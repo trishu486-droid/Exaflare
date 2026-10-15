@@ -15,7 +15,7 @@ import { arrowPlate, puddle, fillCone, TRAP_COLS } from './p1lib.js';
 // 時刻・大きさ・矢印の動きは AnoMech の再現シナリオ（実機のログから）。0 秒は AnoMech の開始（ずびずばテレポの詠唱は 1.59 秒）
 // 処理（ヤーン速報の図）：矢印はマーカー1〜4の四角の角に、四隅で2×2ずつ置く。混乱した人は内側の角の矢印から入って、その隅を1周して外へ出る
 //   同じ矢印：下＝北西（外の列）・左＝北東（外の行）・上＝南東（外の列）・右＝南西（外の行）。違う矢印：左上＝北西・上右＝北東・右下＝南東・下左＝南西（内側）
-//   つぎつぎトラップは西タンヒラ・東DPS で頭割り＋ノックバック（持っている人は外 6.6、ほかは内 3.2）
+//   つぎつぎトラップは西タンヒラ・東DPS で頭割り＋ノックバック 14（持っている人は外のマックスメレー 8.5、ほかは内 6 → ケフカの反対側へ。2026-10-14 ユーザーの指摘と実機の画面）
 //   線（混乱・睡眠）：近接は内側の角（MT 北西・ST 北東・D1 南西・D2 南東）、遠隔は四角の真ん中（D3 北西・D4 北東・H1 南西・H2 南東）。線は見なくてよい
 //   なぞなぞマジック：散開＝近接はマーカー1〜4の内側（D1 1・D2 2・ST 3・MT 4）、遠隔は外周の東西南北（H1 南・H2 東・D3 西・D4 北）。頭割り＝タンヒラ 3・DPS 1
 //   サンダガの帯に当たる人は、帯の外へずれる（遠隔は外周に沿って、近接は少し）
@@ -25,7 +25,7 @@ const T = { tpCast:1.59, tp:6.58, debuff:7.34, exp:[14.33, 17.32], live:[15.29, 
   trap:22.78, wills:28.46, confused:29.09, confusedEnd:35.09, gazeWind:31.61, mmMark:36.31, mmCast:36.41, thunder:41.40, gaze:41.49, fire:42.19, end:44.2 };
 const ARROW_R = 2, ARROW_PUSH = 6, ARROW_BIND = 1, ARROW_DWELL = .35, ARROW_GRACE = 3, ARROW_LIFE = 18.687, ARROW_COLLIDE = 4;
 const CHASE_SPEED = 6, AA_RANGE = 2, AA_DWELL = 1, POST_CARRY_WAIT = 2, KILL_WAIT = 1;
-const TRAP_R = 6, TRAP_KB = 8, KB_SPEED = 20, SLEEP_R = 5, SPREAD_R = 5, STACK_R = 6;
+const TRAP_R = 6, TRAP_KB = 14, KB_SPEED = 20, SLEEP_R = 5, SPREAD_R = 5, STACK_R = 6;
 const DVEC = { U:{ x:0, z:-1 }, R:{ x:1, z:0 }, D:{ x:0, z:1 }, L:{ x:-1, z:0 } }, CYC = ['U', 'R', 'D', 'L'], DIR_JA = { U:'上', D:'下', L:'左', R:'右' };
 // 矢印の置き場所：マーカー1〜4（中心 (±9.3,±9.3)）の四角の角＝中心から 5.9 と 12.7。運ばれる 6 で次の矢印の上（0.8 手前）に着く
 const IN = 5.9, OUT = 12.7;
@@ -65,7 +65,7 @@ const P1C = {
     const PLAN = Object.fromEntries(SLOTS.map(k => [k, arrowPlan(k)]));
     // ---- つぎつぎトラップ：西タンヒラ・東DPS。持っている人は外側、ほかは中心側に寄って頭割り → 反対側へ 14 飛ばされる ----
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
-    const trapSpot = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:6.6 * w, z:0 } : add({ x:3.2 * w, z:0 }, OFF(k, .5)); };
+    const trapSpot = k => { const w = isTH(k) ? -1 : 1; return k === holderOf(k) ? { x:8.5 * w, z:0 } : add({ x:6 * w, z:0 }, OFF(k, .3)); }; // ほかの人は内 6 → 14 飛ばされてケフカの反対側の 8 へ（ユーザーの実機の画面：東 6 → 西 6 くらい）
     // ---- 線の位置へ：遠隔は四角の内側の辺の真ん中（矢印から 3.4）を通って四角の真ん中へ入る ----
     const isRangedSpot = k => Math.abs(TETHER[k].x) > 8;
     const gapIn = k => { const q = TETHER[k]; return isRangedSpot(k) ? { x:q.x, z:Math.sign(q.z) * 2.6 } : q; };
@@ -285,7 +285,7 @@ const P1C = {
       safe(x, z, t){ return dist({ x, z }, spotAt(me, t)) <= 1.2; },
       guide(t){ const g = spotAt(me, t); ring(px(g.x), px(g.z), Math.round(1.2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white); },
       // 神々の像（第三楽章の段）は画面全体の背景に。フィールドの外を消して見せる（p1lib の statueScreenBg）
-      screenBg: t => statueScreenBg(3, t),
+      screenBg: t => statueScreenBg(3, t, T.end),
       drawFloor(t){
         clearOutside();
         // なぞなぞマジックの予兆（サンダガの帯）

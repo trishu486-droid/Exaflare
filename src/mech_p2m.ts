@@ -8,6 +8,7 @@ import { FXC, FXK, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px } from './gfx.js';
 import { markCanvas, spellTroubleUrl } from './p2icons.js';
 import { screenFx } from './p2fx.js';
+import { makeP2Vfx, towerOrb, fieldWhite, embTell } from './p2vfx.js';
 
 // =====================================================================
 // P2（ゴッドケフカ）：ミッシング（終末の双腕 〜 裁きの光）。docs/dmu/research-p2.md
@@ -222,6 +223,7 @@ const P2M = {
     const clones = [];   // { x, z, until, face? }
     const legSrc = [];   // 消滅の脚：{ x, z, face, at, fut }
     const efx = [];      // 自前の演出：{ k, t, ... }
+    const vfx = makeP2Vfx(); // 実機の動画に合わせた演出（p2vfx.ts）
     const once = (key, fn) => { if (!fired.has(key)){ fired.add(key); fn(); } };
     const inTowerAt = (k, q) => towersOf(k).findIndex(c => dist(q, c) <= TOWER_R);
     const vuln = () => S.t < vulnUntil;
@@ -237,8 +239,7 @@ const P2M = {
       if (!mine && myT >= 0) hurt(`${k}回目の塔：担当ではない塔を踏んだ`);
       [0, 1].forEach(i => { const n = SLOTS.filter(s => snap[k][s] === i).length; if (n > 2 && myT === i) hurt(`${k}回目の塔：3人入った（違う塔）`); });
       if (mine && myT >= 0) mySoaks++;
-      towersOf(k).forEach(c => { fxAdd('burst', c.x, c.z, { r:TOWER_R, cols:FXC.holy, dur:.45 }); fxParts(10, c.x, c.z, { cols:FXC.holy, speed:6, up:8, life:.6, spread:TOWER_R }); });
-      sfx.boom();
+      vfx.add('tower', { pts:towersOf(k) }); sfx.big(); fxShake(3, .3); // 塔の着弾：オレンジ〜白の大爆発（そのあと頭上の攻撃が発動）
     };
     const spellFire = k => {
       const g = soakers(k), hold = plan[k - 1], hits = Object.fromEntries(SLOTS.map(s => [s, []]));
@@ -295,7 +296,7 @@ const P2M = {
       const victims = SLOTS.filter(s => legHits(j, spotAt(s, T.leg[j] - .05)));
       if (victims.length) hurt(`消滅の脚：誘導が悪い（この向きだと ${victims.join('・')} に当たる）`);
       else if (legHits(j, S.player)) hurt(`消滅の脚に当たった（${p.fp[j] === 'future' ? '未来＝前' : '過去＝後ろ'}、立ち位置が違う）`);
-      efx.push({ k:'leg', t:S.t, j }); sfx.big(); fxShake(5, .35); fxFlash('#ffd8a0', .3, .15);
+      vfx.add('leg', { srcs:legSrc.filter(L => L.j === j), hit:q => legHits(j, q) }); sfx.big(); fxShake(5, .35); // 当たる半面の床がえぐれてひびが走る
     };
 
     const events: [number, () => void][] = [
@@ -304,7 +305,7 @@ const P2M = {
         if (roleOf(me) === 'T'){
           if (dist(pos('MT'), pos('ST')) > EMB_R) hurt('終末の双腕：タンク2人で重なっていない'); // 軽減のボタンはまだない（P2 のタンクのボタンは攻撃だけ）
         } else if (dist(S.player, c) <= EMB_R) hurt('終末の双腕（タンクの頭割り）に入った');
-        FXK.flare(c.x, c.z, EMB_R); sfx.big();
+        vfx.add('emb', { q:c, r:EMB_R }); sfx.big();
       }]] : []),
       [T.fors, () => { healerHit(60000, 'ミッシング'); screenFx('forsaken'); sfx.big(); fxShake(4, .3); }],
       ...T.tower.flatMap((tt, i) => [[tt, () => towerSnap(i + 1)], [tt + HIT, () => spellFire(i + 1)]]),
@@ -372,11 +373,13 @@ const P2M = {
         });
       },
       draw(t){
-        // 塔の上の青い球
+        // 塔の上の青い球（大きく明るく、中に白い雷の筋。実機の動画）。着弾の寸前はフィールドが白く光る
+        T.tower.forEach((_, i) => { if (t >= T.tower[i] - .3 && t < T.tower[i]) fieldWhite((t - T.tower[i] + .3) / .3); });
+        if (p.withEmb && t >= T.embCast && t < T.emb){ const a = pos('MT'), b = pos('ST'); embTell({ x:(a.x + b.x) / 2, z:(a.z + b.z) / 2 }, EMB_R); }
         T.tower.forEach((_, i) => { const k = i + 1; if (!towerVisible(k)) return;
-          towersOf(k).forEach(c => { const X = px(c.x), Z = px(c.z) - 4 - Math.round(Math.sin(t * 3 + i) * 1.5); disc(X, Z, 6, '#1a4a9a'); disc(X, Z - 1, 5, '#3a8ae8'); disc(X - 2, Z - 3, 2, '#c8f0ff');
+          towersOf(k).forEach(c => { const X = px(c.x), Z = px(c.z) - 6 - Math.round(Math.sin(t * 3 + i) * 1.5); towerOrb(X, Z, t * 2 + i);
             // 着弾までの秒数（球の上）
-            const sec = Math.ceil(T.tower[i] - t); if (sec > 0 && sec < 10) drawNum(X, Z - 12, sec); }); });
+            const sec = Math.ceil(T.tower[i] - t); if (sec > 0 && sec < 10) drawNum(X, Z - 16, sec); }); });
         // 分身（紫の輪）と、消滅の脚の向き
         clones.filter(c => t >= c.from && t < c.until).forEach(c => { const X = px(c.x), Z = px(c.z); alpha(.35, () => disc(X, Z, 9, '#b05aff')); ring(X, Z, 9, '#d08cff'); ring(X, Z, 8, '#d08cff'); });
         legSrc.filter(L => t >= T.leg[L.j] - LEG_LEN && t < T.leg[L.j]).forEach(L => {
@@ -389,11 +392,9 @@ const P2M = {
           if (e.k === 'fan'){
             alpha(.5 * (1 - age / .5), () => { const X = px(e.q.x), Z = px(e.q.z), R = FAN_LEN * PPY; ctx.fillStyle = '#ff9a3a';
               for (let dy = -R; dy <= R; dy += 1) for (let dx = -R; dx <= R; dx += 1){ if (dx * dx + dy * dy > R * R) continue; const a = Math.atan2(dx, -dy); if (Math.abs(((a - e.dir) * 180 / Math.PI + 540) % 360 - 180) <= FAN_HALF) ctx.fillRect(X + dx, Z + dy, 1, 1); } });
-          } else if (e.k === 'leg'){
-            alpha(.4 * (1 - age / .5), () => { ctx.fillStyle = '#ffb040'; const R = 20 * PPY, C0 = px(0);
-              for (let dy = -R; dy <= R; dy += 2) for (let dx = -R; dx <= R; dx += 2){ if (dx * dx + dy * dy > R * R) continue; if (legHits(e.j, { x:dx / PPY, z:dy / PPY })) ctx.fillRect(C0 + dx, C0 + dy, 2, 2); } });
           }
         });
+        vfx.draw(t);
         // 味方
         bots.forEach(b => {
           const X = px(b.x), Z = px(b.z);

@@ -7,6 +7,7 @@ import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px } from './gfx.js';
 import { clearOutside, bgImg } from './mech_p2m.js';
 import { screenFx } from './p2fx.js';
+import { makeP2Vfx, embTell, wingFlow } from './p2vfx.js';
 
 // =====================================================================
 // P2（ゴッドケフカ）：トライン（裁きの光 〜 終末の双腕）。docs/dmu/research-p2.md §3
@@ -64,6 +65,7 @@ const P2T = {
     // ② 1回目（外周3つ）が爆発したら、その三角の方へ入る（もう爆発しない）。2回目・3回目（中央を含む）はここでよける。外周で2回よけたりはしない
     //    パーティは1回目の三角のうち南 → 東を優先した方向に中心から 14。タンクは北 → 西を優先した方向（パーティと別）に MT 7.5・ST 17
     // ③ そのまま破壊の翼（強攻撃）：一番近い人（MT）と一番遠い人（ST）。範囲が広いので、ほかの人はタンクから離れている
+    const vfx = makeP2Vfx(); // 実機の動画に合わせた演出（p2vfx.ts）
     const hitSide = p.wingLeft ? -1 : 1; // 破壊の翼（半面）：光る翼の側。ケフカは北を向いているので、左の翼＝西、右の翼＝東
     const unitOf = q => { const d = Math.hypot(q.x, q.z) || 1; return { x:q.x / d, z:q.z / d }; };
     const first = TRIS.filter(t => t.set === 0);
@@ -117,7 +119,7 @@ const P2T = {
       ...T.det.map((dt, s) => [dt, () => {
         const vs = circlesOf([s]);
         if (vs.some(v => dist(S.player, v) <= CIR)) hurt(`トライン ${s + 1}回目の爆発に当たった`);
-        vs.forEach(v => { fxAdd('burst', v.x, v.z, { r:CIR, cols:FXC.flare, dur:.5 }); fxParts(6, v.x, v.z, { cols:FXC.fire, speed:6, up:6, life:.5, spread:CIR }); });
+        vfx.add('vertex', { pts:vs, r:CIR }); // 黄色〜白の光の玉が弾けて、茶色い煙
         sfx.boom(); fxShake(3, .25);
       }] as [number, () => void]),
       [T.wing, () => {
@@ -132,14 +134,14 @@ const P2T = {
         // 範囲は広い（半径 TB_R・推定）。タンク以外がタンクのまわりにいると巻き込まれる
         if (roleOf(me) !== 'T' && near !== me && far !== me && [near, far].some(k => dist(pos(k), S.player) <= TB_R)) hurt('破壊の翼（強攻撃）の範囲に巻き込まれた');
         if (roleOf(me) === 'T' && [near, far].some(k => k !== me && dist(pos(k), S.player) <= TB_R)) hurt('破壊の翼（強攻撃）：もう1人のタンクの範囲に入った');
-        [near, far].forEach(k => { const q = pos(k); fxAdd('burst', q.x, q.z, { r:TB_R, cols:FXC.flare, dur:.5 }); });
+        [near, far].forEach(k => { const q = pos(k); vfx.add('tb', { q:{ x:q.x, z:q.z }, r:TB_R }); }); // 濃い紫の雲と白い雷（ユーザーの画像・動画）
         sfx.big();
       }],
       [T.emb, () => {
         const c = { x:(pos('MT').x + pos('ST').x) / 2, z:(pos('MT').z + pos('ST').z) / 2 };
         if (roleOf(me) === 'T'){ if (dist(pos('MT'), pos('ST')) > EMB_R) hurt('終末の双腕：タンク2人で重なっていない'); }
         else if (dist(S.player, c) <= EMB_R) hurt('終末の双腕（タンクの頭割り）に入った');
-        fxAdd('burst', c.x, c.z, { r:EMB_R, cols:FXC.flare, dur:.5 }); sfx.big();
+        vfx.add('emb', { q:c, r:EMB_R }); sfx.big(); // 重なったタンクの円が黄色〜白の光で弾ける
       }],
     ].sort((a, b) => a[0] - b[0]);
     const triVisible = t => TRIS.filter(x => t >= T.spawn[x.set] && t < T.det[x.set] + .1);
@@ -180,18 +182,15 @@ const P2T = {
         });
       },
       draw(t){
-        // 破壊の翼（半面）の詠唱中：攻撃が来る側の半面に、白〜桃色の光の筋が差し込む（実機の翼の光に寄せる。翼の絵は描かない）
+        // 破壊の翼（半面）の詠唱中：翼は描かず、攻撃が来る半面に中心から外へ流れていく光（ユーザー 2026-10-15）。着弾で半面が白く光る
         if (t >= T.wingCast && t < T.wing + .3){
           const k = Math.min(1, (t - T.wingCast) / (T.wing - T.wingCast)), C0 = px(0), R = 20 * PPY, s = hitSide;
-          alpha(.06 + .14 * k, () => { ctx.fillStyle = '#ffd8f4'; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); s > 0 ? ctx.fillRect(C0 + 1, C0 + dy, hw, 1) : ctx.fillRect(C0 - hw, C0 + dy, hw, 1); } });
-          const cols = ['#ffffff', '#ffe8fa', '#f0b0ff'];
-          for (let i = 0; i < 9; i++){
-            const ph = (t * .9 + i * .37) % 1, a0 = (-70 + i * 17) * Math.PI / 180, len = R * (.45 + .55 * ph);
-            const x1 = C0 + s * Math.cos(a0) * len, y1 = C0 + Math.sin(a0) * len, x0 = C0 + s * Math.cos(a0) * len * .2, y0 = C0 + Math.sin(a0) * len * .2;
-            alpha((.25 + .55 * k) * (1 - ph * .6), () => { line(x0, y0, x1, y1, cols[i % 3]); line(x0, y0 + 1, x1, y1 + 1, cols[(i + 1) % 3]); });
-          }
-          if (t >= T.wing) alpha(.5 * (1 - (t - T.wing) / .3), () => { ctx.fillStyle = '#ffffff'; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); s > 0 ? ctx.fillRect(C0, C0 + dy, hw, 1) : ctx.fillRect(C0 - hw, C0 + dy, hw, 1); } });
+          if (t < T.wing) wingFlow(t, s, k);
+          else alpha(.5 * (1 - (t - T.wing) / .3), () => { ctx.fillStyle = '#ffffff'; for (let dy = -R; dy <= R; dy++){ const hw = Math.floor(Math.sqrt(R * R - dy * dy)); s > 0 ? ctx.fillRect(C0, C0 + dy, hw, 1) : ctx.fillRect(C0 - hw, C0 + dy, hw, 1); } });
         }
+        // 終末の双腕の予兆：重なったタンクの足元に黄色い円
+        if (t >= T.embCast && t < T.emb){ const a = pos('MT'), b = pos('ST'); embTell({ x:(a.x + b.x) / 2, z:(a.z + b.z) / 2 }, EMB_R); }
+        vfx.draw(t);
         bots.forEach(b => {
           const X = px(b.x), Z = px(b.z);
           rect(X - 6, Z - 4, 13, 9, P.white); rect(X - 5, Z - 3, 11, 7, ROLE_COL[roleOf(b.k)]);

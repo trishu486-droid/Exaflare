@@ -76,7 +76,10 @@ const P1B = {
     const newT = nextHolder(TH), newD = nextHolder(DPS);
     // ---- 道のり ----
     const startSpot = k => add({ x:0, z:3 }, at(SLOTS.indexOf(k) * 45, 2));
+    // P1 通し：前の楽章との間（裁きの光・ハイパードライブ）は p.pre.spot の位置（ヘイト1位のタンクはケフカの正面、ほかは後ろ）。p.pre.until（この区切りの時刻）まで
+    const spot0 = k => p.pre?.spot(k) ?? startSpot(k);
     const { spotAt, botGoal } = makeRoutes([
+      ...(p.pre ? [{ until:p.pre.until, spot:spot0 }] : []),
       { until:T.graven, spot:startSpot },
       { until:T.mmCast + .5, spot:startSpot },
       { until:T.ice - .3, spot:k => add(stack1, OFF(k, .9)) },
@@ -97,7 +100,7 @@ const P1B = {
       { until:T.end + 9, spot:soakSpot },
     ]);
     // ---- 人 ----
-    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...startSpot(k) }));
+    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...spot0(k) }));
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
     const kb = {};
     bots.forEach(b => { b.lock = () => !!kb[b.k]; });

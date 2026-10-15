@@ -36,6 +36,8 @@ const GAPS = [
   { judge:108.4, hyper:[111.6, 113.6, 115.7] }, // cactbot 132.4 → 135.6〜139.7
 ];
 const JUDGE_LEN = 5, HYPER_LEN = 2;            // 詠唱の長さは資料にないので推定
+// ハイパードライブはヘイト1位のタンクのまわりの円の範囲攻撃（ユーザー 2026-10-15）。タンクはケフカの正面（北）で受け、ほかの人は後ろ（南）へ。半径は推定（P3 のタンク強攻撃と同じ 5）
+const HYPER_R = 5, TANK_FRONT = { x:0, z:-6 }, BEHIND = { x:0, z:7 };
 const ENRAGE = { cast:173.3, at:178.3 };       // 時間切れの裁きの光（cactbot 197.3〜。軽減表 3:22）
 const KILL_AFTER = 170.1;                      // 第三楽章のなぞなぞマジックまではギミックが続く（それまで HP が残る）
 const KILL_AT = .95, HEAL_EASE = .8;           // P2・P3 通しと同じ
@@ -54,11 +56,15 @@ const RUN1 = {
   create(pr){
     const me = pr[0].me;
     const pre = { until:OPEN.until, spot:k => k === 'MT' ? MT_NORTH : null };
-    const segs = pr.map((p, i) => [P1A, P1B, P1C][i].create({ ...p, off:AT[i], ...(i === 0 ? { pre } : {}) }));
     const isTank = me === 'MT' || me === 'ST';
     const provAt = (k, t) => { const L = k === me ? (A.provoke != null && A.provoke <= t ? [A.provoke] : []) : BOT_PROV[k].filter(v => v <= t); return L.length ? Math.max(...L) : null; };
     const hateTop = t => { const m = provAt('MT', t), s = provAt('ST', t); return s != null && (m == null || s > m) ? 'ST' : 'MT'; };
-    let cleaveShow = null;
+    // 楽章の間（ハイパードライブの3発目まで）：ヘイト1位のタンクは正面、ほかは後ろにまとまる
+    const SL = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
+    const gapSpot = k => k === hateTop(S.t) ? TANK_FRONT : { x:BEHIND.x + Math.cos(SL.indexOf(k) * Math.PI / 4) * 1.6, z:BEHIND.z + Math.sin(SL.indexOf(k) * Math.PI / 4) * 1.6 };
+    const gapPre = i => ({ until:GAPS[i - 1].hyper[2] + .4 - AT[i], spot:gapSpot });
+    const segs = pr.map((p, i) => [P1A, P1B, P1C][i].create({ ...p, off:AT[i], pre:i === 0 ? pre : gapPre(i) }));
+    let cleaveShow = null, hyperShow = null;
     const ruinga = n => {
       const top = hateTop(S.t), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
       const tq = tank === me ? S.player : segs[0]._debug.pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
@@ -82,7 +88,10 @@ const RUN1 = {
     GAPS.forEach(g => {
       events.push([g.judge, () => { healerHit(260000, '裁きの光'); fxFlash('#ffffff', .5, .25); sfx.big(); fxShake(3, .3); }]);
       g.hyper.forEach((h, j) => events.push([h, () => {
-        if (hateTop(S.t) === me && !hasMit() && !hasInvuln()) hurt(`軽減なしでハイパードライブ（${j + 1}発目）を受けた`);
+        const tk = hateTop(S.t), tq = tk === me ? S.player : segs[idx(S.t)]._debug.pos(tk);
+        if (tk === me && !hasMit() && !hasInvuln()) hurt(`軽減なしでハイパードライブ（${j + 1}発目）を受けた`);
+        if (tk !== me && dist(S.player, tq) <= HYPER_R) hurt('ハイパードライブ（タンクのまわりの範囲）に巻き込まれた');
+        hyperShow = { t:S.t, x:tq.x, z:tq.z };
         sfx.big(); fxShake(2, .2);
       }]));
     });

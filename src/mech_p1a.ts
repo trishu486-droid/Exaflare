@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb } from './p1lib.js';
+import { arrowPlate, puddle, fillCone, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（1回目）〜 波動砲 〜 つぎつぎトラップ 〜 なぞなぞマジック（2回目）。docs/dmu/research-p1.md §2
@@ -212,7 +212,7 @@ const P1A = {
         if (t >= T.cannon && t < T.explosion) towers.forEach(tw => { const X = px(tw.x), Z = px(tw.z), R = Math.round(TOWER_R * PPY); alpha(.3, () => disc(X, Z, R, '#ff8a2a')); ring(X, Z, R, '#ffe070'); ring(X, Z, R - 2, '#ff8a2a'); });
       },
       draw(t){
-        if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), STACK_R)); else SLOTS.forEach(k => spreadMark(pos(k))); }
+        if (t >= T.mmMark && t < T.fire1){ kefkaOrbs(m1.iceTrue, null, m1.fireTrue); if (shown1Stack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), Math.ceil(T.fire1 - t))); else SLOTS.forEach(k => spreadMark(pos(k))); }
         if (t >= T.mm2Cast - .1 && t < T.mm2) kefkaOrbs(m2.iceTrue, m2.thTrue, null);
         // つぎつぎトラップを持っている人
         const trapHolders = t < T.trap1 ? [] : t < T.trapHit ? [p.trapT, p.trapD] : [newT, newD];
@@ -225,7 +225,8 @@ const P1A = {
         const face = statuePt(1, t, 'face');
         if (t >= T.graven && t < T.pulse){ topGlow(g, face, '#ffe070'); SLOTS.filter(tethered).forEach(k => topTether(g, face, pos(k))); }
         if (t >= T.cannonWarn && t < T.cannon){ topGlow(g, face, '#ffe070'); p.cannon.forEach(k => topTether(g, face, pos(k))); cannonOrb(g, (t - T.cannonWarn) / (T.cannon - T.cannonWarn)); }
-        if (beamShow && S.t - beamShow.t < .6){ const k = (S.t - beamShow.t) / .6; beamShow.beams.forEach((b, i) => topBeam(g, b.a, b.d, BEAM_HW, k, i + 1)); }
+        // 光線は予告の光の球から撃たれる（見た目。当たり判定は像の位置から。どちらも狙われた人を通る）
+        if (beamShow && S.t - beamShow.t < .6){ const k = (S.t - beamShow.t) / .6; beamShow.beams.forEach((b, i) => topBeam(g, CANNON_ORB, unit(CANNON_ORB, b.at), BEAM_HW, k, i + 1)); }
       },
       _debug:{ p, towers, soakerOf, safe2, spotAt, pos, final1, prePulse },
       _botGoal:botGoal, _me:me, _lock:() => !!kb[me],

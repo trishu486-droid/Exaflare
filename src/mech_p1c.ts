@@ -96,7 +96,10 @@ const P1C = {
     const blockGate = q => ({ x:sgn(q.x) * RI, z:sgn(q.z) * 2.6 });
     // 線の位置へ：近接は横の軸（z＝0）を通って角へ、遠隔は内側の辺の真ん中から四角の真ん中へ
     const hub = k => isRangedSpot(k) ? gapIn(k) : { x:TETHER[k].x, z:0 };
+    // P1 通し：前の楽章との間（裁きの光・ハイパードライブ）は p.pre.spot の位置（ヘイト1位のタンクはケフカの正面、ほかは後ろ）。p.pre.until（この区切りの時刻）まで
+    const spot0 = k => p.pre?.spot(k) ?? startSpot(k);
     const { spotAt, botGoal } = makeRoutes([
+      ...(p.pre ? [{ until:p.pre.until, spot:spot0 }] : []),
       { until:T.debuff + .3, spot:startSpot },
       { until:T.exp[0] - .3, spot:k => PLAN[k].spots[0] },
       { until:T.exp[0] + .2, spot:k => PLAN[k].spots[0] },   // 矢印が置かれるまで動かない
@@ -112,7 +115,7 @@ const P1C = {
       { until:T.end + 9, spot:k => FINAL[k] },
     ]);
     // ---- 人（味方7人＋自分） ----
-    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...startSpot(k) }));
+    const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...spot0(k) }));
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
     const st = Object.fromEntries(SLOTS.map(k => [k, { carry:null, wait:0, aa:0, aaTarget:null, kb:null, dead:false }]));
     const locked = (k, t) => { const s = st[k]; return !!s.carry || !!s.kb || (t >= T.confused && t < T.confusedEnd) || s.dead; };
@@ -311,7 +314,7 @@ const P1C = {
         // ケフカの真偽の玉（サンダガ・ファイガ）と頭上のマーカー
         if (t >= T.mmMark && t < T.fire){
           kefkaOrbs(null, mm.thTrue, mm.fireTrue);
-          if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), STACK_R)); else SLOTS.forEach(k => spreadMark(pos(k)));
+          if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), Math.ceil(T.fire - t))); else SLOTS.forEach(k => spreadMark(pos(k)));
         }
         // つぎつぎトラップを持っている人（頭上に紙ふぶきの印）
         if (t < T.trap) [p.trapT, p.trapD].forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 14; [[-3, 0, '#ff7ad8'], [0, -2, '#ffe070'], [3, 1, '#7ad8ff'], [1, 2, '#b07aff']].forEach(([dx, dz, c]) => rect(X + dx, Z + dz, 2, 2, c)); });

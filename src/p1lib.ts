@@ -2,7 +2,7 @@
 // ===== P1（ケフカ）の3つのギミックで共通の部品。docs/dmu/research-p1.md =====
 // 座標：中心 (0,0)・半径 20・北が −z（ほかのフェーズと同じ）。味方7人は正しく動く（P2 と同じ作り）
 import { S } from './state.js';
-import { P, PPY, ctx, alpha, disc, ring, rect, line, px, fillArena } from './gfx.js';
+import { P, PPY, ctx, alpha, disc, ring, rect, line, px, fillArena, glyph } from './gfx.js';
 
 const SLOTS = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
 const TH = ['MT', 'ST', 'H1', 'H2'], DPS = ['D1', 'D2', 'D3', 'D4'];
@@ -114,30 +114,13 @@ const SPREAD_ART = sprite(19, 22, P1 => {
   }
   for (let k = 0; k < 6; k++){ const hw = 5 - k; for (let dx = -hw; dx <= hw; dx++) P1(X + dx, Y - 9 + k, Math.abs(dx) === hw ? '#c02068' : k < 3 ? '#e8408a' : '#ff7ab8'); }
 });
-// 頭割りの頭上マーカー：光るオレンジの下向きの山形
-const STACK_ART = sprite(25, 10, P1 => {
-  for (let k = 0; k < 9; k++) for (let s = -(12 - k); s <= 12 - k; s++){
-    if (Math.abs(s) < 8 - k * 1.1 && k < 6) continue;
-    P1(12 + s, k, k >= 6 ? '#fff8d0' : Math.abs(s) < 10 - k ? '#ffe070' : '#ff7a1a');
-  }
-});
-// 頭割りの足元：黄と赤の点線の輪（範囲の半径）＋四隅に内向きに光るカギ形
-const ringCache = {};
-const stackRingArt = R => ringCache[R] ||= sprite(R * 2 + 16, R * 2 + 16, P1 => {
-  const X = R + 8, Y = R + 8;
-  for (let i = 0; i < 96; i++){ const a = i / 96 * 2 * Math.PI, c = Math.floor(i / 4) % 2 ? '#ffe040' : '#e82020'; for (const w of [-1, 0, 1, 2]) P1(X + Math.cos(a) * (R - w), Y + Math.sin(a) * (R - w), c); }
-  for (let k = 0; k < 4; k++){
-    const a = Math.PI / 4 + k * Math.PI / 2, cx = X + Math.cos(a) * (R + 1), cy = Y + Math.sin(a) * (R + 1), ux = -Math.cos(a), uy = -Math.sin(a), vx = -uy, vy = ux;
-    for (let s = -8; s <= 8; s++) for (let w = -1; w <= 2; w++) P1(cx + vx * s + ux * (Math.abs(s) * .8 + w), cy + vy * s + uy * (Math.abs(s) * .8 + w), w === 0 || w === 1 ? '#ffffff' : '#f0ff8a');
-  }
-});
 function spreadMark(q){ ctx.drawImage(SPREAD_ART, px(q.x) - 9, px(q.z) - 32); }
-function stackMark(q, r = 6){
-  const R = Math.round(r * PPY), art = stackRingArt(R), X = px(q.x), Z = px(q.z);
-  alpha(.13, () => disc(X, Z, R, '#ffb040'));
-  ctx.drawImage(art, X - R - 8, Z - R - 8);
-  const glow = .7 + Math.sin(performance.now() / 120) * .3;
-  alpha(glow, () => ctx.drawImage(STACK_ART, X - 12, Z - 30));
+// 頭割りのマーカー：P5 ミッシングと同じ形（4方向から内向きの「く」の字が人を囲む・点滅。ユーザー 2026-10-15）
+// sec があれば右上に残り秒数（P5 ミッシングと同じ）
+function stackMark(q, sec = null){
+  const X = px(q.x), Z = px(q.z), c = (Math.floor(performance.now() / 160) & 1) ? '#ffe08a' : '#ff7a1f';
+  [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dz]) => { for (let i = 0; i < 6; i++){ const bx = X + dx * (10 + i), bz = Z + dz * (10 + i); rect(bx - dz * i - 1, bz - dx * i - 1, 2, 2, c); rect(bx + dz * i - 1, bz + dx * i - 1, 2, 2, c); } });
+  if (sec != null && sec > 0) glyph(String(sec), X + 14, Z - 18, '#ffffff');
 }
 // めらめらファイガの着弾：足元に炎の輪（0.35秒）→ 黒い芯の火の玉が広がって消える（0.55秒）
 function makeFireFx(){
@@ -235,12 +218,16 @@ function topTether(g, a, b){
   gLine(g, a.X, a.Y, B.X, B.Y, '#ffe060');
   gAlpha(g, .55, () => gLine(g, a.X - nx * .5, a.Y - ny * .5, B.X - nx * .5, B.Y - ny * .5, '#fff8c8'));
 }
-// 波動砲の予告：像の足元（フィールドの北のふち）に青白い光の玉ともや。k：予告の進み（0〜1）
+// 波動砲の予告：像の前（フィールドの北のふち）に大きな水色の光の球。真ん中が白く強く光り、まわりを渦の筋が巻く（実機の画像。もやではない）
+// 光線はこの球から撃たれる。k：予告の進み（0〜1。だんだん大きくなる）
+const CANNON_ORB = { x:0, z:-20.5 };
 function cannonOrb(g, k){
-  const X = px(0), Y = px(-20.5), t = performance.now() / 1000, r = Math.round(6 + 9 * Math.min(1, k * 1.4));
-  for (let i = 0; i < 14; i++){ const a = i * 2.4 + t * .7, d = r + 6 + (i * 7) % 12; gAlpha(g, .22, () => gDisc(g, X + Math.cos(a) * d * 1.4, Y + Math.sin(a) * d * .5, 3 + i % 4, i % 3 ? '#c8e8ff' : '#8ac0ff')); }
-  gAlpha(g, .55, () => gDisc(g, X, Y, r, '#3a8aff')); gAlpha(g, .8, () => gDisc(g, X, Y, Math.round(r * .72), '#8ad0ff')); gDisc(g, X, Y, Math.max(2, Math.round(r * .38)), '#ffffff');
-  for (let j = 0; j < 3; j++) for (let a = 0; a < 140; a += 3){ const rr = r * .5 + j * 3 + a / 40, an = a / 22 + j * 2.1 + t * 4; gAlpha(g, .8, () => gDot(g, X + Math.cos(an) * rr, Y + Math.sin(an) * rr * .7, '#ffffff')); }
+  const X = px(CANNON_ORB.x), Y = px(CANNON_ORB.z), t = performance.now() / 1000, R = Math.round(10 + 16 * Math.min(1, k * 1.5));
+  gAlpha(g, .22, () => gDisc(g, X, Y, R + 6, '#5ad8ff')); gAlpha(g, .45, () => gDisc(g, X, Y, R + 2, '#7ae0ff'));
+  gAlpha(g, .9, () => gDisc(g, X, Y, R, '#9ae8ff')); gDisc(g, X, Y, Math.round(R * .74), '#d8f6ff'); gDisc(g, X, Y, Math.round(R * .5), '#ffffff');
+  for (let j = 0; j < 4; j++) for (let a = 0; a < 160; a += 2){
+    const an = a / 36 + j * 1.6 + t * 1.6, rr = R * (.62 + .34 * Math.sin(a / 25 + j)); gAlpha(g, .75, () => gDot(g, X + Math.cos(an) * rr, Y + Math.sin(an) * rr * .8, j % 2 ? '#ffffff' : '#3ab8ff'));
+  }
 }
 // 波動砲の光線：白い芯 → 水色 → 青、ふちに白い稲妻（枝分かれ）。a：出どころ（フィールドの座標）、d：向き、k：消えていく割合（0〜1）
 function topBeam(g, a, d, hw, k, seed){
@@ -302,4 +289,4 @@ const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 export { arrowPlate, puddle, fillCone, TRAP_COLS };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
-  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb };
+  orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB };

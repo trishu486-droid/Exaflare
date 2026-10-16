@@ -97,7 +97,7 @@ const RUN1 = {
       }]));
     });
     const self = {
-      view:24, t0:T0, countdown:5, bossR:segs[0].bossR, markers:segs[0].markers, start:segs[0].start,
+      view:24, t0:T0, countdown:5, bossR:segs[0].bossR, bossArt:'kefka', markers:segs[0].markers, start:segs[0].start,
       intro:me === 'MT' ? 'あなたは MT（最初のルインガ2発を軽減で。第二楽章のルインガは1発目のあとに挑発）' : me === 'ST' ? 'あなたは ST（最初のルインガは1発目のあとに挑発。第二楽章は1発目の前に挑発＋無敵）' : `あなたは ${me}`,
       end:ENRAGE.at,
       casts:[

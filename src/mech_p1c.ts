@@ -268,7 +268,7 @@ const P1C = {
     };
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
-      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
+      bossR:6, bossArt:'kefka', markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, intro:`あなたは ${me}`, end:T.end,
       casts:[
         { name:'ずびずばテレポ', start:T.tpCast, len:T.tp - T.tpCast },
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },

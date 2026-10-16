@@ -26,7 +26,7 @@ const RUN2 = {
     const seg = t => t < SWITCH ? [m, t] : [tr, t - T_AT];
     const call = (f, t, ...a) => { const [s, tt] = seg(t); return s[f]?.(tt, ...a); };
     return {
-      view:24, t0:TARGETABLE, countdown:5, bossR:m.bossR, start:m.start,
+      view:24, t0:TARGETABLE, countdown:5, bossR:m.bossR, bossArt:'god', start:m.start,
       intro:`${m.intro}　最後まで被弾なしで`,
       end:ENRAGE.at,
       casts:[

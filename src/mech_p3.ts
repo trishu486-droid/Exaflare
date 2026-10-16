@@ -31,7 +31,7 @@ const BOSS_COL = { chaos:'#e8783a', exdeath:'#9a5aff' };
 // ボスの絵。カオスは P4 の絵、エクスデス（ネオではない方）は P3 用に描いた絵
 const drawBossArt = b => {
   const X = px(b.x), Z = px(b.z);
-  const sp = bossSprite(b.id === 'chaos' ? 'chaos' : 'exdeath'); ctx.drawImage(sp, Math.round(X - sp.width / 2), Math.round(Z - sp.height / 2));
+  const sp = bossSprite(b.id === 'chaos' ? 'chaos' : 'exdeath'); ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh);
   drawBossFace(b);
 };
 

@@ -5,6 +5,7 @@ import { A, curBoss, fxEl, hasInvuln, hasMit } from './action.js';
 import { S } from './state.js';
 import { img, jobIconUrl } from './icons.js';
 import { sfx } from './audio.js';
+import { kefkaSprite } from './kefka_art.js';
 
 // ===== 画面（内部 288px。1y あたりのピクセル数はギミックごとに変える） =====
 const W = 288, C0 = W / 2;
@@ -203,8 +204,22 @@ function tcTip(X, Z, R, face, on){
 function drawBoss(){
   if (S.inst?.bosses){ drawBosses(); return; }
   const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY), face = -Math.PI / 2; // ギミックごとにターゲットサークルの大きさを変えられる（P2 のゴッドケフカは 6）
-  tcRing(C0, C0, R, face, true); tcTip(C0, C0, R, face, true);
-  if (performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
+  // ボスの絵があるとき（P1・P2）は、殴れない間はターゲットサークルを消して絵だけ（ユーザー 2026-10-16）。絵のない P5 は輪を残す
+  const ring0 = !(S.inst?.bossArt && S.inst?.targetable && !S.inst.targetable(S.t));
+  if (ring0){ tcRing(C0, C0, R, face, true); tcTip(C0, C0, R, face, true); }
+  if (ring0 && performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
+  drawBossSprite(S.inst?.bossArt, C0, C0);
+}
+// ボスの絵（P1 のケフカ・P2 のゴッドケフカ。kefka_art.ts）。art：'kefka' | 'god'、または { id, a（濃さ）, dy（上へずらす）, k（大きさ）, gray（白黒）, dx（揺れ） }
+function drawBossSprite(art, X, Z){
+  if (!art) return;
+  const o = typeof art === 'string' ? { id:art } : art, sp = kefkaSprite(o.id);
+  if (!sp || (o.a ?? 1) <= 0) return;
+  const k = o.k ?? 1, w = sp.width * k, h = sp.height * k;
+  ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, o.a ?? 1)); ctx.imageSmoothingEnabled = false;
+  if (o.gray) ctx.filter = 'grayscale(1) brightness(1.6)';
+  ctx.drawImage(sp, Math.round(X - w / 2 + (o.dx || 0)), Math.round(Z - h / 2 - (o.dy || 0)), Math.round(w), Math.round(h)); // 絵の真ん中を輪の中心に
+  ctx.restore();
 }
 
 // ボスが2体（P3）：ターゲットしている方を最後に（最前面に）描く。正面の印とターゲットのピンは drawBossFace（ボスの絵の後）
@@ -213,8 +228,10 @@ function drawBosses(){
   const cur = curBoss(), flash = performance.now() - A.bossFlash < 90;
   targetLast(S.inst.bosses(S.t)).forEach(b => {
     const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id;
-    tcRing(X, Z, R, b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2, on);
-    if (on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
+    const ring0 = !(b.art && S.inst.targetable && !S.inst.targetable(S.t)); // 絵のあるボスは、殴れない間は輪を消す
+    if (ring0) tcRing(X, Z, R, b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2, on);
+    if (ring0 && on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
+    drawBossSprite(b.art, X, Z);
   });
 }
 

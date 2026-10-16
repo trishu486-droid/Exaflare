@@ -8,6 +8,7 @@ import { RUN } from './mech_run.js';
 import { P4 } from './mech_p4.js';
 import { P3A0, P3B } from './mech_p3.js';
 import { P3A, RUN3, withP3Sky } from './mech_p3run.js';
+import { withSky } from './sky.js';
 import { P3D } from './mech_p3d.js';
 import { P3C } from './mech_p3c.js';
 import { P2M } from './mech_p2m.js';
@@ -17,7 +18,7 @@ import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
 import { RUN2 } from './mech_p2run.js';
 import { RUN1 } from './mech_p1run.js';
-import { LINK12, LINK23 } from './mech_link.js';
+import { LINK12, LINK23, LINK34, LINK45 } from './mech_link.js';
 
 // フェーズごとのギミック。P5 は来る順：フラッド → オーケストラ → スリースターズ → 混沌の終末 →（オーケストラ2回目）→ ミッシング
 // P2：ミッシング → トライン → 通し
@@ -26,14 +27,16 @@ const P1_MECHS = [P1A, P1B, P1C, RUN1]; // 3つに分ける（神々の像1回�
 const P2_MECHS = [P2M, P2T, RUN2];
 const P3_MECHS = [P3A, withP3Sky(P3C), withP3Sky(P3D), RUN3];
 const P3_HIDDEN = [P3A0, P3B]; // メニューには出さない（前半の部品。テスト用に名前で呼べる）
-const P4_MECHS = [P4];
-const P5_MECHS = [FLOOD, ORCH, CELES, EXA, MISS];
-const LINK_MECHS = [LINK12, LINK23]; // つなぎ目の確認用（今だけ。全通しができたら消す。2026-10-16 ユーザー）
+const P4_MECHS = [withSky(P4, 'ruins', 'kefka')]; // P4 の空は P3 と同じ、ケフカは P1 と同じ絵（ユーザー 2026-10-17）
+// P5：赤い星雲の空とカオスケフカの絵（ユーザー 2026-10-17）
+const P5_MECHS = [FLOOD, ORCH, CELES, EXA, MISS].map(m => withSky(m, 'nebula', 'chaos'));
+const RUN5 = withSky(RUN, 'nebula', 'chaos');
+const LINK_MECHS = [LINK12, LINK23, LINK34, LINK45]; // つなぎ目の確認用（今だけ。全通しができたら消す。2026-10-16 ユーザー）
 const MECHS = [...P1_MECHS, ...P2_MECHS, ...P3_MECHS, ...P3_HIDDEN, ...P4_MECHS, ...P5_MECHS, ...LINK_MECHS];
 
 // メニューに出すギミック：フェーズ選択で選んだフェーズの分だけ（P5 は最後に「P5 通し」）
 const phaseOf = (id: string) => LINK_MECHS.some(m => m.id === id) ? 'link' : P1_MECHS.some(m => m.id === id) ? 'p1' : P2_MECHS.some(m => m.id === id) ? 'p2' : [...P3_MECHS, ...P3_HIDDEN].some(m => m.id === id) ? 'p3' : P4_MECHS.some(m => m.id === id) ? 'p4' : 'p5';
-const menuMechs = () => opt.phase === 'link' ? LINK_MECHS : opt.phase === 'p1' ? P1_MECHS : opt.phase === 'p2' ? P2_MECHS : opt.phase === 'p3' ? P3_MECHS : opt.phase === 'p4' ? P4_MECHS : [...P5_MECHS, RUN];
-const mech = () => [...MECHS, RUN].find(m => m.id === opt.mech && !(m as any).wip) || EXA;
+const menuMechs = () => opt.phase === 'link' ? LINK_MECHS : opt.phase === 'p1' ? P1_MECHS : opt.phase === 'p2' ? P2_MECHS : opt.phase === 'p3' ? P3_MECHS : opt.phase === 'p4' ? P4_MECHS : [...P5_MECHS, RUN5];
+const mech = () => [...MECHS, RUN5].find(m => m.id === opt.mech && !(m as any).wip) || EXA;
 
 export { MECHS, P1_MECHS, P2_MECHS, P3_MECHS, P4_MECHS, P5_MECHS, phaseOf, menuMechs, mech };

@@ -161,13 +161,13 @@ const EXDEATH = { name:'エクスデス', w:46, h:50, note:'青い鎧の巨人�
 } };
 
 const cache = {};
-// id：'chaos' | 'neo' | 'exdeath'。中心に置くための幅・高さも返す
+// id：'chaos' | 'neo' | 'exdeath'。返す絵の dw・dh が画面での幅・高さ（ctx.drawImage(sp, x, y, sp.dw, sp.dh) で貼る）
 function bossSprite(id){
   if (!cache[id]){
     const b = id === 'neo' ? NEO3 : id === 'exdeath' ? EXDEATH : BOSSES2.chaos;
-    const P = mk(b.w, b.h, 1); b.draw(P); cache[id] = P.c;
+    const P = mk(b.w, b.h, 1); b.draw(P); cache[id] = P.c; P.c.dw = b.w; P.c.dh = b.h;
   }
   return cache[id];
 }
 
-export { bossSprite };
+export { bossSprite, mk };

@@ -330,7 +330,7 @@ const P2M = {
     const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 8, px(q.z) - 23, 16, 16); }; // 頭のすぐ上（タイルの上端に接する）
 
     return {
-      bossR:6, // ゴッドケフカのターゲットサークル（ヤーンの図から測ると 6 くらい）
+      bossArt:'god', bossR:6, // ゴッドケフカのターゲットサークル（ヤーンの図から測ると 6 くらい）
       start: { ...(p.withEmb ? embSpot(me) : standby(me)) }, // ミッシングだけのときは、最初から整列している
       intro:`あなたは ${me}（${p.method === 'south' ? '南調整' : '優先順'}）`, // 先に塔か後に塔かは予兆が付くまで分からないので出さない（ユーザーの指摘 2026-10-14）
       end:T.end,

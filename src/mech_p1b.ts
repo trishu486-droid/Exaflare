@@ -200,7 +200,7 @@ const P1B = {
     const halfCol = east => east ? '#ffe040' : '#b05aff'; // 黄＝撲殺の神気（東が危ない）、紫＝重力波（西が危ない）
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
-      bossR:6, markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
+      bossR:6, bossArt:'kefka', markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
       intro:me === 'ST' ? 'あなたは ST（ルインガ2発：1発目の前に挑発＋無敵）' : me === 'MT' ? 'あなたは MT（ルインガ：1発目のあとに挑発）' : `あなたは ${me}`,
       enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === me })),
       casts:[

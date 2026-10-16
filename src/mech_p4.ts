@@ -321,9 +321,9 @@ const P4 = (() => {
       };
       const orbit = (c, truth, t) => { const a = t * 3; orb(px(c.x) + Math.round(Math.cos(a) * 32), px(c.z) + Math.round(Math.sin(a) * 14), truth, true); }; // ボスの絵のまわりを回る
       // ボスのドット絵（p4boss.ts）。位置を中心に貼る
-      const drawSprite = (id, q) => { const sp = bossSprite(id), X = px(q.x), Z = px(q.z); ctx.drawImage(sp, Math.round(X - sp.width / 2), Math.round(Z - sp.height / 2)); };
+      const drawSprite = (id, q) => { const sp = bossSprite(id), X = px(q.x), Z = px(q.z); ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh); };
       // ボスの絵を白く塗りつぶしたもの（出現の白い姿）
-      const whiteSprite = (() => { const c = {}; return id => c[id] ||= (() => { const sp = bossSprite(id), w = document.createElement('canvas'); w.width = sp.width; w.height = sp.height; const g = w.getContext('2d'); g.drawImage(sp, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w.width, w.height); return w; })(); })();
+      const whiteSprite = (() => { const c = {}; return id => c[id] ||= (() => { const sp = bossSprite(id), w = document.createElement('canvas'); w.width = sp.width; w.height = sp.height; const g = w.getContext('2d'); g.drawImage(sp, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w.width, w.height); (w as any).dw = (sp as any).dw; (w as any).dh = (sp as any).dh; return w as any; })(); })();
       // カオスとネオエクスデスの出現（約1.5秒。2026-10-13 ユーザーの決定。ケフカのまわりの演出はなし）
       //   ① もやが渦を巻いて集まる（0.5秒）→ ② 上から光の柱、床に白い輪（0.3秒）→ ③ 白い姿で現れて光の粒（0.3秒）→ ④ 白からふつうの色へ（0.4秒）
       //   t0：ボスが見えるようになる時刻（演出はその 1.1 秒前から）
@@ -341,23 +341,23 @@ const P4 = (() => {
           alpha(.85 * (1 - k * .5), () => { rect(X - 5, 0, 10, Z, '#ffffff'); rect(X - 8, 0, 3, Z, glow); rect(X + 5, 0, 3, Z, glow); });
           alpha(.9 * (1 - k), () => ring(X, Z + 18, Math.round(20 + k * 30), '#ffffff'));
         }
-        const ws = whiteSprite(id), dx = Math.round(X - ws.width / 2), dz = Math.round(Z - ws.height / 2);
+        const ws = whiteSprite(id), dx = Math.round(X - ws.dw / 2), dz = Math.round(Z - ws.dh / 2);
         if (a >= .8 && a < APPEAR_FX){ // ③ 白い姿と光の粒
-          ctx.drawImage(ws, dx, dz);
+          ctx.drawImage(ws, dx, dz, ws.dw, ws.dh);
           for (let i = 0; i < 20; i++){ const ang = i * 2.4, r = (a - .8) / .3 * 70 * (.6 + (i % 3) * .2); rect(Math.round(X + Math.cos(ang) * r), Math.round(Z + Math.sin(ang) * r * .6), 2, 2, i % 2 ? '#ffe070' : glow); }
         }
-        if (a >= APPEAR_FX) alpha(1 - (a - APPEAR_FX) / .4, () => ctx.drawImage(ws, dx, dz)); // ④ 白からふつうの色へ（絵の上に重ねて薄くしていく）
+        if (a >= APPEAR_FX) alpha(1 - (a - APPEAR_FX) / .4, () => ctx.drawImage(ws, dx, dz, ws.dw, ws.dh)); // ④ 白からふつうの色へ（絵の上に重ねて薄くしていく）
       };
       // 消えるとき（約1.1秒。t1：ボスの絵が消える時刻）
       //   ① 白く光っていく（0.3秒・まだ絵がある）→ ② 白い姿が上へ細くなって光の柱に吸い込まれる（0.4秒）→ ③ もやが広がって消える（0.4秒）
       const vanishFx = (id, q, t, t1) => {
         const a = t - (t1 - .3); if (a < 0 || a > 1.1) return;
         const X = px(q.x), Z = px(q.z), ws = whiteSprite(id), mist = MIST[id], glow = GLOW[id];
-        if (a < .3){ alpha(a / .3, () => ctx.drawImage(ws, Math.round(X - ws.width / 2), Math.round(Z - ws.height / 2))); return; }
+        if (a < .3){ alpha(a / .3, () => ctx.drawImage(ws, Math.round(X - ws.dw / 2), Math.round(Z - ws.dh / 2), ws.dw, ws.dh)); return; }
         if (a < .7){
-          const k = (a - .3) / .4, w = Math.max(1, Math.round(ws.width * (1 - k))), h = Math.round(ws.height * (1 + k * .6));
+          const k = (a - .3) / .4, w = Math.max(1, Math.round(ws.dw * (1 - k))), h = Math.round(ws.dh * (1 + k * .6));
           alpha(.9 * (1 - k * .4), () => { rect(X - 4, 0, 8, Z, '#ffffff'); rect(X - 6, 0, 2, Z, glow); rect(X + 4, 0, 2, Z, glow); });
-          ctx.drawImage(ws, Math.round(X - w / 2), Math.round(Z + ws.height / 2 - h), w, h);
+          ctx.drawImage(ws, Math.round(X - w / 2), Math.round(Z + ws.dh / 2 - h), w, h);
         }
         if (a >= .5){
           const k = Math.min(1, (a - .5) / .6), n = 18;

@@ -5,12 +5,10 @@ import { hasInvuln, hasMit, switchTarget } from './action.js';
 import { TARGET_DPS, JOBS, mySlot } from './jobs.js';
 const isTankJob = () => JOBS[opt.job]?.role === 'tank';
 import { opt } from './store.js';
-import { skyUrl, SKY_BASE } from './sky.js';
+import { skyBg, withSky } from './sky.js';
 import { clearOutside } from './mech_p2m.js';
-let p3SkyUrl = null;
-const p3Sky = () => ({ url:p3SkyUrl ??= skyUrl('ruins', 600, 600, 2, 7), size:600, color:SKY_BASE.ruins });
-// 単体のギミック（じしん＆ブラックホール・どんどこ地団駄）にも同じ空を付ける（mechs.ts で包む）
-const withP3Sky = m => ({ ...m, create(p){ const inst = m.create(p), f = inst.drawFloor; inst.screenBg ??= p3Sky; inst.drawFloor = t => { clearOutside(); f?.call(inst, t); }; return inst; } });
+const p3Sky = () => skyBg('ruins');
+const withP3Sky = m => withSky(m, 'ruins');
 import { fxFlash, fxShake } from './fx.js';
 import { P, PPY, hurt, px, rect, ring, targetLast } from './gfx.js';
 import { makeP3Fx } from './p3fx.js';

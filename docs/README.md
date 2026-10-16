@@ -70,7 +70,7 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 
 1. リポジトリ名の変更（案：`dancing-mad-sim`）と、旧URLの案内用の公開リポジトリ（名前 `Exaflare`、中身は新しいURLへ飛ばす1ページだけ）。
 2. 1〜2週間たったらリポジトリを非公開にする（そのとき `.github/workflows/deploy.yml` を消す）。
-3. Google Search Console に新しいURLを登録する。
+3. Google Search Console に新しいURLを登録する。手順は `docs/search-console.md`（2026-10-17。旧URLは新しいURLへすぐ転送するページだけにした・robots.txt と sitemap.xml を足した）。
 
 ## 6. まだ残っていること（ゲームの中身）
 

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dancing-mad-sim.pages.dev/sitemap.xml

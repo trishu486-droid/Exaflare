@@ -212,8 +212,8 @@ const P1C = {
     let lastT = null; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
     const fired = new Set();
     const events: [number, () => void][] = [
-      // 神々の像の詠唱の手前で、塔が上段へ上る：ゴゴゴゴ（p1lib の towerRumble）
-      [Math.max(0, TOWER_MOVE[3].from), () => towerRumble(3, fxShake, sfx)],
+      // 2回目の裁きの光の詠唱中（P1 通しだけ。負の時刻）に、塔が上段へ上る：ゴゴゴゴ（p1lib の towerRumble）。第三楽章だけのときは、はじめから上段なので鳴らさない
+      [TOWER_MOVE[3].from, () => { const t = S.t - (p.off || 0); if (t < TOWER_MOVE[3].to) towerRumble(3, fxShake, sfx, t); }],
       [T.exp[0], () => { placeArrows(0); sfx.blip(520, .08); }],
       [T.exp[1], () => { placeArrows(1); sfx.blip(520, .08); }],
       [T.trap, () => resolveTrap(S.t - (p.off || 0))], // P1 通しでは p.off だけずれる

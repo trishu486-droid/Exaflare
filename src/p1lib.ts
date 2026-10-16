@@ -157,8 +157,9 @@ const RES = 2, BGW = 440, BGH = 1100, ST_Y = 300; // 大きさと像の上の端
 // 見える範囲の上の端（像の中の行。フィールドのドット）：下段（悪魔）・中段（男女）・上段（女神）
 const VIEW = { 1:228, 2:120, 3:14 };
 const ABOVE = 74; // フィールドの縁より上に見える行の数（縦長の画面で、上の端まで）
-// 塔が動く時間（各楽章の時刻。神々の像の詠唱の手前まで）。第一楽章はカウントダウンの終わりから生えてくる（はじめはてっぺんまで床の下）
-const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:13.2, to:15.6 } };
+// 塔が動く時間（各楽章の時刻）。第一楽章はカウントダウンの終わりから生えてくる（はじめはてっぺんまで床の下）。第二楽章は神々の像の詠唱の手前
+// 第三楽章は、その前の2回目の裁きの光の詠唱中（P1 通しの 104.0〜106.4。詠唱 103.4〜108.4。2026-10-16 ユーザーの指摘）。第三楽章だけで遊ぶときは、はじめから上段
+const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:-21.9, to:-19.5 } };
 const SINK = VIEW[1] + ABOVE + 6;
 let statueBg = null, starBg = null;
 const stars = (g, w, h, seed) => { g.fillStyle = P.space; g.fillRect(0, 0, w * RES, h * RES); g.fillStyle = P.star; for (let i = 0; i < h / 4; i++) g.fillRect(((i * 97 + seed) % w) * RES, ((i * 53 + 29) % h) * RES, RES, RES); };
@@ -171,9 +172,9 @@ const buildStatueBg = () => {
 // フィールドの中心より下にかぶせる星空だけの絵。生えてくる途中の塔が、フィールドの下にはみ出して見えないように
 const COVER_H = 500;
 const buildStarBg = () => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = COVER_H * RES; stars(c.getContext('2d'), BGW, COVER_H, 41); return c.toDataURL(); };
-// 塔が動く間のゴゴゴゴ（揺れと低い音）。各楽章のイベントで MOVE[part].from に呼ぶ
-function towerRumble(part, fxShake, sfx){
-  const len = MOVE[part].to - Math.max(0, MOVE[part].from);
+// 塔が動く間のゴゴゴゴ（揺れと低い音）。各楽章のイベントで MOVE[part].from に呼ぶ（at：呼んだ時刻）
+function towerRumble(part, fxShake, sfx, at = Math.max(0, MOVE[part].from)){
+  const len = MOVE[part].to - at;
   fxShake(2, len); sfx.tone(46, len, 'sawtooth', .05, -8); sfx.tone(62, len, 'triangle', .08, -12);
 }
 // 今の楽章・時刻で、像のどの行が見えているか（row）・どれだけ沈んでいるか（sink）・横の揺れ（dx）

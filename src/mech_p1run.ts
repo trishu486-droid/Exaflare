@@ -6,7 +6,7 @@ import { bgm, sfx } from './audio.js';
 import { healerHit, hasMit, hasInvuln } from './action.js';
 import { fxFlash, fxShake } from './fx.js';
 import { hurt, alpha } from './gfx.js';
-import { TH, DPS, dist } from './p1lib.js';
+import { TH, DPS, dist, TOWER_MOVE } from './p1lib.js';
 import { hyperFx, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR } from './p1lib.js';
 import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
@@ -29,7 +29,7 @@ const MT_NORTH = { x:0, z:-6 }, CLEAVE_HALF = 45;
 const BOT_PROV = { ST:[OPEN.hit[0] + .6, 51 + 18.1], MT:[51 + 22.7] }; // 最初のルインガ（ST）・第二楽章のルインガ（ST 18.1・MT 22.7。mech_p1b と同じ）
 const AT = [0, 51, 125.9];                     // 各楽章の 0（cactbot 24・75・149.9）
 const SWITCH = [31.2, 99.2];                   // 前の楽章の終わり（第一楽章 31.2・第二楽章 48.2）で次へ切り替える
-const MUSIC = [{ at:51, key:'p1b' }, { at:125.9 + 13.2, key:'p1c' }]; // 塔が中段・上段へ動き出す時
+const MUSIC = [{ at:51, key:'p1b' }, { at:125.9 + TOWER_MOVE[3].from, key:'p1c' }]; // 塔が中段・上段へ動き出す時（上段は2回目の裁きの光の詠唱中）
 // 楽章の間：裁きの光（全体攻撃 260,000）→ ハイパードライブ×3（タンク強攻撃 700,000。ヘイト1位のタンクが軽減か無敵で受ける（推定））
 const GAPS = [
   { judge:38.7, hyper:[41.8, 43.8, 45.8] },     // cactbot 62.7 → 65.8〜69.8

@@ -6,7 +6,7 @@ import { A, healerHit, hasInvuln, hasMit } from './action.js'; // ダメージ�
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
-import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
+import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
 
@@ -77,7 +77,7 @@ const P1B = {
     const startSpot = k => add({ x:0, z:3 }, at(SLOTS.indexOf(k) * 45, 2));
     // P1 通し：前の楽章との間（裁きの光・ハイパードライブ）は p.pre.spot の位置（ヘイト1位のタンクはケフカの正面、ほかは後ろ）。p.pre.until（この区切りの時刻）まで
     const spot0 = k => p.pre?.spot(k) ?? startSpot(k);
-    const { spotAt, botGoal } = makeRoutes([
+    const { spotAt, botGoal:routeGoal } = makeRoutes([
       ...(p.pre ? [{ until:p.pre.until, spot:spot0 }] : []),
       { until:T.graven, spot:startSpot },
       { until:T.mmCast + .5, spot:startSpot },
@@ -98,6 +98,13 @@ const P1B = {
       { until:T.soak - .2, spot:soakSpot },
       { until:T.end + 9, spot:soakSpot },
     ]);
+    // つぎつぎトラップで飛ばされた味方は、戻らずに着いた所で待ち、グラビガの直前に沼の位置へ歩く（2026-10-16 ユーザーの指摘）
+    const landed = {};
+    const botGoal = (k, t) => {
+      const L = landed[k];
+      if (L && t >= T.trapHit && t < T.soak - .2 - dist(L, soakSpot(k)) / BOT_SPEED - .05) return L;
+      return routeGoal(k, t);
+    };
     // ---- 人 ----
     const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...spot0(k) }));
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
@@ -170,7 +177,7 @@ const P1B = {
           const c = { x:pos(h).x, z:pos(h).z };
           fxAdd('burst', c.x, c.z, { r:TRAP_R, cols:TRAP_COLS, dur:.5 }); fxParts(14, c.x, c.z, { cols:TRAP_COLS, speed:8, up:6, life:.7, spread:3 });
           SLOTS.forEach(k => { if (k === h) return; const q = pos(k), d = dist(q, c); if (d > TRAP_R || d < .01) return;
-            const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB }; kb[k] = { t0:now(), from:{ x:q.x, z:q.z }, to, len:TRAP_KB / KB_SPEED };
+            const to = { x:q.x + (q.x - c.x) / d * TRAP_KB, z:q.z + (q.z - c.z) / d * TRAP_KB }; kb[k] = { t0:now(), from:{ x:q.x, z:q.z }, to, len:TRAP_KB / KB_SPEED }; if (k !== me) landed[k] = to;
             if (k === me && Math.hypot(to.x, to.z) > 20) hurt('ノックバックで外へ落ちた'); });
         });
         sfx.boom(); fxShake(3, .25);

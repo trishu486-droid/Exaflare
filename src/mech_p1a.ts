@@ -54,10 +54,12 @@ const P1A = {
     const spread1 = k => isTH(k) ? flip(SPREAD_N[k], thNorth) : mirror(flip(SPREAD_N[Object.keys(PAIR_DPS).find(t => PAIR_DPS[t] === k)], thNorth));
     const stack1 = k => isTH(k) ? flip(STACK_N.T, thNorth) : mirror(flip(STACK_N.T, thNorth));
     const final1 = k => m1.fireStack ? add(stack1(k), OFF(k, .6)) : spread1(k);
-    // ---- ① 波動弾：線の人は、押されたあと ② の場所の近くに着くように、先に北へずれて待つ ----
+    // 味方はファイガの答え（散開か頭割り）を先に見せないように、散開と頭割りの真ん中で待ち、ぎりぎりで動く（2026-10-16 ユーザーの指摘）
+    const wait1 = k => add({ x:(spread1(k).x + stack1(k).x) / 2, z:(spread1(k).z + stack1(k).z) / 2 }, OFF(k, .6));
+    // ---- ① 波動弾：線の人は、押されたあと待つ場所の近くに着くように、先に北へずれて待つ ----
     const kbDir = q => unit(STATUE, q);
     const prePulse = k => {
-      const f = final1(k); if (!tethered(k)) return f;
+      const f = wait1(k); if (!tethered(k)) return f;
       const d = kbDir(f); let t = PULSE_KB;
       while (t > 0 && Math.hypot(f.x - d.x * t, f.z - d.z * t) > 18) t -= .25;
       return { x:f.x - d.x * t, z:f.z - d.z * t };
@@ -94,7 +96,8 @@ const P1A = {
       { until:T.graven, spot:startSpot },
       { until:T.mm1Cast + .3, spot:startSpot },
       { until:T.pulse - .15, spot:prePulse },
-      { until:T.ice1 - .2, spot:final1 },
+      { until:T.fire1 - 1.6, spot:wait1 },  // 自分（ガイド）は 1.6 秒前から答えの位置へ（人の足で間に合う）
+      { until:T.fire1 - .4, spot:final1 },  // 味方はここで初めて答えの位置へ動く（ブリザガの後）
       { until:T.fire1 + .15, spot:final1 },
       { until:T.cannon - .3, spot:lineSpot },
       { until:T.cannon + .1, spot:lineSpot },

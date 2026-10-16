@@ -19,7 +19,7 @@ function begin(){
   S.player = { ...(S.inst.start || m.start) };
   S.face = { x:0, z:-1 };
   hpReset();
-  bgm.use(phaseOf(m.id) === 'p1' ? m.id : phaseOf(m.id)); // P1〜P4 はフェーズごとの曲（P1 は楽章ごと）
+  bgm.use((m as any).bgmKey ?? (phaseOf(m.id) === 'p1' ? m.id : phaseOf(m.id))); // P1〜P4 はフェーズごとの曲（P1 は楽章ごと）。つなぎ目は前のフェーズの曲
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
   $('menu').hidden = true; applyTitle();
   sfx.unlock(); sfx.blip(660, .08);
@@ -67,6 +67,9 @@ function frame(now){
     }
     if (S.phase === 'run'){
       S.inst.tick(S.t);
+      // つなぎ目（mech_link）：決まった時刻で次のフェーズの通しに差し替える。時計もそのフェーズの時刻に
+      const h = S.inst.handoff;
+      if (h && S.t >= h.at && S.failAt == null){ const n = h.go(); S.inst = n.inst; S.t = n.t; if (n.player) S.player = { ...n.player }; A.tgt = n.inst.target0 ?? null; A.cast = null; }
       hpTick(dt);
       actTick(dt);
       // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）
@@ -74,7 +77,7 @@ function frame(now){
       const reached = S.inst.bossHp && A.dmg >= S.inst.bossHp, gate = S.inst.hpGate;
       const killed = reached && !gate && (S.inst.killAfter == null || S.t >= S.inst.killAfter); // P3 通し：突出までは HP が残る（killAfter から撃破できる）
       if (killed || (gate && reached && S.t > S.inst.end)) S.killed = true;
-      if (S.inst.bossHp && !reached && S.t > S.inst.end && S.failAt == null) hurt(S.inst.enrageName ? `時間切れ（${S.inst.enrageName}）` : gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
+      if (S.inst.bossHp && !reached && !S.inst.noEnrage && S.t > S.inst.end && S.failAt == null) hurt(S.inst.enrageName ? `時間切れ（${S.inst.enrageName}）` : gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
       if (killed || S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
     }
   }

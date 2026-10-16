@@ -34,7 +34,7 @@ function renderHelp(){
 const MOVE = { up:'w', down:'s', left:'a', right:'d' };
 function toggleSafe(){ opt.safe = !opt.safe; store.set('safe', opt.safe); syncSafe(); }
 function syncSafe(){ $('oSafe').checked = opt.safe; }
-function pressStart(){ if (S.phase === 'menu') menuConfirm(); else begin(); }
+function pressStart(){ if (S.phase === 'menu') menuConfirm(); else if (S.phase === 'run' && S.inst?.skip?.()) return; else begin(); } // つなぎ目のムービー中は START でスキップ
 window.addEventListener('keydown', e => {
   if (!$('rank').hidden){ if (e.key === 'Escape') closeRank(); return; } // ランキング（名前の入力中はゲームの操作を止める）
   if (!$('news').hidden){ if (e.key === 'Escape') closeNews(); return; }

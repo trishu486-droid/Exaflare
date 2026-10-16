@@ -31,6 +31,7 @@ const jst = (ts: string) => { const d = new Date(new Date(ts).getTime() + 9 * 36
 function rankBlock(){
   if (!RANK_ON) return 'off';
   if (S.inst?.hpGate) return 'P4 はランキングの対象外です';
+  if (mech().id.startsWith('link')) return 'つなぎ目の確認用はランキングの対象外です';
   if (P1_MECHS.includes(mech())) return 'P1 はランキングの対象外です';
   if (P2_MECHS.includes(mech())) return 'P2 はランキングの対象外です';
   if (P3_MECHS.includes(mech())) return 'P3 はランキングの対象外です'; // Firestore のルールに入れるまで

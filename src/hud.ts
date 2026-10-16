@@ -292,7 +292,7 @@ function updateHud(){
   if (S.phase === 'menu') setMsg('');
   else if (S.phase === 'count') setMsg(`<div class="big">${Math.ceil(S.t0 - S.t)}</div><div class="sub">${mech().name}</div>${S.inst.intro ? `<div class="sub" style="color:var(--gold)">${S.inst.intro}</div>` : ''}`);
   else if (S.phase === 'done') setMsg(S.resultHtml);
-  else setMsg('');
+  else setMsg(S.inst?.message?.(S.t) ?? ''); // つなぎ目のセリフ・ムービーの字幕（mech_link）
 }
 // ボスの残りHP（割合）。P4 は 100% から始まり、bossHp ぶん削ると 25%（hpGate）
 function bossLeft(){ const g = S.inst?.hpGate || 0, k = A.dmg / S.inst.bossHp; return Math.max(0, g ? 1 - (1 - g) * k : 1 - k); }

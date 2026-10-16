@@ -1,5 +1,5 @@
-# main へのプッシュのたびに型チェック → ビルド → GitHub Pages（旧住所）に公開する
-# 本番は Cloudflare Pages（dancing-mad-sim.pages.dev）。GitHub Pages は移行期間だけ。リポジトリを非公開にするときにこのファイルを消す
+# 旧住所（GitHub Pages）には、新しいURL（Cloudflare Pages：dancing-mad-sim.pages.dev）へすぐ転送するページ（gh-redirect/）だけを出す
+# 検索エンジンに「引っ越した」と伝えて、検索結果を新しいURLに寄せるため（2026-10-17 ユーザー）。リポジトリを非公開にするときにこのファイルを消す
 name: Deploy to GitHub Pages
 on:
   push:
@@ -17,16 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: gh-redirect
   deploy:
     needs: build
     runs-on: ubuntu-latest

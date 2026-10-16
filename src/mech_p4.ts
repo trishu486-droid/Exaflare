@@ -6,6 +6,7 @@ import { healerHit, isActing } from './action.js';
 import { FXC, FXK, fxAdd, fxFlash, fxShake } from './fx.js';
 import { P, PPY, alpha, ctx, disc, donut, fillArena, glyph, hurt, line, px, rect, ring } from './gfx.js';
 import { bossSprite } from './p4boss.js';
+import { chaosFall, chaosLand, chaosJump, neoMist } from './bossfx.js';
 import { makeP4Fx, drawRails, tellQuad, tellBand, drawChaosGlow, drawFloodMarks, drawReleaseRings } from './p4fx.js';
 
 // =====================================================================
@@ -265,9 +266,9 @@ const P4 = (() => {
       const events: [number, () => void][] = [
         // カオスとネオエクスデスの出現：光の柱が落ちる音、出た瞬間に画面が少しゆれる（演出は draw の appearFx）
         [KS.appear - 1.1 + .5, () => sfx.splash()],
-        [KS.appear, () => { sfx.big(); fxShake(2, .25); [CHAOS0, NEO0].forEach(q => fxAdd('burst', q.x, q.z, { r:3, cols:['#ffffff', '#ffe8f0', '#c8e0ff'], dur:.5 })); }],
+        [KS.appear, () => { sfx.boom(); fxShake(3, .3); }], // カオスの着地（出方の絵は bossfx.ts）
         [T.neoFlood - 1.1 + .5, () => sfx.splash()],
-        [T.neoFlood, () => { sfx.big(); fxShake(2, .25); fxAdd('burst', neo.x, neo.z, { r:3, cols:['#ffffff', '#c8e0ff'], dur:.5 }); }],
+        [T.neoFlood, () => { sfx.big(); }], // ネオエクスデスが黒いもやの中から出る（bossfx.ts）
         ...[CHAOS_LEAVE, T.neoLeave, T.surge].map(tt => [tt, () => sfx.splash()] as [number, () => void]), // 消える音
         [T.mystery[0] + TELL, () => mysteryResolve(p.mystery[0], true, true, 'なぞなぞマジック1')],
         [T.mystery[1] + TELL, () => mysteryResolve(p.mystery[1], true, true, 'なぞなぞマジック2')],
@@ -322,47 +323,20 @@ const P4 = (() => {
       const orbit = (c, truth, t) => { const a = t * 3; orb(px(c.x) + Math.round(Math.cos(a) * 32), px(c.z) + Math.round(Math.sin(a) * 14), truth, true); }; // ボスの絵のまわりを回る
       // ボスのドット絵（p4boss.ts）。位置を中心に貼る
       const drawSprite = (id, q) => { const sp = bossSprite(id), X = px(q.x), Z = px(q.z); ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh); };
-      // ボスの絵を白く塗りつぶしたもの（出現の白い姿）
-      const whiteSprite = (() => { const c = {}; return id => c[id] ||= (() => { const sp = bossSprite(id), w = document.createElement('canvas'); w.width = sp.width; w.height = sp.height; const g = w.getContext('2d'); g.drawImage(sp, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w.width, w.height); (w as any).dw = (sp as any).dw; (w as any).dh = (sp as any).dh; return w as any; })(); })();
-      // カオスとネオエクスデスの出現（約1.5秒。2026-10-13 ユーザーの決定。ケフカのまわりの演出はなし）
-      //   ① もやが渦を巻いて集まる（0.5秒）→ ② 上から光の柱、床に白い輪（0.3秒）→ ③ 白い姿で現れて光の粒（0.3秒）→ ④ 白からふつうの色へ（0.4秒）
-      //   t0：ボスが見えるようになる時刻（演出はその 1.1 秒前から）
+      // カオスとネオエクスデスの出方・消え方（2026-10-17 ユーザーの説明。bossfx.ts）
+      //   カオス：上から降ってくる（1.1秒で着地）／真上にジャンプして消える（0.8秒）
+      //   ネオエクスデス：黒いもやの中から出る（1.1秒）／黒いもやに包まれて消える（1.1秒）
+      //   t0：ボスがふつうに描かれ始める時刻（演出はその 1.1 秒前から）、t1：ふつうの絵が消える時刻（演出はそこから）
       const APPEAR_FX = 1.1;
-      const MIST = { chaos:['#3a0a2a', '#8a2a3a'], neo:['#0a1a3a', '#3a5a8a'] }, GLOW = { chaos:'#ffd0e0', neo:'#d0e8ff' };
       const appearFx = (id, q, t, t0) => {
-        const a = t - (t0 - APPEAR_FX); if (a < 0 || a > APPEAR_FX + .4) return;
-        const X = px(q.x), Z = px(q.z), mist = MIST[id], glow = GLOW[id];
-        if (a < .8){ // ① もや（だんだん小さく速く回る）
-          const k = Math.min(1, a / .5), n = 18;
-          for (let i = 0; i < n; i++){ const ang = i / n * Math.PI * 2 + a * 5, r = (1 - k) * 60 + 14; alpha(.25 + .35 * k, () => disc(X + Math.cos(ang) * r, Z + Math.sin(ang) * r * .55, 6, mist[i % 2])); }
-        }
-        if (a >= .5 && a < .9){ // ② 光の柱と床の輪
-          const k = (a - .5) / .4;
-          alpha(.85 * (1 - k * .5), () => { rect(X - 5, 0, 10, Z, '#ffffff'); rect(X - 8, 0, 3, Z, glow); rect(X + 5, 0, 3, Z, glow); });
-          alpha(.9 * (1 - k), () => ring(X, Z + 18, Math.round(20 + k * 30), '#ffffff'));
-        }
-        const ws = whiteSprite(id), dx = Math.round(X - ws.dw / 2), dz = Math.round(Z - ws.dh / 2);
-        if (a >= .8 && a < APPEAR_FX){ // ③ 白い姿と光の粒
-          ctx.drawImage(ws, dx, dz, ws.dw, ws.dh);
-          for (let i = 0; i < 20; i++){ const ang = i * 2.4, r = (a - .8) / .3 * 70 * (.6 + (i % 3) * .2); rect(Math.round(X + Math.cos(ang) * r), Math.round(Z + Math.sin(ang) * r * .6), 2, 2, i % 2 ? '#ffe070' : glow); }
-        }
-        if (a >= APPEAR_FX) alpha(1 - (a - APPEAR_FX) / .4, () => ctx.drawImage(ws, dx, dz, ws.dw, ws.dh)); // ④ 白からふつうの色へ（絵の上に重ねて薄くしていく）
+        const a = t - (t0 - APPEAR_FX), X = px(q.x), Z = px(q.z), sp = bossSprite(id);
+        if (id === 'chaos'){ if (a >= 0 && a < APPEAR_FX) chaosFall(sp, X, Z, a / APPEAR_FX); else if (a >= APPEAR_FX && a < APPEAR_FX + .4) chaosLand(X, Z, sp, (a - APPEAR_FX) / .4); return; }
+        if (a >= 0 && a < APPEAR_FX) neoMist(sp, X, Z, a / APPEAR_FX, true);
       };
-      // 消えるとき（約1.1秒。t1：ボスの絵が消える時刻）
-      //   ① 白く光っていく（0.3秒・まだ絵がある）→ ② 白い姿が上へ細くなって光の柱に吸い込まれる（0.4秒）→ ③ もやが広がって消える（0.4秒）
       const vanishFx = (id, q, t, t1) => {
-        const a = t - (t1 - .3); if (a < 0 || a > 1.1) return;
-        const X = px(q.x), Z = px(q.z), ws = whiteSprite(id), mist = MIST[id], glow = GLOW[id];
-        if (a < .3){ alpha(a / .3, () => ctx.drawImage(ws, Math.round(X - ws.dw / 2), Math.round(Z - ws.dh / 2), ws.dw, ws.dh)); return; }
-        if (a < .7){
-          const k = (a - .3) / .4, w = Math.max(1, Math.round(ws.dw * (1 - k))), h = Math.round(ws.dh * (1 + k * .6));
-          alpha(.9 * (1 - k * .4), () => { rect(X - 4, 0, 8, Z, '#ffffff'); rect(X - 6, 0, 2, Z, glow); rect(X + 4, 0, 2, Z, glow); });
-          ctx.drawImage(ws, Math.round(X - w / 2), Math.round(Z + ws.dh / 2 - h), w, h);
-        }
-        if (a >= .5){
-          const k = Math.min(1, (a - .5) / .6), n = 18;
-          for (let i = 0; i < n; i++){ const ang = i / n * Math.PI * 2 - a * 3, r = 10 + k * 50; alpha(.5 * (1 - k), () => disc(X + Math.cos(ang) * r, Z + Math.sin(ang) * r * .55, 5, mist[i % 2])); }
-        }
+        const a = t - t1, X = px(q.x), Z = px(q.z), sp = bossSprite(id);
+        if (id === 'chaos'){ if (a >= 0 && a < .8) chaosJump(sp, X, Z, a / .8); return; }
+        if (a >= 0 && a < 1.1) neoMist(sp, X, Z, a / 1.1, false);
       };
       const drawNeo = q => drawSprite('neo', q);
       const drawChaos = q => drawSprite('chaos', q);

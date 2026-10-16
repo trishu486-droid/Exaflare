@@ -228,7 +228,7 @@ function drawBosses(){
   const cur = curBoss(), flash = performance.now() - A.bossFlash < 90;
   targetLast(S.inst.bosses(S.t)).forEach(b => {
     const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id;
-    const ring0 = !(b.art && S.inst.targetable && !S.inst.targetable(S.t)); // 絵のあるボスは、殴れない間は輪を消す
+    const ring0 = !b.hideRing && !(b.art && S.inst.targetable && !S.inst.targetable(S.t)); // 絵のあるボスは、殴れない間は輪を消す（hideRing：出てくる前）
     if (ring0) tcRing(X, Z, R, b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2, on);
     if (ring0 && on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
     drawBossSprite(b.art, X, Z);

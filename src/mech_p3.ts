@@ -29,8 +29,12 @@ const CHAOS_SIDE = ['ST', 'H2', 'D1', 'D2'];
 const BOSS_TC = 5; // カオス・エクスデスのターゲットサークルの半径（ヤーンの図から）
 const BOSS_COL = { chaos:'#e8783a', exdeath:'#9a5aff' };
 // ボスの絵。カオスは P4 の絵、エクスデス（ネオではない方）は P3 用に描いた絵
+// 出方・消え方（つなぎ。mech_link.ts）：artFx(b, X, Z) が true を返したら、ふつうの絵は描かない（演出の側で描いた）
+let artFx = null;
+const setBossArtFx = f => { artFx = f; };
 const drawBossArt = b => {
   const X = px(b.x), Z = px(b.z);
+  if (artFx?.(b, X, Z)) return;
   const sp = bossSprite(b.id === 'chaos' ? 'chaos' : 'exdeath'); ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh);
   drawBossFace(b);
 };
@@ -530,4 +534,4 @@ const P3A0 = (() => {
 
 export { P3A0, P3B };
 // じしん＆ブラックホール（mech_p3c.ts）が使う共通の部品
-export { inBusterAoe, BUSTER_R, dirOf, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, numGlyph, wip };
+export { inBusterAoe, BUSTER_R, dirOf, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, setBossArtFx, numGlyph, wip };

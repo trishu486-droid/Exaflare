@@ -15,6 +15,9 @@ import { P4 } from './mech_p4.js';
 import { RUN } from './mech_run.js';
 import { withSky, skyBg } from './sky.js';
 import { bossSprite } from './p4boss.js';
+import { kefkaSprite } from './kefka_art.js';
+import { setBossArtFx } from './mech_p3.js';
+import { chaosFall, chaosLand, chaosJump, kefkaSmoke, godDescend, godFlyAway, exdeathLight } from './bossfx.js';
 
 // =====================================================================
 // フェーズのつなぎ目（全通しの部品）。docs/README.md 6章の3（ユーザーの動画 2026-10-16）
@@ -93,19 +96,19 @@ const say = text => talkBox('ケフカ', text);
 // ---------------------------------------------------------------------
 // 演出（2026-10-16 ユーザー「つまらない」→ 派手に）：ケフカが白く点滅して震え、紫の光の粒になって消える → 金の光が床に満ちて白く光る → 羽根が舞い、光の柱
 // → ゴッドケフカが上から降りてくる → 着地で衝撃の輪と揺れ、名前の大きな文字とセリフの枠
-const T12 = { blink:1.2, gone:2, gold:4, pillar:[6.5, 9.5], descend:[8.1, 9], god:9, talk:[9.6, 14], name:[9, 11.5], targetable:11.5, handoff:15.9 };
+// ケフカは時間切れで白く点滅して震え、白い煙（手品）の中に消える 1.2〜2.2。ゴッドケフカは上から神々しくゆっくり舞い降りる 5.5〜9（ユーザー 2026-10-17）
+const T12 = { blink:1.2, gone:2.2, gold:4, pillar:[5, 9.5], descend:[5.5, 9], god:9, talk:[9.6, 14], name:[9, 11.5], targetable:11.5, handoff:15.9 };
 function makeLink12({ lead = 0, check = false } = {}){
   const me = mySlot();
   const p2 = RUN2.create(RUN2.gen());
   const P1_HP = 1e7; // 確認用の見た目だけ（P1 の終わりの HP は 15% 少し上）
   const bots = makeBots(me, (k, t) => t < T12.targetable ? P1_END(k) : lerp(P1_END(k), P2_EMB(k), clamp01((t - T12.targetable) / 3)));
   let started = false, music = false;
-  // ボスの絵：P1 のケフカ（時間切れで白く点滅して震え、消える）→ ゴッドケフカ（上から降りてくる）
+  // ボスの絵：P1 のケフカ（時間切れで白く点滅して震える）→ 煙の中に消える・ゴッドケフカが舞い降りる間は draw で描く → ゴッドケフカ
   const art12 = t => {
     if (t < 0) return 'kefka';
-    if (t < T12.gone) return { id:'kefka', gray:t < T12.blink && Math.floor(t * 10) % 2 === 0, dx:Math.round(Math.sin(t * 60) * 2), a:t < T12.blink ? 1 : 1 - (t - T12.blink) / (T12.gone - T12.blink) };
-    const k = clamp01((t - T12.descend[0]) / (T12.descend[1] - T12.descend[0])), e = 1 - (1 - k) * (1 - k);
-    return { id:'god', a:k * 1.5, dy:(1 - e) * 140, k:.7 + .3 * e };
+    if (t < T12.blink) return { id:'kefka', gray:Math.floor(t * 10) % 2 === 0, dx:Math.round(Math.sin(t * 60) * 2) };
+    return t >= T12.descend[1] ? 'god' : null;
   };
   const self = {
     view:24, t0:-lead, countdown:3, start:P1_END(me), bossR:BOSS_R,
@@ -114,15 +117,15 @@ function makeLink12({ lead = 0, check = false } = {}){
     get bossHp(){ return S.t < 0 ? P1_HP : S.t >= T12.targetable ? p2.bossHp : 0; },
     get bossName(){ return S.t < 0 ? 'ケフカ' : p2.bossName; },
     targetable: t => t < 0 || t >= T12.targetable,
-    bosses: t => t < T12.gone ? [{ ...boss()[0], art:art12(t) }] : t >= T12.descend[0] ? [{ ...boss()[0], art:art12(t) }] : [],
+    bosses: t => t < T12.blink || t >= T12.descend[1] ? [{ ...boss()[0], art:art12(t) }] : [],
     progress: t => t < 0 ? 'P1 の終わり' : t < T12.targetable ? 'つなぎ（P1→P2）' : 'P2 の始まり',
     message: t => (t >= T12.name[0] && t < T12.name[1] ? banner('ゴッドケフカ') : '') + (t >= T12.talk[0] && t < T12.talk[1] ? say('絶ッ！！|再現したな、この私を……！') : ''),
     tick(t){
       if (!started){ started = true; if (lead) A.dmg = P1_HP * .84; }
       if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .5, .25); sfx.big(); bgm.stop(1.5); }
-      if (t >= T12.blink && !self._burst){ self._burst = true; fxParts(60, 0, 0, { cols:['#c890ff', '#7a2a7a', '#ffffff', '#ff8ad8'], speed:7, up:10, life:1.6, spread:3 }); fxShake(3, .6); sfx.boom(); }
+      if (t >= T12.blink && !self._burst){ self._burst = true; fxParts(30, 0, 0, { cols:['#ffffff', '#e8e4f0', '#d0cce0'], speed:5, up:6, life:1.2, spread:3 }); sfx.blip(520, .1); sfx.blip(780, .12); }
       if (t >= T12.gold && !self._gold){ self._gold = true; fxFlash('#fff6c8', .8, .7); fxShake(2, .4); sfx.blip(880, .3); }
-      if (t >= T12.god && !music){ music = true; fxFlash('#ffffff', .7, .4); fxShake(5, .7); bgm.use('p2'); setTimeout(() => { if (S.inst === self || S.inst === p2) bgm.start(); }, 300); fxParts(24, 0, 0, { cols:['#fff6c8', '#ffe888', '#ffffff'], speed:8, up:8, life:1, spread:4 }); sfx.big(); }
+      if (t >= T12.god && !music){ music = true; fxFlash('#ffffff', .5, .4); fxShake(2, .4); bgm.use('p2'); setTimeout(() => { if (S.inst === self || S.inst === p2) bgm.start(); }, 300); fxParts(24, 0, 0, { cols:['#fff6c8', '#ffe888', '#ffffff'], speed:8, up:8, life:1, spread:4 }); sfx.big(); }
       if (t >= T12.targetable && !self._hit){ self._hit = true; A.dmg = 0; sfx.blip(990, .15); }
       bots.place(t);
     },
@@ -131,8 +134,9 @@ function makeLink12({ lead = 0, check = false } = {}){
     screenBg: t => t < T12.gold ? statueScreenBg(3, 99) : bgImg(true),
     drawFloor(){ clearOutside(); },
     draw(t){
-      // ケフカが消える（0〜2）・ゴッドケフカが出る（9〜）：輪の薄さで。消える間は紫の光
-      if (t >= T12.blink && t < T12.gone) alpha((T12.gone - t) / (T12.gone - T12.blink) * .6, () => disc(px(0), px(0), Math.round(BOSS_R * PPY), '#c890ff'));
+      // ケフカは白い煙の中に消える（手品）。ゴッドケフカは上から神々しくゆっくり舞い降りる（bossfx.ts）
+      if (t >= T12.blink && t < T12.gone + .4) kefkaSmoke(kefkaSprite('kefka'), px(0), px(0), (t - T12.blink) / (T12.gone + .4 - T12.blink), false);
+      if (t >= T12.descend[0] && t < T12.descend[1]) godDescend(kefkaSprite('god'), px(0), px(0), (t - T12.descend[0]) / (T12.descend[1] - T12.descend[0]));
       if (t >= T12.gone && t < T12.gold + 1) goldFlood((t - T12.gone) / (T12.gold - T12.gone));
       if (t >= T12.god && t < T12.god + 1) alpha(1 - (t - T12.god), () => disc(px(0), px(0), Math.round(BOSS_R * PPY), '#fff6c8'));
       shock((t - T12.god) / .8);
@@ -158,7 +162,8 @@ function makeLink12({ lead = 0, check = false } = {}){
 // 演出：ゴッドケフカが震えて白く抜け、羽根が飛び散って消える → 紫の煙からケフカが飛び出す（高笑い）→ エアロガの風と床の模様 → ノックダウン（大きな揺れ）
 // → 白く光って P3 へ（ムービーはなし）
 // 実機ではノックダウンのあと約 31 秒のムービーがあるが、ツールでは入れない（ユーザー 2026-10-16）。ノックダウンの 1 秒後に白く光って P3 へ
-const T23 = { fade:2, kefka:2, aeroCast:2, aero:5.5, floor:[3, 6], toP3:6.5, p3At:-4.5 };
+// ゴッドケフカは羽ばたいて一瞬で真上へ飛び去る 0〜1.2、ケフカは白い煙（手品）の中から出る 2〜2.8（ユーザー 2026-10-17）
+const T23 = { fade:1.2, kefka:2, kefkaIn:.8, aeroCast:2, aero:5.5, floor:[3, 6], toP3:6.5, p3At:-4.5 };
 function makeLink23({ lead = 0, check = false } = {}){
   const me = mySlot();
   const P2_HP = 1e7;
@@ -170,9 +175,8 @@ function makeLink23({ lead = 0, check = false } = {}){
   // ボスの絵：ゴッドケフカ（震えて白く抜ける）→ ケフカ（小さく飛び出して大きくなる・詠唱中は左右に揺れる）
   const art23 = t => {
     if (t < 0) return 'god';
-    if (t < T23.fade) return { id:'god', gray:t > .4, dx:Math.round(Math.sin(t * 50) * 2), a:t < 1 ? 1 : 2 - t };
-    const k = clamp01((t - T23.kefka) / .35);
-    return { id:'kefka', k:.3 + .7 * k, a:k * 2, dx:t >= T23.aeroCast + .3 && t < T23.aero ? Math.round(Math.sin(t * 8) * 2) : 0 };
+    if (t < T23.kefka + T23.kefkaIn) return null; // 飛び去る・煙から出る間は draw で描く
+    return { id:'kefka', dx:t >= T23.aeroCast + .3 && t < T23.aero ? Math.round(Math.sin(t * 8) * 2) : 0 };
   };
   const self = {
     view:24, t0:-lead, countdown:3, start:P2_EMB(me), bossR:BOSS_R,
@@ -181,14 +185,14 @@ function makeLink23({ lead = 0, check = false } = {}){
     get bossHp(){ return S.t < 0 ? P2_HP : 0; },
     bossName:'ケフカ',
     targetable: t => t < 0,
-    bosses: t => t < T23.fade || (t >= T23.kefka && t < T23.toP3) ? [{ ...boss()[0], art:art23(t) }] : [],
+    bosses: t => t < 0 || (t >= T23.kefka + T23.kefkaIn && t < T23.toP3) ? [{ ...boss()[0], art:art23(t) }] : [],
     progress: t => t < 0 ? 'P2 の終わり' : 'つなぎ（P2→P3）',
     tick(t){
       if (!started){ started = true; if (lead) A.dmg = P2_HP * .999; }
       if (t < 0 && A.dmg > P2_HP * .999) A.dmg = P2_HP * .999; // 0.1% で耐える
       if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .5, .3); fxShake(3, 1.2); sfx.big(); bgm.stop(1.5); }
-      if (t >= 1.2 && !self._feather){ self._feather = true; fxParts(50, 0, 0, { cols:['#ffffff', '#e8ecf8', '#c8d0e8'], speed:9, up:8, life:1.8, spread:5 }); fxFlash('#ffffff', .6, .4); sfx.boom(); }
-      if (t >= T23.kefka && !self._kefka){ self._kefka = true; fxParts(30, 0, 0, { cols:['#7a2a7a', '#c890ff', '#3a0c40'], speed:5, up:4, life:1, spread:3 }); sfx.blip(220, .2); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .3); }
+      if (t >= .6 && !self._feather){ self._feather = true; fxParts(40, 0, 0, { cols:['#ffffff', '#e8ecf8', '#c8d0e8'], speed:8, up:12, life:1.6, spread:4 }); sfx.blip(880, .1); sfx.boom(); }
+      if (t >= T23.kefka && !self._kefka){ self._kefka = true; fxParts(30, 0, 0, { cols:['#ffffff', '#e8e4f0', '#d0cce0'], speed:5, up:6, life:1.2, spread:3 }); sfx.blip(520, .1); sfx.blip(780, .12); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .3); }
       if (t >= T23.aero && !self._aero){ self._aero = true; fxFlash('#ff8ad8', .7, .5); fxShake(6, .8); sfx.boom(); sfx.big();
         const u = dist(S.player, { x:0, z:0 }) || 1; kb.from = { ...S.player }; kb.to = { x:S.player.x + S.player.x / u * 3, z:S.player.z + S.player.z / u * 3 }; kb.t0 = t; }
       if (kb.t0 != null && t - kb.t0 <= .3){ const q = lerp(kb.from, kb.to, clamp01((t - kb.t0) / .3)); S.player.x = q.x; S.player.z = q.z; }
@@ -200,7 +204,8 @@ function makeLink23({ lead = 0, check = false } = {}){
     screenBg: t => t < T23.toP3 ? bgImg(true) : null,
     drawFloor(){ clearOutside(); },
     draw(t){
-      if (t >= 0 && t < T23.fade) alpha((T23.fade - t) / T23.fade * .5, () => disc(px(0), px(0), Math.round(BOSS_R * PPY), '#fff6c8'));
+      if (t >= 0 && t < T23.fade) godFlyAway(kefkaSprite('god'), px(0), px(0), t / T23.fade);
+      if (t >= T23.kefka && t < T23.kefka + T23.kefkaIn + .4) kefkaSmoke(kefkaSprite('kefka'), px(0), px(0), (t - T23.kefka) / (T23.kefkaIn + .4), true);
       if (t >= T23.floor[0] && t < T23.floor[1]) chevrons((t - T23.floor[0]) / (T23.floor[1] - T23.floor[0]));
       if (t >= T23.aeroCast && t < T23.toP3) windLines(t, Math.min(1, (t - T23.aeroCast) / 1.5));
       bots.draw();
@@ -213,6 +218,21 @@ function makeLink23({ lead = 0, check = false } = {}){
       if (check){ p3.end = 8; p3.noEnrage = true; } // 確認用：決戦のあと少しで終わり
       bgm.use('p3'); setTimeout(() => { if (S.inst === p3) bgm.start(); }, 300);
       fxFlash('#ffffff', .9, .8); fxShake(3, .5); sfx.big(); // ノックダウンのあと白く光って P3 へ
+      // P3 のボスの出方：カオスは上から降ってくる、エクスデスは縦の白い光の筋の中から出る（−0.8〜0.3。殴れるのは 0.3）。それまでは見えない
+      const IN = [-.8, .3], bz = p3.bosses, fired = {};
+      p3.bosses = t => bz.call(p3, t).map(b => t < IN[1] ? { ...b, hideRing:true } : b);
+      setBossArtFx((b, X, Z) => {
+        if (S.inst !== p3 || S.t >= IN[1] + .4) return false;
+        const k = (S.t - IN[0]) / (IN[1] - IN[0]), sp = bossSprite(b.id);
+        if (k < 0) return true;
+        if (b.id === 'chaos'){
+          if (k < 1){ chaosFall(sp, X, Z, k); return true; }
+          if (!fired.c){ fired.c = true; fxShake(4, .3); sfx.boom(); } // 着地
+          ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh); chaosLand(X, Z, sp, (S.t - IN[1]) / .4); return true;
+        }
+        if (k < 1){ exdeathLight(sp, X, Z, k, true); return true; }
+        return false;
+      });
       return { inst:p3, t:T23.p3At, player:{ x:0, z:4 } };
     } },
   };
@@ -224,7 +244,8 @@ function makeLink23({ lead = 0, check = false } = {}){
 // 2 体が白く光って消える 0〜1 → ケフカが中央に出る 1.5（「つまらん！」2〜5）→ 殴れる 4.4（cactbot 1089.9＝倒して約 4.4 秒）
 // → P4 通しの −3.6 から（P4 の 0＝倒して約 8 秒。おちょくりソウルの詠唱 1.45＝cactbot 1095.0）。足場と空は P3 のまま
 // ---------------------------------------------------------------------
-const T34 = { fade:1, kefka:1.5, talk:[2, 5], handoff:4.4, p4At:-3.6 };
+// エクスデスは縦の白い光の筋の中に消える、カオスは真上にジャンプして消える 0〜1。ケフカは白い煙（手品）の中から出る 1.5〜2.3（ユーザー 2026-10-17）
+const T34 = { fade:1, kefka:1.5, kefkaIn:.8, talk:[2, 5], handoff:4.4, p4At:-3.6 };
 const P3_BOSS = { chaos:{ x:-7, z:-2 }, exdeath:{ x:7, z:-2 } };
 function makeLink34({ lead = 0, check = false } = {}){
   const me = mySlot();
@@ -240,24 +261,27 @@ function makeLink34({ lead = 0, check = false } = {}){
     get bossHp(){ return S.t < 0 ? P3_HP : 0; }, bossName:'ボス',
     targetable: t => t < 0,
     bosses: t => t < 0 ? [{ id:'chaos', name:'カオス', ...P3_BOSS.chaos, face:{ x:0, z:1 }, r:5 }, { id:'exdeath', name:'エクスデス', ...P3_BOSS.exdeath, face:{ x:0, z:1 }, r:5 }]
-      : t >= T34.kefka ? [{ ...boss()[0], art:{ id:'kefka', k:.3 + .7 * clamp01((t - T34.kefka) / .3) } }] : [],
+      : t >= T34.kefka + T34.kefkaIn ? [{ ...boss()[0], art:'kefka' }] : [],
     progress: t => t < 0 ? 'P3 の終わり' : 'つなぎ（P3→P4）',
     message: t => t >= T34.talk[0] && t < T34.talk[1] ? say('つまらん！') : '',
     tick(t){
       if (!started){ started = true; if (lead) A.dmg = P3_HP * .97; }
-      if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .6, .5); fxShake(4, .6); sfx.big(); bgm.stop(1.2); Object.values(P3_BOSS).forEach(q => fxParts(30, q.x, q.z, { cols:['#ffffff', '#ffe070', '#c8e0ff'], speed:7, up:8, life:1.2, spread:3 })); }
-      if (t >= T34.kefka && !self._kefka){ self._kefka = true; fxParts(30, 0, 0, { cols:['#7a2a7a', '#c890ff', '#3a0c40'], speed:5, up:4, life:1, spread:3 }); sfx.blip(220, .2); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .3); }
+      if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .6, .5); fxShake(4, .6); sfx.big(); bgm.stop(1.2); fxParts(20, P3_BOSS.exdeath.x, P3_BOSS.exdeath.z, { cols:['#ffffff', '#c8e0ff'], speed:4, up:12, life:1, spread:2 }); }
+      if (t >= T34.kefka && !self._kefka){ self._kefka = true; fxParts(30, 0, 0, { cols:['#ffffff', '#e8e4f0', '#d0cce0'], speed:5, up:6, life:1.2, spread:3 }); sfx.blip(520, .1); sfx.blip(780, .12); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .3); }
       bots.place(t);
     },
     safeActive: () => false, safe: () => true,
     screenBg: () => skyBg('ruins'),
     drawFloor(){ clearOutside(); },
     draw(t){
-      // P3 のボス（倒した後は白く光って薄くなる）
-      [['chaos', P3_BOSS.chaos], ['exdeath', P3_BOSS.exdeath]].forEach(([id, q]) => {
-        const a = t < 0 ? 1 : 1 - t / T34.fade; if (a <= 0) return;
-        const sp = bossSprite(id); ctx.save(); ctx.globalAlpha = a; if (t >= 0) ctx.filter = 'brightness(2.2)'; ctx.drawImage(sp, Math.round(px(q.x) - sp.dw / 2), Math.round(px(q.z) - sp.dh / 2), sp.dw, sp.dh); ctx.restore();
-      });
+      // P3 のボス：倒すまではふつう。倒したら、カオスは真上にジャンプして消え、エクスデスは縦の白い光の筋の中に消える（bossfx.ts）
+      const cs = bossSprite('chaos'), es = bossSprite('exdeath'), C = P3_BOSS.chaos, E = P3_BOSS.exdeath;
+      if (t < 0){ [[cs, C], [es, E]].forEach(([sp, q]) => ctx.drawImage(sp, Math.round(px(q.x) - sp.dw / 2), Math.round(px(q.z) - sp.dh / 2), sp.dw, sp.dh)); }
+      else {
+        if (t < .8) chaosJump(cs, px(C.x), px(C.z), t / .8);
+        if (t < 1.1) exdeathLight(es, px(E.x), px(E.z), t / 1.1, false);
+      }
+      if (t >= T34.kefka && t < T34.kefka + T34.kefkaIn + .4) kefkaSmoke(kefkaSprite('kefka'), px(0), px(0), (t - T34.kefka) / (T34.kefkaIn + .4), true);
       bots.draw();
     },
     handoff:{ at:T34.handoff, go(){

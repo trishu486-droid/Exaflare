@@ -5,6 +5,12 @@ import { hasInvuln, hasMit, switchTarget } from './action.js';
 import { TARGET_DPS, JOBS, mySlot } from './jobs.js';
 const isTankJob = () => JOBS[opt.job]?.role === 'tank';
 import { opt } from './store.js';
+import { skyUrl, SKY_BASE } from './sky.js';
+import { clearOutside } from './mech_p2m.js';
+let p3SkyUrl = null;
+const p3Sky = () => ({ url:p3SkyUrl ??= skyUrl('ruins', 600, 600, 2, 7), size:600, color:SKY_BASE.ruins });
+// 単体のギミック（じしん＆ブラックホール・どんどこ地団駄）にも同じ空を付ける（mechs.ts で包む）
+const withP3Sky = m => ({ ...m, create(p){ const inst = m.create(p), f = inst.drawFloor; inst.screenBg ??= p3Sky; inst.drawFloor = t => { clearOutside(); f?.call(inst, t); }; return inst; } });
 import { fxFlash, fxShake } from './fx.js';
 import { P, PPY, hurt, px, rect, ring, targetLast } from './gfx.js';
 import { makeP3Fx } from './p3fx.js';
@@ -47,7 +53,9 @@ function chain(list, o){
     safe(x, z, t){ const s = segFor(t); return s.inst.safe(x, z, t - s.at); },
     guide(t){ const s = segFor(t); s.inst.guide?.(t - s.at); },
     mySpot(t){ const s = segFor(t); return s.inst.mySpot?.(t - s.at) ?? null; },
-    drawFloor(t){ act(t).forEach(s => s.inst.drawFloor?.(t - s.at)); },
+    // 画面全体の背景：青い雲の空と浮かぶ石の塔（sky.ts の ruins。ユーザーの動画 2026-10-16）。フィールドの外を消して見せる
+    screenBg: () => p3Sky(),
+    drawFloor(t){ clearOutside(); act(t).forEach(s => s.inst.drawFloor?.(t - s.at)); },
     draw(t){ act(t).forEach(s => s.inst.draw(t - s.at)); o.draw?.(t); },
   };
 }
@@ -179,4 +187,4 @@ const RUN3 = (() => {
   };
 })();
 
-export { P3A, RUN3 };
+export { P3A, RUN3, withP3Sky };

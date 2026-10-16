@@ -1,6 +1,7 @@
 // @ts-nocheck
 // ===== P1（ケフカ）の3つのギミックで共通の部品。docs/dmu/research-p1.md =====
 // 座標：中心 (0,0)・半径 20・北が −z（ほかのフェーズと同じ）。味方7人は正しく動く（P2 と同じ作り）
+import { paintSky, SKY_BASE } from './sky.js';
 import { S } from './state.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, px, fillArena, glyph } from './gfx.js';
 import { tellQuad, tellBand } from './p4fx.js';
@@ -161,17 +162,16 @@ const ABOVE = 74; // フィールドの縁より上に見える行の数（縦�
 // 第三楽章は、その前の2回目の裁きの光の詠唱中（P1 通しの 104.0〜106.4。詠唱 103.4〜108.4。2026-10-16 ユーザーの指摘）。第三楽章だけで遊ぶときは、はじめから上段
 const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:-21.9, to:-19.5 } };
 const SINK = VIEW[1] + ABOVE + 6;
-let statueBg = null, starBg = null;
-const stars = (g, w, h, seed) => { g.fillStyle = P.space; g.fillRect(0, 0, w * RES, h * RES); g.fillStyle = P.star; for (let i = 0; i < h / 4; i++) g.fillRect(((i * 97 + seed) % w) * RES, ((i * 53 + 29) % h) * RES, RES, RES); };
-const buildStatueBg = () => {
+const statueBg = {}, starBg = {}; // 空の種類ごと（storm：第一・第二楽章、gold：第三楽章。sky.ts）
+const buildStatueBg = kind => {
   const c = document.createElement('canvas'); c.width = BGW * RES; c.height = BGH * RES;
-  const g = c.getContext('2d'); stars(g, BGW, BGH, 13);
+  const g = c.getContext('2d'); paintSky(g, BGW, BGH, RES, kind, 13);
   g.drawImage(STATUE, Math.round((BGW * RES - STATUE.width) / 2), ST_Y * RES);
   return c.toDataURL();
 };
 // フィールドの中心より下にかぶせる星空だけの絵。生えてくる途中の塔が、フィールドの下にはみ出して見えないように
 const COVER_H = 500;
-const buildStarBg = () => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = COVER_H * RES; stars(c.getContext('2d'), BGW, COVER_H, 41); return c.toDataURL(); };
+const buildStarBg = kind => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = COVER_H * RES; paintSky(c.getContext('2d'), BGW, COVER_H, RES, kind, 41); return c.toDataURL(); };
 // 塔が動く間のゴゴゴゴ（揺れと低い音）。各楽章のイベントで MOVE[part].from に呼ぶ（at：呼んだ時刻）
 function towerRumble(part, fxShake, sfx, at = Math.max(0, MOVE[part].from)){
   const len = MOVE[part].to - at;
@@ -188,10 +188,12 @@ function statueGeom(part, t){
 }
 // part：楽章（1〜3）
 function statueScreenBg(part, t){
-  if (!statueBg){ if (!STATUE.complete || !STATUE.width) return null; statueBg = buildStatueBg(); starBg = buildStarBg(); }
+  // 空：第一・第二楽章は嵐の雲（storm）、第三楽章は金色の空（gold）。第三楽章は塔が上段へ上る途中で切り替わる
+  const mv = MOVE[3], kind = part === 3 && t >= (mv.from + mv.to) / 2 ? 'gold' : 'storm';
+  if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); starBg[kind] = buildStarBg(kind); }
   const { row, sink, dx } = statueGeom(part, t);
   // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
-  return { url:statueBg, size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:P.space, cover:{ url:starBg, h:COVER_H } };
+  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:SKY_BASE[kind], cover:sink > 0 ? { url:starBg[kind], h:COVER_H } : null }; // かぶせる絵は塔が生えてくる間だけ（空の継ぎ目が見えないように）
 }
 // 像の上の、線などの出どころ（像の絵 statue.png の点。2026-10-15 ユーザーの動画に合わせて選んだ）
 //   face：下段の悪魔の顔（波動砲・第一楽章の線）、grav：中段の渦の柱の上（重力弾。紫の光）、rock：中段の像の手（岩石弾。黄色の光）

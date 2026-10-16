@@ -36,7 +36,7 @@ const drawBossArt = b => {
   const X = px(b.x), Z = px(b.z);
   if (artFx?.(b, X, Z)) return;
   const sp = bossSprite(b.id === 'chaos' ? 'chaos' : 'exdeath'); ctx.drawImage(sp, Math.round(X - sp.dw / 2), Math.round(Z - sp.dh / 2), sp.dw, sp.dh);
-  drawBossFace(b);
+  if (!b.hideRing && (S.inst?.targetable?.(S.t) ?? true)) drawBossFace(b); // 正面の印とターゲットの印は殴れるときだけ
 };
 
 // 頭上の数字（サイコロ）用。gfx の GLYPH は 1〜5 だけなので 6〜8 をここで足す

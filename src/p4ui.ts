@@ -9,12 +9,26 @@ import { p4IconUrl } from './p4icons.js';
 // チャット欄は画面の中（全ギミック共通）。P4 以外はミスや結果が流れる。ボタンは P4 のときだけ
 let shownVer = -1, shownInst = null, shownBtns = '';
 const BTN_TXT = { early:'早 散開', late:'遅 散開', stop:'止まる', move:'動く' };
+// FLIP：r0（前の見た目の位置・大きさ）から今の位置・大きさへ。もとの transform（P4 型は translate(-50%,-50%)）に前から重ねて動かす
+function morphField(el: HTMLElement, r0: DOMRect){
+  const r1 = el.getBoundingClientRect(); if (!r1.width) return;
+  const base = getComputedStyle(el).transform, m = base && base !== 'none' ? new DOMMatrix(base) : new DOMMatrix();
+  const s = r0.width / r1.width, bx = m.e, by = m.f;
+  const dx = (r0.left + r0.width / 2) - (r1.left + r1.width / 2) + (1 - s) * bx, dy = (r0.top + r0.height / 2) - (r1.top + r1.height / 2) + (1 - s) * by;
+  const b = base && base !== 'none' ? base : '';
+  el.animate([{ transform:`translate(${dx}px, ${dy}px) scale(${s}) ${b}` }, { transform:b || 'none' }], { duration:1200, easing:'ease-in-out' });
+}
 function renderP4Panel(){
   // チャット欄は inst.chat があるときだけ（P4 型の画面）。ボタンは inst.buttons があれば P5 型の画面でも使える
   const on = !!S.inst?.chat && S.phase !== 'menu', keysOn = (!!S.inst?.chat || !!S.inst?.buttons) && S.phase !== 'menu';
   const panel = $('p4panel');
   if (panel.classList.contains('off') === keysOn) panel.classList.toggle('off', !keysOn);
-  if ($('game').classList.contains('p4on') !== on){ $('game').classList.toggle('p4on', on); fit(); } // P4 型（チャット欄あり）と P5 型で画面の作りが違うので大きさを測り直す
+  if ($('game').classList.contains('p4on') !== on){
+    // 戦闘の途中で画面の形が変わる（つなぎ P3→P4）ときは、フィールドを前の大きさ・位置から新しい大きさ・位置へなめらかに動かす（P5 のエクサの前後の拡大・縮小のように。ユーザー 2026-10-17）
+    const field = cv.parentElement as HTMLElement, mid = S.phase === 'run', r0 = mid ? field.getBoundingClientRect() : null;
+    $('game').classList.toggle('p4on', on); fit(); // P4 型（チャット欄あり）と P5 型で画面の作りが違うので大きさを測り直す
+    if (mid) morphField(field, r0);
+  }
   // ボタンの名前はギミックごと（P3 は左端だけターゲット切替、ほかは灰色）。P3 通しは途中で変わる（buttons が関数）
   const btns = typeof S.inst?.buttons === 'function' ? S.inst.buttons(S.t) : S.inst?.buttons, bKey = JSON.stringify(btns || null);
   if (S.inst !== shownInst || bKey !== shownBtns){

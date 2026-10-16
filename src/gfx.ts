@@ -205,7 +205,7 @@ function drawBoss(){
   if (S.inst?.bosses){ drawBosses(); return; }
   const R = Math.round((S.inst?.bossR ?? BOSS_R) * PPY), face = -Math.PI / 2; // ギミックごとにターゲットサークルの大きさを変えられる（P2 のゴッドケフカは 6）
   // ボスの絵があるとき（P1・P2）は、殴れない間はターゲットサークルを消して絵だけ（ユーザー 2026-10-16）。絵のない P5 は輪を残す
-  const ring0 = !(S.inst?.bossArt && S.inst?.targetable && !S.inst.targetable(S.t));
+  const ring0 = !(S.inst?.targetable && !S.inst.targetable(S.t)); // ターゲットサークルは殴れるときだけ（ユーザー 2026-10-17）
   if (ring0){ tcRing(C0, C0, R, face, true); tcTip(C0, C0, R, face, true); }
   if (ring0 && performance.now() - A.bossFlash < 90) alpha(.5, () => disc(C0, C0, R, P.white)); // 被ダメの白フラッシュ
   drawBossSprite(S.inst?.bossArt, C0, C0);
@@ -228,7 +228,7 @@ function drawBosses(){
   const cur = curBoss(), flash = performance.now() - A.bossFlash < 90;
   targetLast(S.inst.bosses(S.t)).forEach(b => {
     const X = px(b.x), Z = px(b.z), R = Math.round(b.r * PPY), on = b.id === cur.id;
-    const ring0 = !b.hideRing && !(b.art && S.inst.targetable && !S.inst.targetable(S.t)); // 絵のあるボスは、殴れない間は輪を消す（hideRing：出てくる前）
+    const ring0 = !b.hideRing && !(S.inst.targetable && !S.inst.targetable(S.t)); // ターゲットサークルは殴れるときだけ（hideRing：出てくる前）
     if (ring0) tcRing(X, Z, R, b.face ? Math.atan2(b.face.z, b.face.x) : -Math.PI / 2, on);
     if (ring0 && on && flash) alpha(.5, () => disc(X, Z, R, P.white)); // 被ダメの白フラッシュ
     drawBossSprite(b.art, X, Z);

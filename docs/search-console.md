@@ -11,6 +11,8 @@
 
 ### 1. 新しい URL を登録する（いちばん大事）
 
+- `index.html` にはすでに `google-site-verification` の印が 2 つ入っている（2026-10-17 に確認）。新しい URL はもう登録・確認済みかもしれない。Search Console の左上のプロパティの一覧に `https://dancing-mad-sim.pages.dev/` があれば、下の 1〜3 は飛ばして 4・5 だけでよい。
+
 1. 左上の「プロパティを検索」→「プロパティを追加」。
 2. 右側の「URL プレフィックス」に `https://dancing-mad-sim.pages.dev/` を入れて「続行」。
 3. 持ち主の確かめ方で「HTML タグ」を選び、出てきた `<meta name="google-site-verification" content="……">` の **content の中の文字列** を Claude に伝える（こちらで `index.html` に入れて本番に出す）。出たら「確認」を押す。

@@ -24,10 +24,8 @@ import { chaosFall, chaosLand, chaosJump, kefkaSmoke, godDescend, godFlyAway, ex
 // フェーズのつなぎ目（全通しの部品）。docs/README.md 6章の3（ユーザーの動画 2026-10-16）
 //   つなぎ P1→P2：P1 の時間切れ（最後の裁きの光は来ない）→ ケフカが消える → 床が金色に → 光の柱からゴッドケフカ → 殴れる → P2 通しへ
 //   つなぎ P2→P3：ゴッドケフカが殴れなくなる（HP は 0.1% で耐える）→ ケフカが出て「ずんずんエアロガ」→ ノックダウン → P3 通しへ（実機のムービーは入れない）
-// 確認用（今だけ）：前のフェーズの終わり 5 秒から始まり、次のフェーズの始まりの少し後で終わる
 // つなぎの時刻は、つなぎの 0（＝前のフェーズの終わり）からの秒。次のフェーズに切り替えるときは S.inst と S.t を差し替える（game.ts の handoff）
 // =====================================================================
-const LEAD = 5;                  // 確認用：前のフェーズの終わりの何秒前から始めるか
 const BOSS_R = 6;                // ケフカ・ゴッドケフカのターゲットサークル（P1・P2 と同じ）
 const P2_EMB = s => s === 'MT' ? { x:-.6, z:-8.6 } : s === 'ST' ? { x:.6, z:-8.6 } : add({ x:0, z:8 }, at(SLOTS.indexOf(s) * 45 + 22.5, 1.1)); // P2 通しの始まりの位置（mech_p2m の embSpot）
 const P1_END = s => add({ x:0, z:10 }, at(SLOTS.indexOf(s) * 45 + 22.5, 2.6)); // P1 の終わり：中央の南寄りに集まって待つ（動画）
@@ -96,12 +94,12 @@ const say = text => talkBox('ケフカ', text);
 // ケフカは時間切れで白く点滅して震え、白い煙（手品）の中に消える 1.2〜2.2。ゴッドケフカは上から神々しくゆっくり舞い降りる 5.5〜9（ユーザー 2026-10-17）
 // ステージが天へ昇る 1.5〜5（像が下へ流れて通り越し、どんどん明るくなって P2 の金色に。昇る間だけステージを揺らす）
 const T12 = { blink:1.2, gone:2.2, rise:[1.5, 5], gold:5, pillar:[5, 9.5], descend:[5.5, 9], god:9, talk:[9.6, 14], targetable:11.5, handoff:15.9 };
-function makeLink12({ lead = 0, check = false, full = false } = {}){
+function makeLink12(){
   const me = mySlot();
   const p2 = RUN2.create(RUN2.gen()); p2.floorTheme = 'gold';
-  const P1_HP = 1e7; // 確認用の見た目だけ（P1 の終わりの HP は 15% 少し上）
+  const P1_HP = 1e7; // つなぎの 0 より前の HP の見た目（全通しでは 0 から入るので使わない）
   const bots = makeBots(me, (k, t) => t < T12.targetable ? P1_END(k) : lerp(P1_END(k), P2_EMB(k), clamp01((t - T12.targetable) / 3)));
-  let started = false, music = false;
+  let music = false;
   // ボスの絵：P1 のケフカ（時間切れで白く点滅して震える）→ 煙の中に消える・ゴッドケフカが舞い降りる間は draw で描く → ゴッドケフカ
   const art12 = t => {
     if (t < 0) return 'kefka';
@@ -109,8 +107,8 @@ function makeLink12({ lead = 0, check = false, full = false } = {}){
     return t >= T12.descend[1] ? 'god' : null;
   };
   const self = {
-    view:24, t0:-lead, countdown:3, start:P1_END(me), bossR:BOSS_R,
-    intro:'つなぎ P1→P2（確認用）', end:1e9, noEnrage:true, killAfter:1e9,
+    view:24, t0:0, countdown:3, start:P1_END(me), bossR:BOSS_R,
+    end:1e9, noEnrage:true, killAfter:1e9,
     casts:[],
     get bossHp(){ return S.t < 0 ? P1_HP : S.t >= T12.targetable ? p2.bossHp : 0; },
     get bossName(){ return S.t < 0 ? 'ケフカ' : p2.bossName; },
@@ -119,7 +117,6 @@ function makeLink12({ lead = 0, check = false, full = false } = {}){
     progress: t => t < 0 ? 'P1 の終わり' : t < T12.targetable ? 'つなぎ（P1→P2）' : 'P2 の始まり',
     message: t => t >= T12.talk[0] && t < T12.talk[1] ? say('絶ッ！！|再現したな、この私を……！') : '', // 名前の大きな文字はなし（ユーザー 2026-10-17）
     tick(t){
-      if (!started){ started = true; if (lead) A.dmg = P1_HP * .84; }
       if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .5, .25); sfx.big(); bgm.stop(1.5); }
       if (t >= T12.blink && !self._burst){ self._burst = true; fxParts(30, 0, 0, { cols:['#ffffff', '#e8e4f0', '#d0cce0'], speed:5, up:6, life:1.2, spread:3 }); sfx.blip(520, .1); sfx.blip(780, .12); }
       if (t >= T12.rise[0] && !self._rise){ self._rise = true; fxShake(2, T12.rise[1] - T12.rise[0]); sfx.tone(46, T12.rise[1] - T12.rise[0], 'sawtooth', .05, -8); sfx.tone(62, T12.rise[1] - T12.rise[0], 'triangle', .08, -12); } // ゴゴゴゴ
@@ -149,10 +146,8 @@ function makeLink12({ lead = 0, check = false, full = false } = {}){
     },
     // P2 通しへ（0 から。ダメージはそのまま引き継ぐ）
     handoff:{ at:T12.handoff, go(){
-      if (check){ p2.end = 12; p2.noEnrage = true; } // 確認用：終末の双腕のあと少しで終わり
       // 全通し：殴れなくなる時（166.7）に削りきっていれば、つなぎ P2→P3 へ。足りなければそのまま時間切れ（裁きの光）
-      if (full){ p2.stage = 'P2'; p2.killAfter = P2_UNTARGET; p2.next = () => ({ inst:linkInst(makeLink23({ full:true }), 'gold', 'つなぎ P2→P3'), t:0 }); }
-      else { const t2 = p2.tick; p2.tick = t => { t2(t); if (p2.bossHp && A.dmg > p2.bossHp * .999) A.dmg = p2.bossHp * .999; }; } // P2 は 0.1% で耐える（ユーザー 2026-10-16）
+      p2.stage = 'P2'; p2.killAfter = P2_UNTARGET; p2.next = () => ({ inst:linkInst(makeLink23(), 'gold', 'つなぎ P2→P3'), t:0 });
       return { inst:p2, t:0 };
     } },
   };
@@ -171,7 +166,7 @@ function makeLink12({ lead = 0, check = false, full = false } = {}){
 // エアロガでステージの半径の 6 割（12）飛ばされ、その瞬間に背景が P3 の空へ（短いグラデーション。暗転はしない）。飛ばされた所で P3 が始まる
 // P3 は実機のムービー明け（P3 の −7。ケフカが北で「再構築」を詠唱中・残り約 4 秒）から。ノックダウンは −6 まで（ユーザー 2026-10-17）
 const T23 = { fade:1.2, kefka:2, kefkaIn:.8, aeroCast:2, aero:5.5, floor:[3, 6], toP3:5.85, p3At:-7, kbLen:.35, kbDist:12, fadeBg:.35 };
-function makeLink23({ lead = 0, check = false, full = false } = {}){
+function makeLink23(){
   const me = mySlot();
   const P2_HP = 1e7;
   const p3 = RUN3.create(RUN3.gen()); p3.floorTheme = 'blue';
@@ -179,7 +174,6 @@ function makeLink23({ lead = 0, check = false, full = false } = {}){
   const push = q => { const u = Math.hypot(q.x, q.z) || 1, r = Math.min(19, u + T23.kbDist); return { x:q.x / u * r, z:q.z / u * r }; };
   const pos0 = k => P2_EMB(k);
   const bots = makeBots(me, (k, t) => { const q = pos0(k); return t < T23.aero ? q : lerp(q, push(q), clamp01((t - T23.aero) / T23.kbLen)); });
-  let started = false;
   // ボスの絵：ゴッドケフカ（震えて白く抜ける）→ ケフカ（小さく飛び出して大きくなる・詠唱中は左右に揺れる）
   const art23 = t => {
     if (t < 0) return 'god';
@@ -187,8 +181,8 @@ function makeLink23({ lead = 0, check = false, full = false } = {}){
     return { id:'kefka', dx:t >= T23.aeroCast + .3 && t < T23.aero ? Math.round(Math.sin(t * 8) * 2) : 0 };
   };
   const self = {
-    view:24, t0:-lead, countdown:3, start:P2_EMB(me), bossR:BOSS_R,
-    intro:'つなぎ P2→P3（確認用）', end:1e9, noEnrage:true, killAfter:1e9,
+    view:24, t0:0, countdown:3, start:P2_EMB(me), bossR:BOSS_R,
+    end:1e9, noEnrage:true, killAfter:1e9,
     casts:[{ name:'ずんずんエアロガ', start:T23.aeroCast, len:T23.aero - T23.aeroCast }],
     get bossHp(){ return S.t < 0 ? P2_HP : 0; },
     bossName:'ケフカ',
@@ -196,7 +190,6 @@ function makeLink23({ lead = 0, check = false, full = false } = {}){
     bosses: t => t < 0 || (t >= T23.kefka + T23.kefkaIn && t < T23.toP3) ? [{ ...boss()[0], art:art23(t) }] : [],
     progress: t => t < 0 ? 'P2 の終わり' : 'つなぎ（P2→P3）',
     tick(t){
-      if (!started){ started = true; if (lead) A.dmg = P2_HP * .999; }
       if (t < 0 && A.dmg > P2_HP * .999) A.dmg = P2_HP * .999; // 0.1% で耐える
       if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .5, .3); sfx.big(); bgm.stop(1.5); }
       if (t >= .6 && !self._feather){ self._feather = true; fxParts(40, 0, 0, { cols:['#ffffff', '#e8ecf8', '#c8d0e8'], speed:8, up:12, life:1.6, spread:4 }); sfx.blip(880, .1); sfx.boom(); }
@@ -237,8 +230,7 @@ function makeLink23({ lead = 0, check = false, full = false } = {}){
         if (t < REBUILD[1] && sp) ctx.drawImage(sp, Math.round(X - sp.width / 2 + (t > REBUILD[0] ? Math.round(Math.sin(t * 8)) : 0)), Math.round(Z - sp.height / 2));
         if (t >= REBUILD[1] && t < REBUILD[1] + 1.2) kefkaSmoke(sp, X, Z, (t - REBUILD[1]) / 1.2, false);
       };
-      if (check){ p3.end = 8; p3.noEnrage = true; } // 確認用：決戦のあと少しで終わり
-      if (full){ p3.stage = 'P3'; p3.next = () => ({ inst:linkInst(makeLink34({ full:true }), 'blue', 'つなぎ P3→P4'), t:0 }); } // 全通し：2体を倒したら
+      p3.stage = 'P3'; p3.next = () => ({ inst:linkInst(makeLink34(), 'blue', 'つなぎ P3→P4'), t:0 }); // 2体を倒したら
       bgm.use('p3'); setTimeout(() => { if (S.inst === p3) bgm.start(); }, 300);
       // P3 のボスの出方：カオスは上から降ってくる、エクスデスは縦の白い光の筋の中から出る（再構築が終わってから）。それまでは見えない。輪は殴れる 0.3 から
       const bz = p3.bosses, fired = {};
@@ -269,16 +261,15 @@ function makeLink23({ lead = 0, check = false, full = false } = {}){
 // エクスデスは縦の白い光の筋の中に消える、カオスは真上にジャンプして消える 0〜1。ケフカは白い煙（手品）の中から出る 1.5〜2.3（ユーザー 2026-10-17）
 const T34 = { fade:1, kefka:1.5, kefkaIn:.8, talk:[2, 5], handoff:4.4, p4At:-3.6 };
 const P3_BOSS = { chaos:{ x:-7, z:-2 }, exdeath:{ x:7, z:-2 } };
-function makeLink34({ lead = 0, check = false, full = false } = {}){
+function makeLink34(){
   const me = mySlot();
   const p4 = withSky(P4, 'ruins', 'kefka').create(P4.gen()); p4.floorTheme = 'blue';
   const P3_HP = 1e7;
   const home = k => add({ x:0, z:10 }, at(SLOTS.indexOf(k) * 45 + 22.5, 2.6));
   const bots = makeBots(me, k => home(k));
-  let started = false;
   const self = {
-    view:24, t0:-lead, countdown:3, start:home(me), bossR:6,
-    intro:'つなぎ P3→P4（確認用）', end:1e9, noEnrage:true, killAfter:1e9,
+    view:24, t0:0, countdown:3, start:home(me), bossR:6,
+    end:1e9, noEnrage:true, killAfter:1e9,
     casts:[{ name:'バウル・オブ・アゴニー', start:-3, len:5 }],
     get bossHp(){ return S.t < 0 ? P3_HP : 0; }, bossName:'ボス',
     targetable: t => t < 0,
@@ -287,7 +278,6 @@ function makeLink34({ lead = 0, check = false, full = false } = {}){
     progress: t => t < 0 ? 'P3 の終わり' : 'つなぎ（P3→P4）',
     message: t => t >= T34.talk[0] && t < T34.talk[1] ? say('つまらん！') : '',
     tick(t){
-      if (!started){ started = true; if (lead) A.dmg = P3_HP * .97; }
       if (t >= 0 && !self._end){ self._end = true; A.dmg = 0; fxFlash('#ffffff', .6, .5); sfx.big(); bgm.stop(1.2); fxParts(20, P3_BOSS.exdeath.x, P3_BOSS.exdeath.z, { cols:['#ffffff', '#c8e0ff'], speed:4, up:12, life:1, spread:2 }); }
       if (t >= T34.kefka && !self._kefka){ self._kefka = true; fxParts(30, 0, 0, { cols:['#ffffff', '#e8e4f0', '#d0cce0'], speed:5, up:6, life:1.2, spread:3 }); sfx.blip(520, .1); sfx.blip(780, .12); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .3); }
       bots.place(t);
@@ -307,9 +297,8 @@ function makeLink34({ lead = 0, check = false, full = false } = {}){
       // 味方は出さない（P2 のミッシングの最後で自分に重なって消えている。P3〜P5 はオーケストラのほかは出さない。ユーザー 2026-10-17）
     },
     handoff:{ at:T34.handoff, go(){
-      if (check){ p4.end = 14; p4.noEnrage = true; } // 確認用：最初のなぞなぞマジックのあと少しで終わり
       // 全通し：P4 の最後（25%未満まで削れていたら）→ つなぎ P4→P5 のどきどきアルテマの詠唱から。P4 のこの先（実機の 120 秒〜）はまだ作っていない
-      if (full){ p4.stage = 'P4'; p4.next = () => ({ inst:linkInst(makeLink45({ full:true }), 'blue', 'つなぎ P4→P5'), t:T45.ultCast }); }
+      p4.stage = 'P4'; p4.next = () => ({ inst:linkInst(makeLink45(), 'blue', 'つなぎ P4→P5'), t:T45.ultCast });
       bgm.use('p4'); setTimeout(() => { if (S.inst === p4) bgm.start(); }, 300);
       return { inst:p4, t:T34.p4At };
     } },
@@ -325,7 +314,7 @@ function makeLink34({ lead = 0, check = false, full = false } = {}){
 // ---------------------------------------------------------------------
 const T45 = { ultCast:-5, flash:0, stage:2, talk1:[3, 8], jump:8, hole:[8, 10.4], boom:10, light:[10, 20], rise:[13, 17], talk2:[15, 21], talk3:[21, 26], handoff:30 };
 const P5_HOME = { T:{ x:0, z:-10 }, H:{ x:-7.5, z:7.5 }, D:{ x:7.5, z:7.5 } }; // mech_run の HOME
-function makeLink45({ lead = 0, check = false, full = false } = {}){
+function makeLink45(){
   const me = mySlot();
   const p5 = withSky(RUN, 'nebula', 'chaos').create(RUN.gen()); p5.floorTheme = 'rust';
   const P4_HP = 1e7;
@@ -333,10 +322,9 @@ function makeLink45({ lead = 0, check = false, full = false } = {}){
   const p4Spot = k => add({ x:0, z:11 }, at(SLOTS.indexOf(k) * 45 + 22.5, 2.6));
   const p5Spot = k => add(P5_HOME[role(k)], at(SLOTS.indexOf(k) * 90, .9));
   const bots = makeBots(me, (k, t) => t < 20 ? p4Spot(k) : lerp(p4Spot(k), p5Spot(k), clamp01((t - 20) / 4)));
-  let started = false;
   const self = {
-    view:24, t0:-lead, countdown:3, start:p4Spot(me), bossR:8,
-    intro:'つなぎ P4→P5（確認用）', end:1e9, noEnrage:true, killAfter:1e9,
+    view:24, t0:0, countdown:3, start:p4Spot(me), bossR:8,
+    end:1e9, noEnrage:true, killAfter:1e9,
     casts:[{ name:'どきどきアルテマ', start:T45.ultCast, len:-T45.ultCast }],
     get bossHp(){ return S.t < T45.ultCast ? P4_HP : 0; }, bossName:'ケフカ',
     targetable: t => t < T45.ultCast,
@@ -344,7 +332,6 @@ function makeLink45({ lead = 0, check = false, full = false } = {}){
     progress: t => t < 0 ? 'P4 の終わり' : 'つなぎ（P4→P5）',
     message: t => t >= T45.talk1[0] && t < T45.talk1[1] ? say('すべてはいずれ、壊れゆく……') : t >= T45.talk2[0] && t < T45.talk2[1] ? say('お前たちが造り続けるというのなら……') : t >= T45.talk3[0] && t < T45.talk3[1] ? say('私は破壊し続けよう！') : '',
     tick(t){
-      if (!started){ started = true; if (lead) A.dmg = P4_HP * .78; }
       if (t >= 0 && !self._ult){ self._ult = true; A.dmg = 0; fxFlash('#7ac8ff', .9, .9); sfx.big(); sfx.boom(); bgm.stop(1.5); }
       if (t >= T45.stage && !self._stage){ self._stage = true; fxFlash('#000000', .7, .6); }
       if (t >= T45.jump && !self._jump){ self._jump = true; sfx.blip(330, .15); if (opt.sound && sfx.ac) laugh(sfx.ac, sfx.ac.currentTime + .05, .25); }
@@ -365,8 +352,7 @@ function makeLink45({ lead = 0, check = false, full = false } = {}){
     },
     drawTop(t, g){ if (t >= T45.light[0] && t < T45.light[1]) pillar(g, (t - T45.light[0]) / (T45.light[1] - T45.light[0])); },
     handoff:{ at:T45.handoff, go(){
-      if (check){ p5.end = 45; p5.noEnrage = true; } // 確認用：連続アルテマのあと少しで終わり
-      if (full) p5.stage = 'P5';
+      p5.stage = 'P5';
       return { inst:p5, t:T45.handoff };
     } },
   };
@@ -393,19 +379,8 @@ const FULL = { id:'full', name:'全通し', sub:'P1〜P5', view:24, start:RUN1.s
   create(pr){
     const p1 = RUN1.create(pr);
     p1.floorTheme = 'blue'; p1.stage = 'P1'; p1.killAfter = P1_TIMEUP;
-    p1.next = () => ({ inst:linkInst(makeLink12({ full:true }), 'blue', 'つなぎ P1→P2'), t:0 });
+    p1.next = () => ({ inst:linkInst(makeLink12(), 'blue', 'つなぎ P1→P2'), t:0 });
     return p1;
   } };
 
-// 確認用のメニュー（今だけ。全通しができたら消す）
-const LINK12 = { id:'link12', name:'つなぎ P1→P2', sub:'', view:24, start:{ x:0, z:5 }, slots:true, bgmKey:'p1c',
-  gen: () => null, create: () => makeLink12({ lead:LEAD, check:true }) };
-const LINK23 = { id:'link23', name:'つなぎ P2→P3', sub:'', view:24, start:{ x:0, z:8 }, slots:true, bgmKey:'p2',
-  gen: () => null, create: () => makeLink23({ lead:LEAD, check:true }) };
-
-const LINK34 = { id:'link34', name:'つなぎ P3→P4', sub:'', view:24, start:{ x:0, z:6 }, slots:true, bgmKey:'p3',
-  gen: () => null, create: () => makeLink34({ lead:LEAD, check:true }) };
-const LINK45 = { id:'link45', name:'つなぎ P4→P5', sub:'', view:24, start:{ x:0, z:5 }, slots:true, bgmKey:'p4',
-  gen: () => null, create: () => makeLink45({ lead:LEAD, check:true }) };
-
-export { LINK12, LINK23, LINK34, LINK45, makeLink12, makeLink23, makeLink34, makeLink45, FULL };
+export { FULL };

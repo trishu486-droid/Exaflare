@@ -275,7 +275,7 @@ function actTick(dt){
 }
 function drawActFx(){
   const now = performance.now(), X = px(S.player.x), Z = px(S.player.z);
-  if (job().melee && S.phase !== 'menu'){ const b = curBoss(); alpha(.45, () => ring(px(b.x), px(b.z), Math.round((b.r + MELEE) * PPY), '#c9a2ff')); }
+  // 近接の届く範囲（マックスメレー）の円は出さない（ユーザー 2026-10-17）
   if (now - A.failT < 500){ // 射程外・詠唱中断
     line(X - 3, Z - 14, X + 3, Z - 8, P.hurt); line(X + 3, Z - 14, X - 3, Z - 8, P.hurt);
     line(X - 2, Z - 14, X + 4, Z - 8, P.hurt); line(X + 4, Z - 14, X - 2, Z - 8, P.hurt);

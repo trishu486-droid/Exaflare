@@ -200,7 +200,7 @@ function statueRiseBg(rise){
   const kind = 'gold';
   if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); starBg[kind] = buildStarBg(kind); }
   const row = VIEW[3] - rise * (VIEW[1] + ABOVE + 120); // 見える上の端の行を、像のてっぺんより上（負）まで下げる＝像が下へ流れる
-  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY), color:SKY_BASE[kind], cover:{ url:starBg[kind], h:COVER_H } }; // 像はフィールドの奥へ隠れて下へ抜ける
+  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY), color:SKY_BASE[kind] }; // 画面全体が一緒に流れ、像はフィールドの下を通り越していく（下半分にかぶせると、上半分だけ昇って見えた。2026-10-17 ユーザー）
 }
 // 像の上の、線などの出どころ（像の絵 statue.png の点。2026-10-15 ユーザーの動画に合わせて選んだ）
 //   face：下段の悪魔の顔（波動砲・第一楽章の線）、grav：中段の渦の柱の上（重力弾。紫の光）、rock：中段の像の手（岩石弾。黄色の光）

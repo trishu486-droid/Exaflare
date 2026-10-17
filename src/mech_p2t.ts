@@ -145,9 +145,6 @@ const P2T = {
       }],
     ].sort((a, b) => a[0] - b[0]);
     const triVisible = t => TRIS.filter(x => t >= T.spawn[x.set] && t < T.det[x.set] + .1);
-    const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
-    const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
-      1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     return {
       bossR:6, bossArt:'god',
       start:{ ...center(me) },
@@ -191,11 +188,7 @@ const P2T = {
         // 終末の双腕の予兆：重なったタンクの足元に黄色い円
         if (t >= T.embCast && t < T.emb){ const a = pos('MT'), b = pos('ST'); embTell({ x:(a.x + b.x) / 2, z:(a.z + b.z) / 2 }, EMB_R); }
         vfx.draw(t);
-        bots.forEach(b => {
-          const X = px(b.x), Z = px(b.z);
-          rect(X - 6, Z - 4, 13, 9, P.white); rect(X - 5, Z - 3, 11, 7, ROLE_COL[roleOf(b.k)]);
-          [...b.k].forEach((ch, i) => { const g = FONT[ch]; for (let n = 0; n < 15; n++) if (g[n] === '1') rect(X - 4 + i * 4 + (n % 3), Z - 2 + (n / 3 | 0), 1, 1, P.white); });
-        });
+        // 味方は描かない（単体も通しも。判定のための見えない味方は動いている。ユーザー 2026-10-17）
       },
       _spotAt: spotAt, _me: me, _tris: TRIS, _bots: bots,
     };

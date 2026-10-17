@@ -35,6 +35,8 @@ function fxParts(n, x, z, { cols = FXC.flare, speed = 8, up = 6, life = .6, size
       vh:up * (.5 + Math.random() * .8), g:grav, at:S.t, life:life * (.6 + Math.random() * .6), cols, size });
   }
 }
+// ゲームの時計を差し替えたとき（つなぎで次のフェーズの通しに入るとき。game.ts）、効果の時刻も同じだけずらす
+function fxShiftTime(dt){ FX.list.forEach(e => { e.at += dt; }); FX.parts.forEach(q => { q.at += dt; }); FX.shakeUntil += dt; if (FX.flash && FX.flash.at != null) FX.flash.at += dt; }
 function fxShakeOffset(){
   if (!opt.fx || S.t >= FX.shakeUntil) return [0, 0];
   const a = Math.round(FX.shakeA * Math.min(1, (FX.shakeUntil - S.t) / .15));
@@ -101,4 +103,4 @@ const FXK = {
 };
 const inArena = (x, z) => x * x + z * z <= ARENA_R * ARENA_R;
 
-export { FX, FXC, fxStep, fxReset, fxAdd, fxShake, fxFlash, fxParts, fxShakeOffset, fxDraw, fxFlashDraw, FXK, inArena };
+export { FX, FXC, fxStep, fxReset, fxShiftTime, fxAdd, fxShake, fxFlash, fxParts, fxShakeOffset, fxDraw, fxFlashDraw, FXK, inArena };

@@ -20,7 +20,7 @@ const RUN2 = {
   id:'p2', name:'P2 通し', sub:'', view:24, start:P2M.start, slots:true,
   gen(){ const m = P2M.gen(), t = P2T.gen(); return [m, { ...t, me:m.me }]; },
   create(pr){
-    const m = P2M.create({ ...pr[0], withEmb:true });
+    const m = P2M.create({ ...pr[0], withEmb:true, mergeBots:true }); // 味方はミッシングの最後で自分に重なって消える（ユーザー 2026-10-17）
     const tr = P2T.create({ ...pr[1], withLoj:true, lojDone:true });
     let handed = false;
     const seg = t => t < SWITCH ? [m, t] : [tr, t - T_AT];

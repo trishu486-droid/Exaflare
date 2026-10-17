@@ -1,6 +1,6 @@
 import { mech, menuMechs, phaseOf } from './mechs.js';
 import { S, keys, stickVec, logClear } from './state.js';
-import { fxReset } from './fx.js';
+import { fxReset, fxShiftTime } from './fx.js';
 import { ARENA_R, COUNTDOWN, PLAYER_SPEED } from './config.js';
 import { cv, hurt, misses } from './gfx.js';
 import { A, HP, actReset, actTick, hpReset, hpTick } from './action.js';
@@ -69,7 +69,7 @@ function frame(now){
       S.inst.tick(S.t);
       // つなぎ目（mech_link）：決まった時刻で次のフェーズの通しに差し替える。時計もそのフェーズの時刻に
       const h = S.inst.handoff;
-      if (h && S.t >= h.at && S.failAt == null){ const n = h.go(); S.inst = n.inst; S.t = n.t; if (n.player) S.player = { ...n.player }; A.tgt = n.inst.target0 ?? null; A.cast = null; }
+      if (h && S.t >= h.at && S.failAt == null){ const n = h.go(); fxShiftTime(n.t - S.t); S.inst = n.inst; S.t = n.t; if (n.player) S.player = { ...n.player }; A.tgt = n.inst.target0 ?? null; A.cast = null; }
       hpTick(dt);
       actTick(dt);
       // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）

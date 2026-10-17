@@ -215,6 +215,9 @@ const P2M = {
       return t >= R[n].until - dist(curS, nx) / BOT_SPEED - .05 ? nx : curS;
     };
     const bots = SLOTS.filter(k => k !== me).map(k => ({ k, ...(p.withEmb ? embSpot(k) : standby(k)) }));
+    const MERGE_AT = T.leg[3] + .2; // p.mergeBots：最後の消滅の脚のあと、味方を自分に重ねて消す（P2 通し）
+    const merging = t => !!p.mergeBots && t >= MERGE_AT;
+    const botShown = (b, t) => !merging(t) || dist(b, S.player) > .6;
     const pos = k => k === me ? S.player : bots.find(b => b.k === k);
 
     // ---- 判定の状態 ----
@@ -354,7 +357,8 @@ const P2M = {
       tick(t){
         const dt = Math.max(0, t - lastT); lastT = t;
         bots.forEach(b => {
-          const g = botGoal(b.k, t), d = dist(b, g), step = BOT_SPEED * dt;
+          // P2 通し：最後の消滅の脚でみんなが集まったあと、味方は自分に重なって消える（P3 からは味方を出さない。ユーザー 2026-10-17）
+          const g = merging(t) ? S.player : botGoal(b.k, t), d = dist(b, g), step = (merging(t) ? 12 : BOT_SPEED) * dt;
           if (d > .05){ const k = Math.min(1, step / d); b.x += (g.x - b.x) * k; b.z += (g.z - b.z) * k; }
         });
         events.forEach(([et, fn], i) => { if (t >= et) once('e' + i, fn); });
@@ -396,7 +400,7 @@ const P2M = {
         });
         vfx.draw(t);
         // 味方
-        bots.forEach(b => {
+        bots.filter(b => botShown(b, t)).forEach(b => {
           const X = px(b.x), Z = px(b.z);
           rect(X - 6, Z - 4, 13, 9, P.white); rect(X - 5, Z - 3, 11, 7, ROLE_COL[roleOf(b.k)]);
           [...b.k].forEach((ch, i) => { const g = FONT[ch]; for (let n = 0; n < 15; n++) if (g[n] === '1') rect(X - 4 + i * 4 + (n % 3), Z - 2 + (n / 3 | 0), 1, 1, P.white); });

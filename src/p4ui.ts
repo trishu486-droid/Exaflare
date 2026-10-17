@@ -16,7 +16,13 @@ function morphField(el: HTMLElement, r0: DOMRect){
   const s = r0.width / r1.width, bx = m.e, by = m.f;
   const dx = (r0.left + r0.width / 2) - (r1.left + r1.width / 2) + (1 - s) * bx, dy = (r0.top + r0.height / 2) - (r1.top + r1.height / 2) + (1 - s) * by;
   const b = base && base !== 'none' ? base : '';
-  el.animate([{ transform:`translate(${dx}px, ${dy}px) scale(${s}) ${b}` }, { transform:b || 'none' }], { duration:1200, easing:'ease-in-out' });
+  // 動いている間だけ、フィールドが画面の枠（.stage）で切れないようにする
+  const stage = el.closest('.stage') as HTMLElement | null; if (stage) stage.style.overflow = 'visible';
+  el.animate([{ transform:`translate(${dx}px, ${dy}px) scale(${s}) ${b}` }, { transform:b || 'none' }], { duration:1200, easing:'ease-in-out' }).finished.then(() => { if (stage) stage.style.overflow = ''; }, () => { if (stage) stage.style.overflow = ''; });
+  // チャット欄は下からせり上がり、ボタンはふわっと出る（フィールドが縮むのに合わせて。2026-10-17 ユーザー「切りかわりが雑」）
+  const chat = document.querySelector('.chatlog') as HTMLElement, keys = $('p4panel');
+  chat?.animate([{ transform:'translateY(100%)', opacity:0 }, { transform:'translateY(0)', opacity:1 }], { duration:1200, easing:'ease-in-out' });
+  keys?.animate([{ opacity:0 }, { opacity:0, offset:.4 }, { opacity:1 }], { duration:1200, easing:'ease-out' });
 }
 function renderP4Panel(){
   // チャット欄は inst.chat があるときだけ（P4 型の画面）。ボタンは inst.buttons があれば P5 型の画面でも使える

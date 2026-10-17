@@ -213,7 +213,7 @@ function makeLink23({ lead = 0, check = false } = {}){
       if (t >= T23.kefka && t < T23.kefka + T23.kefkaIn + .4) kefkaSmoke(kefkaSprite('kefka'), px(0), px(0), (t - T23.kefka) / (T23.kefkaIn + .4), true);
       if (t >= T23.floor[0] && t < T23.floor[1]) chevrons((t - T23.floor[0]) / (T23.floor[1] - T23.floor[0]));
       if (t >= T23.aeroCast && t < T23.toP3) windLines(t, Math.min(1, (t - T23.aeroCast) / 1.5));
-      bots.draw();
+      // 味方は出さない（P2 のミッシングの最後で自分に重なって消えている。P3〜P5 はオーケストラのほかは出さない。ユーザー 2026-10-17）
       if (t >= 1 && t < 4) feathers(t, Math.min(1, (4 - t) / 1.5), 30, 10);
     },
     // 飛ばされた瞬間、金色が短いグラデーションで薄れて P3 の空に（暗転はしない）
@@ -300,7 +300,7 @@ function makeLink34({ lead = 0, check = false } = {}){
         if (t < 1.1) exdeathLight(es, px(E.x), px(E.z), t / 1.1, false);
       }
       if (t >= T34.kefka && t < T34.kefka + T34.kefkaIn + .4) kefkaSmoke(kefkaSprite('kefka'), px(0), px(0), (t - T34.kefka) / (T34.kefkaIn + .4), true);
-      bots.draw();
+      // 味方は出さない（P2 のミッシングの最後で自分に重なって消えている。P3〜P5 はオーケストラのほかは出さない。ユーザー 2026-10-17）
     },
     handoff:{ at:T34.handoff, go(){
       if (check){ p4.end = 14; p4.noEnrage = true; } // 確認用：最初のなぞなぞマジックのあと少しで終わり
@@ -355,7 +355,7 @@ function makeLink45({ lead = 0, check = false } = {}){
       if (t >= T45.hole[0] && t < T45.hole[1]){ const k = clamp01((t - T45.hole[0]) / 1.6); disc(px(0), px(0), Math.round((1 + k * 7) * PPY), '#05030c'); ring(px(0), px(0), Math.round((1 + k * 7) * PPY), '#8a4aff'); }
       if (t >= T45.light[0] && t < T45.light[1]){ const k = Math.min(1, (t - T45.light[0]) / .6, (T45.light[1] - t) / 1.5); alpha(.55 * k, () => disc(px(0), px(0), Math.round(9 * PPY), '#ffe888')); alpha(.8 * k, () => ring(px(0), px(0), Math.round(9 * PPY), '#ffffff')); }
       shock((t - T45.boom) / .9, '#ffffff');
-      bots.draw();
+      // 味方は出さない（P2 のミッシングの最後で自分に重なって消えている。P3〜P5 はオーケストラのほかは出さない。ユーザー 2026-10-17）
     },
     drawTop(t, g){ if (t >= T45.light[0] && t < T45.light[1]) pillar(g, (t - T45.light[0]) / (T45.light[1] - T45.light[0])); },
     handoff:{ at:T45.handoff, go(){

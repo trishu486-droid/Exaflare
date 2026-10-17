@@ -196,3 +196,5 @@ P2 を練習ツールに入れるための仕様調査（第1版・2026-10-09 �
 - [絶妖星乱舞 P2 (ゴッドケフカ) 詳細説明、解説（シュリこ）](https://note.com/suri_ko/n/n6e8bd285dc72)・[P2 ミッシング：ぴれん式の優先順の詳細説明](https://note.com/suri_ko/n/nba321d0f0683)
 - [Dancing Mad Ultimate（Materia Raiding）](https://materiaraiding.com/ultimate/dmu)
 - ユーザーからもらった軽減表（P2_ゴッドケフカ）のスクリーンショット（時刻の照合に使用。リポジトリには保存しない）
+
+- タンクのバフ回し（P2 の終末の双腕・破壊の翼・サンダガの無敵とバフ。ナ暗の例と野良の傾向）は `research-p1.md` の 10 章にまとめた（2026-10-17）。

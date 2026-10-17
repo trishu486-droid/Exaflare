@@ -398,3 +398,5 @@ P3 を練習ツールに入れるための仕様調査（第1版）。まだ実�
 - [絶妖星乱舞 攻略特設（ヤーン速報）](https://yan-flash.com/ultimate/yosei-ranbu)（採用する処理法）
 - [ロードストーン日記（Elizabeth Matrix）「絶妖星乱舞 ギミックメモ」](https://jp.finalfantasyxiv.com/lodestone/character/30210695/blog/5692643/)・[「p3フェーズまとめ」](https://jp.finalfantasyxiv.com/lodestone/character/30210695/blog/5693767/)
 - FFLogs のフェーズ名（検索結果の要約）：P3「Exdeath and Chaos」
+
+- タンクのバフ回し（P3 の終末の双腕・破壊の翼・サンダガの無敵とバフ。ナ暗の例と野良の傾向）は `research-p1.md` の 10 章にまとめた（2026-10-17）。

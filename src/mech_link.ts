@@ -9,6 +9,7 @@ import { opt } from './store.js';
 import { laugh } from './kefka_intro.js';
 import { SLOTS, add, at, dist, drawBot, statueScreenBg, statueRiseBg } from './p1lib.js';
 import { clearOutside, bgImg } from './mech_p2m.js';
+import { RUN1 } from './mech_p1run.js';
 import { RUN2 } from './mech_p2run.js';
 import { RUN3 } from './mech_p3run.js';
 import { P4 } from './mech_p4.js';
@@ -95,7 +96,7 @@ const say = text => talkBox('ケフカ', text);
 // ケフカは時間切れで白く点滅して震え、白い煙（手品）の中に消える 1.2〜2.2。ゴッドケフカは上から神々しくゆっくり舞い降りる 5.5〜9（ユーザー 2026-10-17）
 // ステージが天へ昇る 1.5〜5（像が下へ流れて通り越し、どんどん明るくなって P2 の金色に。昇る間だけステージを揺らす）
 const T12 = { blink:1.2, gone:2.2, rise:[1.5, 5], gold:5, pillar:[5, 9.5], descend:[5.5, 9], god:9, talk:[9.6, 14], targetable:11.5, handoff:15.9 };
-function makeLink12({ lead = 0, check = false } = {}){
+function makeLink12({ lead = 0, check = false, full = false } = {}){
   const me = mySlot();
   const p2 = RUN2.create(RUN2.gen()); p2.floorTheme = 'gold';
   const P1_HP = 1e7; // 確認用の見た目だけ（P1 の終わりの HP は 15% 少し上）
@@ -149,7 +150,9 @@ function makeLink12({ lead = 0, check = false } = {}){
     // P2 通しへ（0 から。ダメージはそのまま引き継ぐ）
     handoff:{ at:T12.handoff, go(){
       if (check){ p2.end = 12; p2.noEnrage = true; } // 確認用：終末の双腕のあと少しで終わり
-      const t2 = p2.tick; p2.tick = t => { t2(t); if (p2.bossHp && A.dmg > p2.bossHp * .999) A.dmg = p2.bossHp * .999; }; // P2 は 0.1% で耐える（ユーザー 2026-10-16）
+      // 全通し：殴れなくなる時（166.7）に削りきっていれば、つなぎ P2→P3 へ。足りなければそのまま時間切れ（裁きの光）
+      if (full){ p2.stage = 'P2'; p2.killAfter = P2_UNTARGET; p2.next = () => ({ inst:linkInst(makeLink23({ full:true }), 'gold', 'つなぎ P2→P3'), t:0 }); }
+      else { const t2 = p2.tick; p2.tick = t => { t2(t); if (p2.bossHp && A.dmg > p2.bossHp * .999) A.dmg = p2.bossHp * .999; }; } // P2 は 0.1% で耐える（ユーザー 2026-10-16）
       return { inst:p2, t:0 };
     } },
   };
@@ -168,7 +171,7 @@ function makeLink12({ lead = 0, check = false } = {}){
 // エアロガでステージの半径の 6 割（12）飛ばされ、その瞬間に背景が P3 の空へ（短いグラデーション。暗転はしない）。飛ばされた所で P3 が始まる
 // P3 は実機のムービー明け（P3 の −7。ケフカが北で「再構築」を詠唱中・残り約 4 秒）から。ノックダウンは −6 まで（ユーザー 2026-10-17）
 const T23 = { fade:1.2, kefka:2, kefkaIn:.8, aeroCast:2, aero:5.5, floor:[3, 6], toP3:5.85, p3At:-7, kbLen:.35, kbDist:12, fadeBg:.35 };
-function makeLink23({ lead = 0, check = false } = {}){
+function makeLink23({ lead = 0, check = false, full = false } = {}){
   const me = mySlot();
   const P2_HP = 1e7;
   const p3 = RUN3.create(RUN3.gen()); p3.floorTheme = 'blue';
@@ -235,6 +238,7 @@ function makeLink23({ lead = 0, check = false } = {}){
         if (t >= REBUILD[1] && t < REBUILD[1] + 1.2) kefkaSmoke(sp, X, Z, (t - REBUILD[1]) / 1.2, false);
       };
       if (check){ p3.end = 8; p3.noEnrage = true; } // 確認用：決戦のあと少しで終わり
+      if (full){ p3.stage = 'P3'; p3.next = () => ({ inst:linkInst(makeLink34({ full:true }), 'blue', 'つなぎ P3→P4'), t:0 }); } // 全通し：2体を倒したら
       bgm.use('p3'); setTimeout(() => { if (S.inst === p3) bgm.start(); }, 300);
       // P3 のボスの出方：カオスは上から降ってくる、エクスデスは縦の白い光の筋の中から出る（再構築が終わってから）。それまでは見えない。輪は殴れる 0.3 から
       const bz = p3.bosses, fired = {};
@@ -265,7 +269,7 @@ function makeLink23({ lead = 0, check = false } = {}){
 // エクスデスは縦の白い光の筋の中に消える、カオスは真上にジャンプして消える 0〜1。ケフカは白い煙（手品）の中から出る 1.5〜2.3（ユーザー 2026-10-17）
 const T34 = { fade:1, kefka:1.5, kefkaIn:.8, talk:[2, 5], handoff:4.4, p4At:-3.6 };
 const P3_BOSS = { chaos:{ x:-7, z:-2 }, exdeath:{ x:7, z:-2 } };
-function makeLink34({ lead = 0, check = false } = {}){
+function makeLink34({ lead = 0, check = false, full = false } = {}){
   const me = mySlot();
   const p4 = withSky(P4, 'ruins', 'kefka').create(P4.gen()); p4.floorTheme = 'blue';
   const P3_HP = 1e7;
@@ -304,6 +308,8 @@ function makeLink34({ lead = 0, check = false } = {}){
     },
     handoff:{ at:T34.handoff, go(){
       if (check){ p4.end = 14; p4.noEnrage = true; } // 確認用：最初のなぞなぞマジックのあと少しで終わり
+      // 全通し：P4 の最後（25%未満まで削れていたら）→ つなぎ P4→P5 のどきどきアルテマの詠唱から。P4 のこの先（実機の 120 秒〜）はまだ作っていない
+      if (full){ p4.stage = 'P4'; p4.next = () => ({ inst:linkInst(makeLink45({ full:true }), 'blue', 'つなぎ P4→P5'), t:T45.ultCast }); }
       bgm.use('p4'); setTimeout(() => { if (S.inst === p4) bgm.start(); }, 300);
       return { inst:p4, t:T34.p4At };
     } },
@@ -319,7 +325,7 @@ function makeLink34({ lead = 0, check = false } = {}){
 // ---------------------------------------------------------------------
 const T45 = { ultCast:-5, flash:0, stage:2, talk1:[3, 8], jump:8, hole:[8, 10.4], boom:10, light:[10, 20], rise:[13, 17], talk2:[15, 21], talk3:[21, 26], handoff:30 };
 const P5_HOME = { T:{ x:0, z:-10 }, H:{ x:-7.5, z:7.5 }, D:{ x:7.5, z:7.5 } }; // mech_run の HOME
-function makeLink45({ lead = 0, check = false } = {}){
+function makeLink45({ lead = 0, check = false, full = false } = {}){
   const me = mySlot();
   const p5 = withSky(RUN, 'nebula', 'chaos').create(RUN.gen()); p5.floorTheme = 'rust';
   const P4_HP = 1e7;
@@ -360,6 +366,7 @@ function makeLink45({ lead = 0, check = false } = {}){
     drawTop(t, g){ if (t >= T45.light[0] && t < T45.light[1]) pillar(g, (t - T45.light[0]) / (T45.light[1] - T45.light[0])); },
     handoff:{ at:T45.handoff, go(){
       if (check){ p5.end = 45; p5.noEnrage = true; } // 確認用：連続アルテマのあと少しで終わり
+      if (full) p5.stage = 'P5';
       return { inst:p5, t:T45.handoff };
     } },
   };
@@ -373,6 +380,23 @@ function makeLink45({ lead = 0, check = false } = {}){
   return self;
 }
 
+// ---------------------------------------------------------------------
+// 全通し：P1 通し → つなぎ P1→P2 → P2 通し → … → P5 通し（ユーザー 2026-10-16・17）
+// 被弾したら終わり。必ず P1 から。各フェーズを成功したら次のつなぎへ（game.ts の next）：
+//   P1：時間切れの 173.3 に削りきっていれば／P2：殴れなくなる 166.7 に削りきっていれば／P3：2体を倒したら／P4：最後に 25%未満なら／P5：撃破でクリア
+// ランキングは対象外（ranking.ts）。stage：リザルトに出す「どこまで行ったか」
+// ---------------------------------------------------------------------
+const P1_TIMEUP = 173.3, P2_UNTARGET = 166.7; // mech_p1run の ENRAGE.cast・mech_p2run の UNTARGET（＝つなぎの 0）
+const linkInst = (inst, floor, stage) => { inst.floorTheme = floor; inst.stage = stage; return inst; };
+const FULL = { id:'full', name:'全通し', sub:'P1〜P5', view:24, start:RUN1.start, slots:true, bgmKey:'p1',
+  gen: () => RUN1.gen(),
+  create(pr){
+    const p1 = RUN1.create(pr);
+    p1.floorTheme = 'blue'; p1.stage = 'P1'; p1.killAfter = P1_TIMEUP;
+    p1.next = () => ({ inst:linkInst(makeLink12({ full:true }), 'blue', 'つなぎ P1→P2'), t:0 });
+    return p1;
+  } };
+
 // 確認用のメニュー（今だけ。全通しができたら消す）
 const LINK12 = { id:'link12', name:'つなぎ P1→P2', sub:'', view:24, start:{ x:0, z:5 }, slots:true, bgmKey:'p1c',
   gen: () => null, create: () => makeLink12({ lead:LEAD, check:true }) };
@@ -384,4 +408,4 @@ const LINK34 = { id:'link34', name:'つなぎ P3→P4', sub:'', view:24, start:{
 const LINK45 = { id:'link45', name:'つなぎ P4→P5', sub:'', view:24, start:{ x:0, z:5 }, slots:true, bgmKey:'p4',
   gen: () => null, create: () => makeLink45({ lead:LEAD, check:true }) };
 
-export { LINK12, LINK23, LINK34, LINK45, makeLink12, makeLink23, makeLink34, makeLink45 };
+export { LINK12, LINK23, LINK34, LINK45, makeLink12, makeLink23, makeLink34, makeLink45, FULL };

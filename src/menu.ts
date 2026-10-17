@@ -11,9 +11,9 @@ import { jobIconSvg } from './gfx.js';
 
 // メニュー：ジョブ選択 → フェーズ選択（P3／P4／P5／おまけ）→ ギミック一覧。担当が関係するギミックは次に MT/ST などを選ぶ
 // β版（ユーザーの決定 2026-10-14）：P2〜P4 はフェーズ選択とギミック選択の見出しに「β」。P1 も作りかけなので β
-const BETA = ['p1', 'p2', 'p3']; // P4 は 2026-10-16 に正式版
+const BETA = ['p1', 'p2', 'p3', 'full']; // P4 は 2026-10-16 に正式版
 const beta = (id: string) => BETA.includes(id) ? '<em class="beta">β</em>' : '';
-const PHASES = [['p1', 'P1', 'ケフカ'], ['p2', 'P2', 'ゴッドケフカ'], ['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['link', 'つなぎ', '確認用'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
+const PHASES = [['p1', 'P1', 'ケフカ'], ['p2', 'P2', 'ゴッドケフカ'], ['p3', 'P3', 'エクスデス＆カオス'], ['p4', 'P4', 'ネオエクスデス＆カオス'], ['p5', 'P5', 'カオスケフカ'], ['full', '全通し', 'P1〜P5'], ['link', 'つなぎ', '確認用'], ['omake', 'おまけ', '陰キャと見るあたしンち']];
 // 文を「かたまり」ごとに折り返す（| ・全角空白と「・」「〜」のあと・（ の前で区切る。かたまりの途中では折り返さない）
 const ph = (s: string) => s.split(/\||(?=（)|(?<=[　・〜])/).filter(Boolean).map(x => `<span class="ph">${x}</span>`).join('');
 function renderMenu(){
@@ -65,7 +65,7 @@ function renderMenu(){
     return;
   }
   // ギミック一覧（選んだフェーズの分）。左右で P1〜P5 を切り替え
-  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ${ph(`ギミック選択|（${job().name}）${opt.phase === 'link' ? 'つなぎ' : opt.phase.toUpperCase()}`)}${beta(opt.phase)} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
+  head.innerHTML = `<span class="pg" data-pg="-1" role="button" aria-label="前のフェーズ">◀</span> ${ph(`ギミック選択|（${job().name}）${opt.phase === 'link' ? 'つなぎ' : opt.phase === 'full' ? '全通し' : opt.phase.toUpperCase()}`)}${beta(opt.phase)} <span class="pg" data-pg="1" role="button" aria-label="次のフェーズ">▶</span>`;
   note.innerHTML = ph('A／STARTで開始　Y／iで解説　←→でフェーズ切替');
 
   const L = menuMechs();

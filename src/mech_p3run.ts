@@ -170,7 +170,7 @@ const RUN3 = (() => {
       const d3 = P3D.create({ ...pr[3], off:D_AT, bossAt:{ chaos:{ x:c3.debug.CH.x, z:c3.debug.CH.z }, exdeath:{ x:c3.debug.EX.x, z:c3.debug.EX.z } } });
       segs.push({ inst:gap, at:FRONT_END, end:C_BEGIN }, { inst:c3, at:C_AT, begin:C_BEGIN, end:C_END }, { inst:d3, at:D_AT, end:ENRAGE.at });
       return chain(segs, {
-        end:ENRAGE.at, t0:TARGETABLE, countdown:5,
+        end:ENRAGE.at, t0:TARGETABLE, countdown:3,
         intro:`あなたは ${mySlot()}　最後まで被弾なしで`,
         casts:[{ name:'バウル・オブ・アゴニー', start:ENRAGE.cast, len:ENRAGE.at - ENRAGE.cast }, { name:'メテオ', start:ENRAGE.cast, len:ENRAGE.at - ENRAGE.cast }],
         bossHp: dpsTarget() * activeLen * KILL_AT, dpsTarget: dpsTarget(),

@@ -113,7 +113,7 @@ const withSky = (m, kind, art = null) => ({ ...m, create(p){
   return inst;
 } });
 
-// 床の色と模様（gfx.ts の FLOOR）：P1・P2＝gold、P3・P4＝blue、P5＝rust（ユーザー 2026-10-17）
+// 床の色と模様（gfx.ts の FLOOR）：P2＝gold、P1・P3・P4＝blue、P5＝rust（ユーザー 2026-10-17）
 const withFloor = (m, theme) => ({ ...m, create(p){ const inst = m.create(p); inst.floorTheme ??= theme; return inst; } });
 
 export { paintSky, skyUrl, SKY_BASE, skyBg, withSky, withFloor };

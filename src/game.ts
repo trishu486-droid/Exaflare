@@ -34,6 +34,9 @@ function openMenu(){
   renderMenu(); $('menu').hidden = titleOn; resetMsg(); setMsg('');
 }
 
+// 次のフェーズ（つなぎ目・全通し）に差し替える。時計もそのフェーズの時刻に
+function swapInst(n){ fxShiftTime(n.t - S.t); S.inst = n.inst; S.t = n.t; if (n.player) S.player = { ...n.player }; A.tgt = n.inst.target0 ?? null; A.cast = null; }
+
 // ===== 更新 =====
 const FALL_OVER = .3; // 床の縁からこれだけはみ出したら落ちる（キャラの半分くらい）
 function movePlayer(dt){
@@ -69,16 +72,21 @@ function frame(now){
       S.inst.tick(S.t);
       // つなぎ目（mech_link）：決まった時刻で次のフェーズの通しに差し替える。時計もそのフェーズの時刻に
       const h = S.inst.handoff;
-      if (h && S.t >= h.at && S.failAt == null){ const n = h.go(); fxShiftTime(n.t - S.t); S.inst = n.inst; S.t = n.t; if (n.player) S.player = { ...n.player }; A.tgt = n.inst.target0 ?? null; A.cast = null; }
+      if (h && S.t >= h.at && S.failAt == null) swapInst(h.go());
       hpTick(dt);
       actTick(dt);
       // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）
       // P4（hpGate あり）は 25% 未満まで削っても最後まで続き、時間切れの時点で判定する
       const reached = S.inst.bossHp && A.dmg >= S.inst.bossHp, gate = S.inst.hpGate;
       const killed = reached && !gate && (S.inst.killAfter == null || S.t >= S.inst.killAfter); // P3 通し：突出までは HP が残る（killAfter から撃破できる）
-      if (killed || (gate && reached && S.t > S.inst.end)) S.killed = true;
-      if (S.inst.bossHp && !reached && !S.inst.noEnrage && S.t > S.inst.end && S.failAt == null) hurt(S.inst.enrageName ? `時間切れ（${S.inst.enrageName}）` : gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
-      if (killed || S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
+      const won = killed || (gate && reached && S.t > S.inst.end);
+      // 全通し（mech_link の FULL）：フェーズを成功したら、終わらずに次のつなぎへ
+      if (won && S.inst.next && S.failAt == null) swapInst(S.inst.next());
+      else {
+        if (won) S.killed = true;
+        if (S.inst.bossHp && !reached && !S.inst.noEnrage && S.t > S.inst.end && S.failAt == null) hurt(S.inst.enrageName ? `時間切れ（${S.inst.enrageName}）` : gate ? '時間切れ（裁きの光）' : '時間切れ（ミッシング・ゼロ）', '');
+        if (killed || S.t > S.inst.end || (S.failAt != null && S.t >= S.failAt)){ S.endT = Math.min(S.t, S.inst.end); S.phase = 'done'; A.cast = null; S.resultHtml = buildResult(); bgm.stop(1.2); S.hits ? sfx.fail() : sfx.clear(); }
+      }
     }
   }
   draw(); updateHud(); drawButtons();

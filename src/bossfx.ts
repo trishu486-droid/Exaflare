@@ -59,7 +59,7 @@ function kefkaSmoke(sp, X, Z, k, appear){
 // ---- ゴッドケフカ：上から神々しくゆっくり舞い降りる（k：0〜1） ----
 function godDescend(sp, X, Z, k){
   const e = ease(k), [w, h] = size(sp);
-  alpha(.35 * Math.sin(k * Math.PI) + .15 * k, () => { rect(X - 12, 0, 24, Z + h / 2, '#fff6c8'); rect(X - 5, 0, 10, Z + h / 2, '#ffffff'); }); // 上から差す光
+  // 上から差す光は、つなぎの光の柱（mech_link.ts の pillar・上の層）に任せる。ここでも描くと柱の下に短い帯がはみ出す（ユーザー 2026-10-17）
   alpha(.5 * k, () => disc(X, Z, Math.round(w * .6), '#fff2b0'));                    // 後ろの光の輪
   sprite(sp, X, Z, { dy:(1 - e) * (Z + h), a:Math.min(1, k * 3) });
   for (let i = 0; i < 6; i++){ const a = i * 1.05 + k * 3, r = w * .45; rect(Math.round(X + Math.cos(a) * r), Math.round(Z - (1 - e) * (Z + h) + Math.sin(a) * r * .5), 2, 2, '#ffe888'); }

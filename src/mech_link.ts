@@ -97,7 +97,7 @@ const say = text => talkBox('ケフカ', text);
 const T12 = { blink:1.2, gone:2.2, rise:[1.5, 5], gold:5, pillar:[5, 9.5], descend:[5.5, 9], god:9, talk:[9.6, 14], targetable:11.5, handoff:15.9 };
 function makeLink12({ lead = 0, check = false } = {}){
   const me = mySlot();
-  const p2 = RUN2.create(RUN2.gen());
+  const p2 = RUN2.create(RUN2.gen()); p2.floorTheme = 'gold';
   const P1_HP = 1e7; // 確認用の見た目だけ（P1 の終わりの HP は 15% 少し上）
   const bots = makeBots(me, (k, t) => t < T12.targetable ? P1_END(k) : lerp(P1_END(k), P2_EMB(k), clamp01((t - T12.targetable) / 3)));
   let started = false, music = false;
@@ -171,7 +171,7 @@ const T23 = { fade:1.2, kefka:2, kefkaIn:.8, aeroCast:2, aero:5.5, floor:[3, 6],
 function makeLink23({ lead = 0, check = false } = {}){
   const me = mySlot();
   const P2_HP = 1e7;
-  const p3 = RUN3.create(RUN3.gen());
+  const p3 = RUN3.create(RUN3.gen()); p3.floorTheme = 'blue';
   const kb = {}; // エアロガ：中心から外へ 12（ステージの半径の 6 割。ユーザー 2026-10-17）。外周の 19 まで
   const push = q => { const u = Math.hypot(q.x, q.z) || 1, r = Math.min(19, u + T23.kbDist); return { x:q.x / u * r, z:q.z / u * r }; };
   const pos0 = k => P2_EMB(k);
@@ -267,7 +267,7 @@ const T34 = { fade:1, kefka:1.5, kefkaIn:.8, talk:[2, 5], handoff:4.4, p4At:-3.6
 const P3_BOSS = { chaos:{ x:-7, z:-2 }, exdeath:{ x:7, z:-2 } };
 function makeLink34({ lead = 0, check = false } = {}){
   const me = mySlot();
-  const p4 = withSky(P4, 'ruins', 'kefka').create(P4.gen());
+  const p4 = withSky(P4, 'ruins', 'kefka').create(P4.gen()); p4.floorTheme = 'blue';
   const P3_HP = 1e7;
   const home = k => add({ x:0, z:10 }, at(SLOTS.indexOf(k) * 45 + 22.5, 2.6));
   const bots = makeBots(me, k => home(k));
@@ -321,7 +321,7 @@ const T45 = { ultCast:-5, flash:0, stage:2, talk1:[3, 8], jump:8, hole:[8, 10.4]
 const P5_HOME = { T:{ x:0, z:-10 }, H:{ x:-7.5, z:7.5 }, D:{ x:7.5, z:7.5 } }; // mech_run の HOME
 function makeLink45({ lead = 0, check = false } = {}){
   const me = mySlot();
-  const p5 = withSky(RUN, 'nebula', 'chaos').create(RUN.gen());
+  const p5 = withSky(RUN, 'nebula', 'chaos').create(RUN.gen()); p5.floorTheme = 'rust';
   const P4_HP = 1e7;
   const role = k => k[0] === 'M' || k[0] === 'S' ? 'T' : k[0];
   const p4Spot = k => add({ x:0, z:11 }, at(SLOTS.indexOf(k) * 45 + 22.5, 2.6));

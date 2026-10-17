@@ -129,31 +129,64 @@ function drawIcon(X, Z, hurt){
   else if (hasMit()) ring(X, Z, 10, '#5ab0ff');
 }
 
+// 床の模様と色（実機の床。ユーザーの画像 2026-10-17）。288×288 の絵にして使い回す（テーマと大きさごと）
+//   gold・blue：P1・P2 は金、P3・P4 は青。中心から外へ同じ向きに渦を巻く線
+//   rust：P5。さびた鉄板。輪と放射の継ぎ目、すべり止めの凸、びょう
+// 何も決めていないギミックは今までの青紫（P.floor）に渦
+const FLOOR = {
+  gold:{ floor:'#6a5c30', line:'#544822', hi:'#9a8848', rim:'#c8a040', rim2:'#6a5420' },
+  blue:{ floor:'#33456a', line:'#283654', hi:'#56709c', rim:'#4c6ed8', rim2:'#2d3f8f' },
+  base:{ floor:P.floor, line:'#33346e', hi:'#5c5ea8', rim:P.rim, rim2:P.rim2 },
+  rust:{ floor:'#56321f', rim:'#9a6a48', rim2:'#4a2a1e' },
+};
+const floorCache = {};
+function floorCanvas(R, kind){
+  const key = kind + ':' + R; if (floorCache[key]) return floorCache[key];
+  const c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d');
+  const dot = (x, y, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), 1, 1); };
+  const inR = (x, y) => Math.hypot(x - C0, y - C0) <= R;
+  if (kind !== 'rust'){
+    const pal = FLOOR[kind];
+    const arm = a0 => { for (let r = R * .12; r <= R; r += .5){ const a = a0 + 1.6 * (r / R); dot(C0 + Math.cos(a) * r, C0 + Math.sin(a) * r, pal.line); } };
+    const n = 16;
+    for (let i = 0; i < n; i++){ const a0 = i / n * Math.PI * 2; arm(a0); arm(a0 + .02); }
+    // 渦の中心の輪と、外の方の細い輪
+    [.12, .55, .85].forEach(k => { const r = R * k, m = Math.round(r * 7); for (let i = 0; i < m; i++){ const a = i / m * Math.PI * 2; dot(C0 + Math.cos(a) * r, C0 + Math.sin(a) * r, k === .12 ? pal.hi : pal.line); } });
+  }
+  if (kind === 'rust'){
+    // 鉄板の色（板ごとに少し変える）→ 継ぎ目 → すべり止め → びょう
+    const rings = [R * .22, R * .5, R * .78], spokesAt = r => r < rings[1] ? 8 : 16;
+    const plate = (x, y) => { const r = Math.hypot(x - C0, y - C0), a = (Math.atan2(y - C0, x - C0) + Math.PI * 2) % (Math.PI * 2); const band = rings.filter(v => r > v).length, n = spokesAt(r); return [band, Math.floor(a / (Math.PI * 2) * n), r, a, n]; };
+    const base = ['#4a2a1e', '#5a3424', '#62382a', '#56321f'];
+    for (let y = C0 - R; y <= C0 + R; y++) for (let x = C0 - R; x <= C0 + R; x++){
+      if (!inR(x, y)) continue;
+      const [band, seg, r, a, n] = plate(x, y);
+      let col = base[(band + seg) % 4];
+      // 板の上にすべり止め（ななめの小さな凸）。外側2段の1枚おき
+      if (band >= 2 && seg % 2 === 0 && ((x + y * 2) % 6 === 0) && (x % 3 !== 0)) col = '#7a4a34';
+      // さびのむら
+      if (((x * 73 + y * 151) % 97) < 6) col = '#3e2218';
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    const seam = '#2a160f', edge = '#8a5a40';
+    rings.forEach(r => { const m = Math.round(r * 7); for (let i = 0; i < m; i++){ const a = i / m * Math.PI * 2; dot(C0 + Math.cos(a) * r, C0 + Math.sin(a) * r, seam); dot(C0 + Math.cos(a) * (r + 1), C0 + Math.sin(a) * (r + 1), edge); } });
+    [[rings[0], rings[1], 8], [rings[1], R, 16]].forEach(([r0, r1, n]) => { for (let s = 0; s < n; s++){ const a = s / n * Math.PI * 2 + (n === 16 ? Math.PI / 16 : 0); for (let r = r0; r <= r1; r += .5){ dot(C0 + Math.cos(a) * r, C0 + Math.sin(a) * r, seam); } for (let r = r0 + 3; r < r1 - 2; r += 6) dot(C0 + Math.cos(a + 2 / r) * r, C0 + Math.sin(a + 2 / r) * r, edge); } });
+    // まん中の丸い板
+    for (let i = 0; i < 40; i++){ const a = i / 40 * Math.PI * 2; dot(C0 + Math.cos(a) * rings[0] * .6, C0 + Math.sin(a) * rings[0] * .6, seam); }
+  }
+  return floorCache[key] = c;
+}
+
 function drawField(){
   rect(0, 0, W, W, P.space);
   for (let i = 0; i < 60; i++) rect((i * 97 + 13) % W, (i * 53 + 29) % W, 1, 1, P.star);
   const R = ARENA_R * PPY;
-  disc(C0, C0, R, P.floor);
-  // 床の模様：2yグリッド + 10yごとの斜め線
-  ctx.fillStyle = P.grid;
-  for (let k = -10; k <= 10; k++){
-    const o = Math.round(k * 2 * PPY); if (Math.abs(o) >= R) continue;
-    const hw = Math.floor(Math.sqrt(R * R - o * o));
-    ctx.fillRect(C0 + o, C0 - hw, 1, hw * 2 + 1); ctx.fillRect(C0 - hw, C0 + o, hw * 2 + 1, 1);
-  }
-  ctx.fillStyle = P.diag;
-  const D = Math.round(10 * PPY);
-  for (let y = -R; y <= R; y++){
-    const hw = Math.floor(Math.sqrt(R * R - y * y));
-    for (let k = -4; k <= 4; k++){
-      const xa = k * D - y, xb = y + k * D;
-      if (Math.abs(xa) <= hw) ctx.fillRect(C0 + xa, C0 + y, 1, 1);
-      if (Math.abs(xb) <= hw) ctx.fillRect(C0 + xb, C0 + y, 1, 1);
-    }
-  }
+  const fk = FLOOR[S.inst?.floorTheme] ? S.inst.floorTheme : 'base', th = FLOOR[fk];
+  disc(C0, C0, R, th.floor);
+  ctx.drawImage(floorCanvas(R, fk), 0, 0);
   S.inst?.drawFloor?.(S.t);
-  thickRing(C0, C0, R + 3, P.rim, 3);
-  ring(C0, C0, R + 4, P.rim2);
+  thickRing(C0, C0, R + 3, th.rim, 3);
+  ring(C0, C0, R + 4, th.rim2);
   // フィールドマーカー
   // ギミックごとに置き方を変えられる（S.inst.markers：card＝A〜D の中心からの距離、num＝1〜4 の距離。P1 はヤーンの近いひし形）
   const mk = S.inst?.markers, m = mk?.card ?? 16, d = Math.round((mk?.num ?? m) / SQ2);

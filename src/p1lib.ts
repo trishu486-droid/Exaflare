@@ -3,6 +3,7 @@
 // 座標：中心 (0,0)・半径 20・北が −z（ほかのフェーズと同じ）。味方7人は正しく動く（P2 と同じ作り）
 import { paintSky, SKY_BASE } from './sky.js';
 import { S } from './state.js';
+import { fxShakeOffset } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, px, fillArena, glyph } from './gfx.js';
 import { tellQuad, tellBand } from './p4fx.js';
 
@@ -164,16 +165,13 @@ const LIFT = { 1:25, 2:25, 3:0 };
 // 第三楽章は、その前の2回目の裁きの光の詠唱中（P1 通しの 104.0〜106.4。詠唱 103.4〜108.4。2026-10-16 ユーザーの指摘）。第三楽章だけで遊ぶときは、はじめから上段
 const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:-21.9, to:-19.5 } };
 const SINK = VIEW[1] + ABOVE + 6;
-const statueBg = {}, starBg = {}; // 空の種類ごと（storm：第一・第二楽章、gold：第三楽章。sky.ts）
+const statueBg = {}; // 空の種類ごと（storm：第一・第二楽章、gold：第三楽章。sky.ts）
 const buildStatueBg = kind => {
   const c = document.createElement('canvas'); c.width = BGW * RES; c.height = BGH * RES;
   const g = c.getContext('2d'); paintSky(g, BGW, BGH, RES, kind, 13);
   g.drawImage(STATUE, Math.round((BGW * RES - STATUE.width) / 2), ST_Y * RES);
   return c.toDataURL();
 };
-// フィールドの中心より下にかぶせる星空だけの絵。生えてくる途中の塔が、フィールドの下にはみ出して見えないように
-const COVER_H = 500;
-const buildStarBg = kind => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = COVER_H * RES; paintSky(c.getContext('2d'), BGW, COVER_H, RES, kind, 41); return c.toDataURL(); };
 // 塔が動く間のゴゴゴゴ（揺れと低い音）。各楽章のイベントで MOVE[part].from に呼ぶ（at：呼んだ時刻）
 function towerRumble(part, fxShake, sfx, at = Math.max(0, MOVE[part].from)){
   const len = MOVE[part].to - at;
@@ -192,15 +190,31 @@ function statueGeom(part, t){
 function statueScreenBg(part, t){
   // 空：第一・第二楽章は嵐の雲（storm）、第三楽章は金色の空（gold）。第三楽章は塔が上段へ上る途中で切り替わる
   const mv = MOVE[3], kind = part === 3 && t >= (mv.from + mv.to) / 2 ? 'gold' : 'storm';
-  if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); starBg[kind] = buildStarBg(kind); }
-  const { row, sink, grow, dx } = statueGeom(part, t);
+  if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); }
+  const { row, sink, dx } = statueGeom(part, t);
   // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
-  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:SKY_BASE[kind], cover:grow > 0 ? { url:starBg[kind], h:COVER_H } : null }; // かぶせる絵は塔が生えてくる間だけ（空の継ぎ目が見えないように）
+  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:SKY_BASE[kind] }; // 生えてくる途中の塔がフィールドの下にはみ出す所は、上の層で空だけを描いて隠す（statueUnder）
+}
+// 塔が生えてくる間（第一楽章のはじめ）：フィールドの中心より下で、フィールドの外に見える所に、像のない空だけを描く（上の層 drawTop に）
+// 背景と同じ空・同じ位置なので、空は画面全体が一緒に流れ、塔の体だけがフィールドの下に隠れる
+// （前は止まった空の絵をかぶせていたので、下半分の空が動かなかった。2026-10-20 ユーザー）
+const skyOnly = {};
+function statueUnder(g, part, t){
+  const { row, sink, grow, dx } = statueGeom(part, t);
+  if (!(grow > 0)) return;
+  const kind = 'storm';
+  skyOnly[kind] ??= (() => { const c = document.createElement('canvas'); c.width = BGW * RES; c.height = BGH * RES; paintSky(c.getContext('2d'), BGW, BGH, RES, kind, 13); return c; })();
+  const cy = Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), [sx, sz] = fxShakeOffset(); // 上の層は揺れるが背景は揺れないので、揺れのぶんを戻す
+  g.save(); g.translate(-sx, -sz);
+  g.beginPath(); g.rect(-400, 144, 1100, 4000); g.clip(); // フィールドの中心より下
+  g.beginPath(); g.rect(-400, -4000, 1100, 8000); g.arc(144, 144, 20 * PPY + 5, 0, Math.PI * 2); g.clip('evenodd'); // フィールド（と縁）の外
+  g.imageSmoothingEnabled = false; g.drawImage(skyOnly[kind], 144 - BGW / 2 + dx, 144 - cy, BGW, BGH);
+  g.restore();
 }
 // P1 の終わり（つなぎ P1→P2）：ステージが天へ昇って像を通り越す。rise：0〜1（0＝上段を写したまま、1＝像が下へ抜けきる）
 function statueRiseBg(rise){
   const kind = 'gold';
-  if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); starBg[kind] = buildStarBg(kind); }
+  if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); }
   const row = VIEW[3] - rise * (VIEW[1] + ABOVE + 120); // 見える上の端の行を、像のてっぺんより上（負）まで下げる＝像が下へ流れる
   return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY), color:SKY_BASE[kind] }; // 画面全体が一緒に流れ、像はフィールドの下を通り越していく（下半分にかぶせると、上半分だけ昇って見えた。2026-10-17 ユーザー）
 }
@@ -386,7 +400,7 @@ function judgeTop(g, a){
 // つぎつぎトラップの爆発（赤い結晶）
 const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 
-export { arrowPlate, puddle, TRAP_COLS, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR };
+export { statueUnder, arrowPlate, puddle, TRAP_COLS, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
   orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueRiseBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB, bigOrb, gazeEye, hyperFx, topFieldFlash };

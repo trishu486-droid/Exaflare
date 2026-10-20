@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, glyph } from './g
 import { makeP4Fx, drawRails } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, drawBot,
   BAND_C, quadOf, iceTell, thTell, iceHit, thHit, rollMystery, drawTell, thunderSegs, icePts, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB } from './p1lib.js';
+import { arrowPlate, puddle, TRAP_COLS, makeFireFx, statuePt, statueUnder, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB } from './p1lib.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（1回目）〜 波動砲 〜 つぎつぎトラップ 〜 なぞなぞマジック（2回目）。docs/dmu/research-p1.md §2
@@ -222,6 +222,7 @@ const P1A = {
       },
       // 上の層（像の上まで描ける）：像の顔から黄色い線（神々の像・波動砲）、波動砲の予告の青白い玉、波動砲の光線
       drawTop(t, g){
+        statueUnder(g, 1, t); // 塔が生えてくる間、フィールドの下に空だけ
         const face = statuePt(1, t, 'face');
         if (t >= T.graven && t < T.pulse){ topGlow(g, face, '#ffe070'); SLOTS.filter(tethered).forEach(k => topTether(g, face, pos(k))); }
         if (t >= T.cannonWarn && t < T.cannon){ topGlow(g, face, '#ffe070'); p.cannon.forEach(k => topTether(g, face, pos(k))); cannonOrb(g, (t - T.cannonWarn) / (T.cannon - T.cannonWarn)); }

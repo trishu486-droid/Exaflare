@@ -158,6 +158,8 @@ const RES = 2, BGW = 440, BGH = 1100, ST_Y = 300; // 大きさと像の上の端
 // 見える範囲の上の端（像の中の行。フィールドのドット）：下段（悪魔）・中段（男女）・上段（女神）
 const VIEW = { 1:228, 2:120, 3:14 };
 const ABOVE = 74; // フィールドの縁より上に見える行の数（縦長の画面で、上の端まで）
+// 絵を下へずらす量（フィールドのドット）。第一・第二楽章は像の上の方（顔）まで見えるように 25 下げる。第三楽章へ上る間に 0 へ戻す（2026-10-20 ユーザー。サンプル B）
+const LIFT = { 1:25, 2:25, 3:0 };
 // 塔が動く時間（各楽章の時刻）。第一楽章はカウントダウンの終わりから生えてくる（はじめはてっぺんまで床の下）。第二楽章は神々の像の詠唱の手前
 // 第三楽章は、その前の2回目の裁きの光の詠唱中（P1 通しの 104.0〜106.4。詠唱 103.4〜108.4。2026-10-16 ユーザーの指摘）。第三楽章だけで遊ぶときは、はじめから上段
 const MOVE = { 1:{ from:-1, to:2.4 }, 2:{ from:0, to:2.2 }, 3:{ from:-21.9, to:-19.5 } };
@@ -180,20 +182,20 @@ function towerRumble(part, fxShake, sfx, at = Math.max(0, MOVE[part].from)){
 // 今の楽章・時刻で、像のどの行が見えているか（row）・どれだけ沈んでいるか（sink）・横の揺れ（dx）
 function statueGeom(part, t){
   const mv = MOVE[part], k = Math.min(1, Math.max(0, (t - mv.from) / (mv.to - mv.from))), moving = k > 0 && k < 1;
-  let row = VIEW[part], sink = 0;
+  let row = VIEW[part], sink = 0, lift = LIFT[part];
   if (part === 1) sink = SINK * (1 - k) * (1 - k); // 生えてくる：はじめは速く、最後はゆっくり
-  else { const e = k * k * (3 - 2 * k); row = VIEW[part - 1] + (VIEW[part] - VIEW[part - 1]) * e; } // 上る：なめらかに
+  else { const e = k * k * (3 - 2 * k); row = VIEW[part - 1] + (VIEW[part] - VIEW[part - 1]) * e; lift = LIFT[part - 1] + (LIFT[part] - LIFT[part - 1]) * e; } // 上る：なめらかに
   const dx = moving ? (Math.floor(performance.now() / 45) % 2 ? 1 : -1) : 0; // 動く間は小刻みに横に揺れる
-  return { row, sink, dx };
+  return { row, sink:sink + lift, grow:sink, dx }; // grow：生えてくる途中の沈み（lift は含まない）
 }
 // part：楽章（1〜3）
 function statueScreenBg(part, t){
   // 空：第一・第二楽章は嵐の雲（storm）、第三楽章は金色の空（gold）。第三楽章は塔が上段へ上る途中で切り替わる
   const mv = MOVE[3], kind = part === 3 && t >= (mv.from + mv.to) / 2 ? 'gold' : 'storm';
   if (!statueBg[kind]){ if (!STATUE.complete || !STATUE.width) return null; statueBg[kind] = buildStatueBg(kind); starBg[kind] = buildStarBg(kind); }
-  const { row, sink, dx } = statueGeom(part, t);
+  const { row, sink, grow, dx } = statueGeom(part, t);
   // フィールドの中心に合わせる行：見える上の端（row）から ABOVE 行下がフィールドの北の縁（中心から 20y）。sink だけ絵を下げる
-  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:SKY_BASE[kind], cover:sink > 0 ? { url:starBg[kind], h:COVER_H } : null }; // かぶせる絵は塔が生えてくる間だけ（空の継ぎ目が見えないように）
+  return { url:statueBg[kind], size:BGW, h:BGH, cy:Math.round(ST_Y + row + ABOVE + 20 * PPY - sink), dx, color:SKY_BASE[kind], cover:grow > 0 ? { url:starBg[kind], h:COVER_H } : null }; // かぶせる絵は塔が生えてくる間だけ（空の継ぎ目が見えないように）
 }
 // P1 の終わり（つなぎ P1→P2）：ステージが天へ昇って像を通り越す。rise：0〜1（0＝上段を写したまま、1＝像が下へ抜けきる）
 function statueRiseBg(rise){

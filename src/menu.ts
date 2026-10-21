@@ -60,9 +60,9 @@ function renderMenu(){
     // P1 のタンクのバフ回し（tankplan.ts）。4回のタンク強攻撃を、だれが・バフか無敵かで受けるか
     head.innerHTML = ph(`${job().name}（${mySlot()}）のバフ回し`);
     note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
-    const cell = ([w, h], k) => `<i class="tp${w === mySlot() ? ' me' : ''}${h === 'inv' ? ' inv' : ''}">${k}<br>${w}${HOW[h]}</i>`;
+    const cell = ([w, h], k) => `<i class="tp${w === mySlot() ? ' me' : ''}">${k}<br>${w}${HOW[h]}</i>`;
     $('menuList').innerHTML = PLANS.map((pl, i) => `<button type="button" data-i="${i}" class="tplan${i === S.cursor ? ' cur' : ''}"><span>${pl.name}</span>` +
-      `<span class="tpr">${[['r1', 'ルインガ1'], ['h1', 'ハイドラ1'], ['r2', 'ルインガ2'], ['h2', 'ハイドラ2']].map(([k, n]) => cell(pl.take[k], n)).join('')}</span><small>${ph(pl.src)}</small></button>`).join('');
+      `<span class="tpr">${[['r1', 'ルインガ1'], ['h1', 'ハイドラ1'], ['r2', 'ルインガ2'], ['h2', 'ハイドラ2']].map(([k, n]) => cell(pl.take[k], n)).join('')}</span></button>`).join(''); // 出典（だれの記録か）は出さない（2026-10-21 ユーザー。tankplan.ts の src に残す）
     return;
   }
   if (S.menu === 'orchn'){

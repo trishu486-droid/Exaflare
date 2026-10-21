@@ -17,7 +17,7 @@ import { RUN } from './mech_run.js';
 import { withSky, skyBg } from './sky.js';
 import { bossSprite } from './p4boss.js';
 import { kefkaSprite } from './kefka_art.js';
-import { setBossArtFx } from './mech_p3.js';
+import { setBossArtFx, withP3Tank } from './mech_p3.js';
 import { chaosFall, chaosLand, chaosJump, kefkaSmoke, godDescend, godFlyAway, exdeathLight } from './bossfx.js';
 
 // =====================================================================
@@ -169,7 +169,7 @@ const T23 = { fade:1.2, kefka:2, kefkaIn:.8, aeroCast:2, aero:5.5, floor:[3, 6],
 function makeLink23(){
   const me = mySlot();
   const P2_HP = 1e7;
-  const p3 = RUN3.create(RUN3.gen()); p3.floorTheme = 'blue';
+  const p3 = withP3Tank(RUN3).create(RUN3.gen()); p3.floorTheme = 'blue';
   const kb = {}; // エアロガ：中心から外へ 12（ステージの半径の 6 割。ユーザー 2026-10-17）。外周の 19 まで
   const push = q => { const u = Math.hypot(q.x, q.z) || 1, r = Math.min(19, u + T23.kbDist); return { x:q.x / u * r, z:q.z / u * r }; };
   const pos0 = k => P2_EMB(k);

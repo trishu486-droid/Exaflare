@@ -8,11 +8,11 @@ import { sfx } from './audio.js';
 // ===== アクション（A=GCD。B・X・Y はアビリティ／バフ／コンボの段） =====
 const A = { readyAt:0, queued:null, cast:null, combo:0, cds:{ b:0, x:0, y:0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0,
             gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, bossFlash:-9, kit:null, cdName:{}, swapAt:-9, lockAt:-9, lockKeys:[],
-            provoke:null as number | null, shirk:null as number | null, walk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
+            provoke:null as number | null, shirk:null as number | null, hateLog:[] as { t:number; a:string }[], walk:null as number | null, sunUsed:false, instantArt:null as string | null, tgt:null as string | null } as {
   tgt:string | null; readyAt:number; queued:string | null; cast:{ start:number; end:number; k:string; tgt?:string } | null; combo:number;
   cds:Record<string, number>; q:Record<string, boolean>; buffs:Record<string, number>; instant:number; instantArt:string | null;
   walk:number | null; gcds:number; actAt:number; dmg:number; loss:number; failT:number; bossFlash:number; kit:any; cdName:Record<string, number>; swapAt:number; lockAt:number; lockKeys:string[];
-  provoke:number | null; shirk:number | null; sunUsed:boolean;
+  provoke:number | null; shirk:number | null; hateLog:{ t:number; a:string }[]; sunUsed:boolean;
 };
 // 押しっぱなし：撃てるようになった瞬間に自動で発動（FF14 のホットバー長押しと同じ）
 const held = { a:false, b:false, x:false, y:false };
@@ -83,7 +83,7 @@ function hpDraw(){
 function actReset(){
   // 時刻がマイナスから始まるギミック（P1 通しは −16 秒から）でも、始まった瞬間から技を使えるように、始まりの時刻に合わせる
   const t0 = Math.min(0, S.t0 ?? 0);
-  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:t0, queued:null, cast:null, combo:0, cds:{ b:t0, x:t0, y:t0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, walk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-99, lockAt:-99, lockKeys:[] });
+  Object.assign(A, { tgt:S.inst?.target0 ?? null, readyAt:t0, queued:null, cast:null, combo:0, cds:{ b:t0, x:t0, y:t0 }, q:{ b:false, x:false, y:false }, buffs:{}, instant:0, gcds:0, actAt:-99, dmg:0, loss:0, failT:-9, provoke:null, shirk:null, hateLog:[], walk:null, sunUsed:false, kit:null, cdName:{}, swapAt:-99, lockAt:-99, lockKeys:[] });
   fxEl.innerHTML = ''; hotAt = -Infinity;
 }
 const hasBuff = id => (A.buffs[id] ?? -Infinity) > S.t;
@@ -186,7 +186,7 @@ function pressKey(k){
   if (ab.pot && (!inRange() || (!canHit() && !invuln()))){ fail(); return; }
   A.cds[k] = S.t + ab.cd; A.actAt = S.t;
   if (ab.buff){ A.buffs[ab.buff] = S.t + BUFFS[ab.buff].dur; sfx.buff(); popup(ab.name, 'crit'); onBuff(ab.buff); }
-  else if (ab.enmity){ A[ab.enmity] = S.t; sfx.buff(); popup(ab.name, 'crit'); }
+  else if (ab.enmity){ A[ab.enmity] = S.t; A.hateLog.push({ t:S.t, a:ab.enmity === 'shirk' ? 'shirk' : 'prov' }); sfx.buff(); popup(ab.name, 'crit'); } // hateLog：押した全部（P1 のヘイトの順番。tankplan.ts）
   else if (ab.instant){ if (ab.instant >= A.instant) A.instantArt = ab.instant > 1 ? 'triple' : 'swift'; A.instant = Math.max(A.instant, ab.instant); sfx.buff(); popup(ab.name, 'crit'); }
   else dealDamage(ab.pot, ab.name);
 }

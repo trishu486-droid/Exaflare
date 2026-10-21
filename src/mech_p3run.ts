@@ -12,7 +12,7 @@ const withP3Sky = m => withSky(m, 'ruins');
 import { fxFlash, fxShake } from './fx.js';
 import { P, PPY, hurt, px, rect, ring, targetLast } from './gfx.js';
 import { makeP3Fx } from './p3fx.js';
-import { inBusterAoe, BUSTER_R, at, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt } from './mech_p3.js';
+import { inBusterAoe, BUSTER_R, at, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, p3Me, p3Label } from './mech_p3.js';
 import { P3A0, P3B } from './mech_p3.js';
 import { P3C } from './mech_p3c.js';
 import { P3D } from './mech_p3d.js';
@@ -63,7 +63,7 @@ const FRONT_B = 75, FRONT_END = 105;
 const frontGen = () => [P3A0.gen(), P3B.gen()];
 const frontSegs = (pr, off = 0) => {
   // アルテマブラスターの番号：自分は pr[1].me、味方は残りの番号をくじで
-  const me = mySlot(), rest = shuffle([1, 2, 3, 4, 5, 6, 7, 8].filter(n => n !== pr[1].me)), num = {};
+  const me = p3Me(), rest = shuffle([1, 2, 3, 4, 5, 6, 7, 8].filter(n => n !== pr[1].me)), num = {};
   ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'].forEach(k => { num[k] = k === me ? pr[1].me : rest.pop(); });
   let a = null;
   const b = P3B.create({ ...pr[1], off:off + FRONT_B, ext:() => a.bosses(0) });
@@ -82,7 +82,7 @@ const P3A = {
 // アルテマブラスターのあと〜じしんの前（105〜118）：サンダガ2連（MT が軽減で受ける）→ ボスが中央へ → 決戦2回目
 // 時刻はこの区間の 0（＝105）から
 function makeGap(front){
-  const me = mySlot(), TH = [4.7, 7.7], BATTLE = 12.7;
+  const me = p3Me(), TH = [4.7, 7.7], BATTLE = 12.7;
   // ボスはアルテマブラスターが終わったときの位置から歩き出す（始まったときに前半のボスの位置を写す）
   const CH = { x:0, z:0, face:{ x:0, z:-1 } }, EX = { x:0, z:0, face:{ x:0, z:-1 } };
   let copied = false;
@@ -105,16 +105,20 @@ function makeGap(front){
     if (side(k) === 'chaos' || t < TH[1] + .3) return fan(cg, unitOf(EX, cg), k, BOSS_TC * .8 + (side(k) === 'chaos' ? 0 : 3));
     return fan(EX, unitOf(cg, EX), k, BOSS_TC * .8);
   };
-  const botAt = (k, t) => k === 'MT' && t < TH[1] + .3 ? mtSpot(1) : sideSpot(k, t);
-  const spot = t => me === 'MT' && t < TH[1] + .3 ? mtSpot(1.5) : sideSpot(me, t);
+  // サンダガ2連（P3 の2回目）：距離スイッチでバフ。1発目はエクスデス持ちのタンク（'MT'＝暗黒）、2発目はカオス持ち（'ST'＝ナイト）がエクスデスの一番近く（2026-10-20 ユーザー）
+  const thTaker = j => j === 0 ? 'MT' : 'ST';
+  const takingAt = (k, t) => (k === 'MT' && t < TH[0] + .3) || (k === 'ST' && t >= TH[0] + .3 && t < TH[1] + .3);
+  const botAt = (k, t) => takingAt(k, t) ? mtSpot(1) : sideSpot(k, t);
+  const spot = t => takingAt(me, t) ? mtSpot(1.5) : sideSpot(me, t);
   const ev = [
     ...TH.map((h, j) => [h, () => {
       const cand = [['me', S.player], ...['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'].filter(k => k !== me).map(k => [k, botAt(k, h)])];
       const tgt = cand.sort((a, b) => dist(a[1], EX) - dist(b[1], EX))[0];
+      const want = thTaker(j);
       if (tgt[0] === 'me'){
-        if (me !== 'MT') hurt('サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
-        else if (!hasMit() && !hasInvuln()) hurt('軽減なしでサンダガ（強攻撃）を受けた');
-      } else if (me === 'MT') hurt(`サンダガ${j + 1}発目を受けなかった（エクスデスの一番近くにいない）`);
+        if (me !== want) hurt(me === 'MT' || me === 'ST' ? `サンダガ${j + 1}発目は${p3Label(want)}が受ける（距離スイッチ）` : 'サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
+        else if (!hasMit() && !hasInvuln()) hurt('バフなしでサンダガ（強攻撃）を受けた');
+      } else if (me === want) hurt(`サンダガ${j + 1}発目を受けなかった（エクスデスの一番近くにいない）`);
       else if (inBusterAoe(S.player, tgt[1])) hurt('サンダガ（タンク強攻撃の範囲）に巻き込まれた');
       fx3.add('cleave', { q:{ ...tgt[1] }, r:BUSTER_R }); fx3.add('bolt', { ...tgt[1] }); sfx.big(); fxShake(2, .2);
     }]),

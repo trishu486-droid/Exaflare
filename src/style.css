@@ -142,6 +142,15 @@ canvas:focus{outline:none}
 .menu button>span:first-of-type{white-space:nowrap}
 .menu button small+.i{margin-left:0}
 .menu button.cur{border-color:var(--gold);color:var(--gold)}
+/* P1 のタンクのバフ回し（tankplan.ts）：名前の下に4回の表。自分の担当は明るく、無敵は金 */
+.menu button.tplan{flex-wrap:wrap;row-gap:3px}
+.menu button.tplan>span:first-of-type{white-space:normal;flex:1 1 100%}
+.menu button.tplan small{flex:1 1 100%;text-align:left;margin-left:0}
+.menu .tpr{display:flex;gap:3px;flex:1 1 100%}
+.menu .tp{flex:1;font:11px/1.25 var(--px);font-style:normal;text-align:center;color:var(--dim);background:#221d33;border:1px solid #3a3352;padding:1px 0}
+.menu .tp.me{color:var(--ink);border-color:#6a6290}
+.menu .tp.inv{background:#3a2e10}
+.menu .tp.inv.me{color:var(--gold);border-color:var(--gold)}
 /* ▶ は名前の頭につける（ボタンの左右振り分けに混ぜると、名前との間が大きく空く） */
 .menu button.cur>span:first-of-type::before{content:"▶";margin-right:4px}
 .fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}

@@ -9,6 +9,7 @@ import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
+import { R2_AT, HOW, hateTop as planTop, taker, guarded, nextHate, tankHint, mitWindow } from './tankplan.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -52,13 +53,12 @@ const P1B = {
     const after2 = k => isGrav(k, 2) ? add({ x:0, z:0 }, OFF(k, .8)) : flipZ(VIT_SPOTS[vitIndex(k)]);
     // ③ タンクは北（1回目の沼は南）、ほかは中央の安全な側
     const halfSafeX = east => east ? -1 : 1; // 東が危ない（黄）なら西へ
-    // ST は北で2発とも受ける。MT はほかの人と一緒に中央の安全な側（扇の外）
-    const ruinSpot = k => k === 'ST' ? { x:halfSafeX(p.half1East) * 1.6, z:-6 } : add({ x:halfSafeX(p.half1East) * 3.2, z:3 }, OFF(k, .8));
-    // ヘイト：最後に挑発した方が1位（どちらも挑発していなければ MT）。味方のタンクは決まった時刻に挑発する
-    const ST_PROV = T.ruin1Cast + 1, MT_PROV = T.ruin1 + .6;
+    // 受けるタンク（バフ回しの案で決まる。tankplan.ts）は北で2発とも受ける。相方はほかの人と一緒に中央の安全な側（扇の外）
+    const R2 = taker('r2'), ruinSpot = k => k === R2[0] ? { x:halfSafeX(p.half1East) * 1.6, z:-6 } : add({ x:halfSafeX(p.half1East) * 3.2, z:3 }, OFF(k, .8));
+    // ヘイト：バフ回しの案（tankplan.ts）。時刻は P1 通しの時刻に直して見る（第二楽章の 0 ＝ 51）
     const now = () => S.t - (p.off || 0); // このギミックの時刻（P1 通しでは p.off だけずれる）
-    const provAt = k => k === me ? (A.provoke == null ? null : A.provoke - (p.off || 0)) : k === 'ST' ? ST_PROV : MT_PROV;
-    const hateTop = t => { const L = ['MT', 'ST'].map(k => [k, provAt(k)]).filter(([, v]) => v != null && v <= t).sort((a, b) => b[1] - a[1]); return L.length ? L[0][0] : 'MT'; };
+    const toRun = st => st - (p.off || 0) + R2_AT;
+    const hateTop = t => planTop(t + R2_AT, me, toRun);
     const half2Spot = k => k === 'MT' || k === 'ST' ? add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8)) : add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8));
     // ⑤ つぎつぎトラップ（2回目）：タンヒラの組は西で北の沼へ、DPS は東で南の沼へ飛ぶ
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
@@ -142,13 +142,12 @@ const P1B = {
       const tq = pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (me !== 'MT' && me !== 'ST' && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
-      if (me === 'ST'){
-        if (tank !== 'ST') hurt(n === 1 ? 'ばりばりルインガ1発目：挑発していない（1発目の前に挑発してヘイト1位に）' : 'ばりばりルインガ2発目：1発目のあとにまた挑発した（2発目はヘイト2位へ来る）');
-        else if (!hasInvuln() && !hasMit()) hurt(`ばりばりルインガ${n}発目を無敵も軽減もなしで受けた`);
-      }
-      if (me === 'MT'){
-        if (tank === 'MT') hurt(n === 1 ? 'ばりばりルインガ1発目を受けた（挑発が早い。1発目は ST）' : 'ばりばりルインガ2発目を受けた（1発目のあとに挑発して、ST をヘイト2位に）');
-        else if (inCone(S.player) && dist(S.player, tq) > 3) hurt('ばりばりルインガ：ST の扇に入った');
+      if (me === 'MT' || me === 'ST'){
+        const [who, how] = R2, other = who === 'MT' ? 'ST' : 'MT';
+        if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目を受けなかった（1発目の前に挑発してヘイト1位に）` : `ばりばりルインガ2発目を受けなかった（1発目のあとは ${other} が挑発して、あなたがヘイト2位で受ける）`);
+        else if (me === who && !guarded(how, hasInvuln, hasMit)) hurt(`ばりばりルインガ${n}発目を${HOW[how]}なしで受けた`);
+        else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（受けるのは ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
+        else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
@@ -201,7 +200,9 @@ const P1B = {
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
       bossR:6, bossArt:'kefka', markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
-      intro:me === 'ST' ? 'あなたは ST（ルインガ2発：1発目の前に挑発＋無敵）' : me === 'MT' ? 'あなたは MT（ルインガ：1発目のあとに挑発）' : `あなたは ${me}`,
+      intro:me === R2[0] ? `あなたは ${me}（ルインガ2発：1発目の前に挑発＋${HOW[R2[1]]}）` : me === 'MT' || me === 'ST' ? `あなたは ${me}（ルインガ：1発目のあとに挑発）` : `あなたは ${me}`,
+      tankRole: t => (me !== 'MT' && me !== 'ST') || !mitWindow(toRun(t), me) ? 'atk' : nextHate(toRun(t), me) === 'shirk' ? 'mitS' : 'mitP', // 使わない間は攻撃のボタン
+      tankHint: t => tankHint(toRun(t), me),
       enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === me })),
       casts:[
         { name:'神々の像', start:T.gravenCast, len:T.graven - T.gravenCast },

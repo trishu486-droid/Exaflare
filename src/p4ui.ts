@@ -89,7 +89,7 @@ function renderParty(show: boolean){
   if (!show){ partyHtml = ''; return; }
   const sel = pt.sel;
   const html = list.map(m => `<div class="pm${m.k === sel ? ' on' : ''}${m.me ? ' me' : ''}${m.dead ? ' dead' : ''}" data-k="${m.k}">` +
-    `<b style="background:${ROLE_BG[m.k[0]]}">${m.k}</b>` +
+    `<b style="background:${ROLE_BG[m.k[0]]}">${S.inst.slotLabel?.(m.k) ?? m.k}</b>` + // P3 はタンクを入れ替えて見せる
     `<span class="tg">${(m.tags || []).filter(g => TAG_ICON[g.c]).map(g => `<img class="ti" src="${p4IconUrl(TAG_ICON[g.c])}" alt="${g.t}">`).join('')}</span>` +
     `<span class="hb"><span style="width:${Math.max(0, Math.min(100, m.hp)).toFixed(0)}%"></span>${m.shield ? `<u style="left:${Math.min(100, m.hp).toFixed(0)}%;width:${Math.min(100, m.shield).toFixed(0)}%"></u>` : ''}</span>` +
     `${m.k === sel ? '<em>▶</em>' : ''}</div>`).join('');

@@ -1,14 +1,14 @@
 // @ts-nocheck
 import { S, pick, shuffle } from './state.js';
 import { sfx } from './audio.js';
-import { A, HP, popup, switchTarget } from './action.js';
+import { A, HP, popup, switchTarget, hasInvuln, hasMit } from './action.js';
 import { opt } from './store.js';
 import { BUFFS, JOBS, mySlot } from './jobs.js';
 import { FXC, FXK, fxAdd, fxFlash, fxParts, fxShake } from './fx.js';
 import { P, PPY, alpha, ctx, disc, hurt, line, px, rect, ring, targetLast } from './gfx.js';
 import { drawFace } from './kefka_intro.js';
 import { makeP3Fx } from './p3fx.js';
-import { inBusterAoe, BUSTER_R, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, numGlyph } from './mech_p3.js';
+import { inBusterAoe, BUSTER_R, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, numGlyph, p3Me, p3Label } from './mech_p3.js';
 
 // =====================================================================
 // P3 後半：じしん＆ブラックホール（ヤーン：頭上マーカー式。docs/dmu/research-p3.md §5・§9.3）
@@ -73,7 +73,7 @@ const P3C = {
     const k8 = () => pick([0, 45, 90, 135, 180, 225, 270, 315]);
     const missing = Math.random() * 4 | 0;
     return {
-      me:mySlot(), line, mud:[hm, dm],
+      me:p3Me(), line, mud:[hm, dm],
       kefka:{ max:k8(), slap:[k8(), k8(), k8()], bok:[k8(), k8()] },
       slapRight:[Math.random() < .5, Math.random() < .5, Math.random() < .5], // true＝ケフカの右手（頭割り）
       missing, set5:shuffle([0, 1, 2, 3]).slice(0, 2), set6:Math.random() < .5 ? 0 : 1, vertical:Math.random() < .5,
@@ -86,6 +86,9 @@ const P3C = {
     const now = () => S.t - (p.off || 0); // P3 通しでつないだときの、このギミックの中の時刻
     // P3 通しでは、じしんの前（決戦2回目の直後）から始まる（p.pre）。そのときは直前のサンダガ2連（-1.1・1.9）もここで扱う
     const TH = p.pre ? [[-1.1, 1.9], ...T.thunder] : T.thunder;
+    // サンダガ2連の受け方（2026-10-20 ユーザー。P3 の 3〜5回目）：inv＝カオス持ちのタンク（'ST'＝ナイト）が無敵で2発とも、switch＝距離スイッチでバフ（1発目 'MT'＝暗黒・2発目 'ST'）
+    const THM = p.pre ? ['switch', 'inv', 'switch'] : ['inv', 'switch'];
+    const thWant = (i, j) => THM[i] === 'inv' ? 'ST' : j === 0 ? 'MT' : 'ST';
     const me = p.me, isHealer = JOBS[opt.job].role === 'healer', isTank = JOBS[opt.job].role === 'tank';
     const side = k => CHAOS_SIDE.includes(k) ? 'chaos' : 'exdeath';
     // ---- 巨大ケフカの位置（外周8方向）。ワープの時刻ごと ----
@@ -238,7 +241,7 @@ const P3C = {
     const faceSpot = b => findSafe(add(CH, at(b, 1.5)), q => Math.abs(angDiff(bearingOf({ x:q.x - CH.x, z:q.z - CH.z }), b)) <= 15 && dist(q, CH) >= .8 && dist(q, CH) <= BOSS_TC - .3);
     const spot0 = (k, t) => {
       // サンダガ2連：1発目は MT、2発目は ST がエクスデスの一番近く（距離スイッチ）
-      for (const [h1, h2] of TH){
+      for (const [i, [h1, h2]] of TH.entries()){
         if (t >= h1 - 3 && t < h2 + .3){
           // エクスデスのまわりで地雷のない、中央寄りの場所
           // サンダガは扇（タンク強攻撃）なので、タンクはケフカ側（味方のいない側）で受けて、扇を味方から外へ向ける
@@ -246,6 +249,10 @@ const P3C = {
           const near = r0 => { for (let r = r0; r <= r0 + 3; r += .5){ for (let da = 0; da <= 180; da += 15) for (const sg of [1, -1]){ const q = add(EX, at(kd + da * sg, r)); if (!nearMine(q)) return q; } } return add(EX, at(kd, r0)); };
           // 受けるタンクのまわり（円範囲）から離れる。タンクはケフカ側
           const aim = near(1), far = q => dist(q, aim) > BUSTER_R + .8 && dist(q, near(.5)) > BUSTER_R + .8;
+          if (THM[i] === 'inv'){ // ST が2発とも
+            if (k === 'ST') return near(.5);
+            return findSafe(idle(k), q => dist(q, EX) >= 4 && far(q));
+          }
           if (k === 'MT') return t < h1 + .3 ? near(.5) : findSafe(idle(k), q => dist(q, EX) >= 4 && dist(q, near(.5)) > BUSTER_R + .8);
           if (k === 'ST' && t >= h1 + .3) return near(.5);
           if (k !== 'ST' || t < h1 + .3) return findSafe(idle(k), q => dist(q, EX) >= 3.5 && far(q)); // ST も1発目までは離れておく
@@ -315,7 +322,7 @@ const P3C = {
     };
     // 地雷のすぐそばにならないよう、最後に地雷から押し出す
     // サンダガ2連を受けるタンク（1発目 MT・2発目 ST）は、エクスデスの真下で受ける（線よけ・地雷よけで押し出さない。near() が地雷は避けている）
-    const takingThunder = (k, t) => TH.some(([h1, h2]) => (k === 'MT' && t >= h1 - 3 && t < h1 + .3) || (k === 'ST' && t >= h1 + .3 && t < h2 + .3));
+    const takingThunder = (k, t) => TH.some(([h1, h2], i) => THM[i] === 'inv' ? k === 'ST' && t >= h1 - 3 && t < h2 + .3 : (k === 'MT' && t >= h1 - 3 && t < h1 + .3) || (k === 'ST' && t >= h1 + .3 && t < h2 + .3));
     const spot = (k, t) => {
       let q = spot0(k, t);
       if (takingThunder(k, t)) return q;
@@ -485,9 +492,10 @@ const P3C = {
           else SLOTS.forEach(k => { if (k === 'MT' || k === 'H1' || k === 'D1'){ const q = slapSpot(k, i); fxAdd('burst', q.x, q.z, { r:2.4, cols:FXC.orange, dur:.45 }); } });
         }] as [number, () => void],
       ]),
-      ...TH.flatMap(hs => hs.map((h, j) => [h, () => {
-        const tgt = nearestTo(EX), want = j === 0 ? 'MT' : 'ST';
-        if (tgt === me && me !== want) miss(me === 'MT' || me === 'ST' ? `サンダガ${j + 1}発目は${want}が受ける（距離スイッチ）` : 'サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
+      ...TH.flatMap((hs, i) => hs.map((h, j) => [h, () => {
+        const tgt = nearestTo(EX), want = thWant(i, j);
+        if (tgt === me && me !== want) miss(me === 'MT' || me === 'ST' ? `サンダガ${j + 1}発目は${p3Label(want)}が受ける（${THM[i] === 'inv' ? '無敵で2発とも' : '距離スイッチ'}）` : 'サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
+        else if (tgt === me && (THM[i] === 'inv' ? !hasInvuln() : !hasMit() && !hasInvuln())) miss(`${THM[i] === 'inv' ? '無敵' : 'バフ'}なしでサンダガ（強攻撃）を受けた`);
         if (me === want && tgt !== me) miss(`サンダガ${j + 1}発目を受けなかった（エクスデスの一番近くにいない）`);
         if (tgt !== me && inBusterAoe(S.player, pos(tgt))) miss('サンダガ（タンク強攻撃の範囲）に巻き込まれた');
         fx3.add('cleave', { q:{ ...pos(tgt) }, r:BUSTER_R });
@@ -688,7 +696,7 @@ const P3C = {
     return {
       macroBox:true, // 左下に PT チャット（縦長・細め）
       end:T.end, t0:0,
-      intro:`あなたは ${me}（${side(me) === 'chaos' ? 'カオス' : 'エクスデス'}側）`,
+      intro:`あなたは ${p3Label(me)}（${side(me) === 'chaos' ? 'カオス' : 'エクスデス'}側）`,
       casts:[
         { name:'じしん', start:0, len:T.quake },
         { name:'びんびんビンタ', start:T.slap[0].cast, len:T.slap[0].end - T.slap[0].cast },

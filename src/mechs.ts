@@ -6,7 +6,7 @@ import { MISS } from './mech_miss.js';
 import { opt } from './store.js';
 import { RUN } from './mech_run.js';
 import { P4 } from './mech_p4.js';
-import { P3A0, P3B } from './mech_p3.js';
+import { P3A0, P3B, withP3Tank } from './mech_p3.js';
 import { P3A, RUN3, withP3Sky } from './mech_p3run.js';
 import { withSky, withFloor } from './sky.js';
 import { P3D } from './mech_p3d.js';
@@ -25,8 +25,8 @@ import { FULL } from './mech_link.js';
 // P3：前半（バウル・オブ・アゴニー＋アルテマブラスター）→ じしん＆ブラックホール → どんどこ地団駄 → 通し
 const P1_MECHS = [P1A, P1B, P1C, RUN1].map(m => withFloor(m, 'blue')); // 3つに分ける（神々の像1回目・2回目・ずびずばテレポ）＋通し。名前はユーザーの資料のフォルダ
 const P2_MECHS = [P2M, P2T, RUN2].map(m => withFloor(m, 'gold'));
-const P3_MECHS = [P3A, withP3Sky(P3C), withP3Sky(P3D), RUN3].map(m => withFloor(m, 'blue'));
-const P3_HIDDEN = [P3A0, P3B].map(m => withFloor(m, 'blue')); // メニューには出さない（前半の部品。テスト用に名前で呼べる）
+const P3_MECHS = [P3A, withP3Sky(P3C), withP3Sky(P3D), RUN3].map(m => withFloor(withP3Tank(m), 'blue'));
+const P3_HIDDEN = [P3A0, P3B].map(m => withFloor(withP3Tank(m), 'blue')); // メニューには出さない（前半の部品。テスト用に名前で呼べる）
 const P4_MECHS = [withFloor(withSky(P4, 'ruins', 'kefka'), 'blue')]; // P4 の空は P3 と同じ、ケフカは P1 と同じ絵（ユーザー 2026-10-17）
 // P5：赤い星雲の空とカオスケフカの絵（ユーザー 2026-10-17）
 const P5_MECHS = [FLOOD, ORCH, CELES, EXA, MISS].map(m => withFloor(withSky(m, 'nebula', 'chaos'), 'rust'));

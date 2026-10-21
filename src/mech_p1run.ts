@@ -12,6 +12,7 @@ import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
+import { HOW, hateTop as planTop, taker, guarded, nextHate, tankHint, mitWindow } from './tankplan.js';
 
 // =====================================================================
 // P1 通し：ばりばりルインガ → 神々の像 第一楽章 → 裁きの光・ハイパードライブ → 第二楽章 → 裁きの光・ハイパードライブ → 第三楽章 → 時間切れ（裁きの光）
@@ -26,7 +27,7 @@ const OPEN = { cast:-13.4, hit:[-8.4, -5.3], until:-4.6 }; // cactbot 10.6 → 1
 const T0 = -16;                                // 通しの始まり（cactbot 8）
 const MT_NORTH = { x:0, z:-6 }, CLEAVE_HALF = 45;
 // ヘイト：最後に挑発した方が1位（どちらも挑発していなければ MT）。味方のタンクの挑発の時刻（通しの時刻）
-const BOT_PROV = { ST:[OPEN.hit[0] + .6, 51 + 18.1], MT:[51 + 22.7] }; // 最初のルインガ（ST）・第二楽章のルインガ（ST 18.1・MT 22.7。mech_p1b と同じ）
+// 挑発・シャークの時刻は、タンクのバフ回しの案ごとの表（tankplan.ts。2026-10-20 ユーザー）
 const AT = [0, 51, 125.9];                     // 各楽章の 0（cactbot 24・75・149.9）
 const SWITCH = [31.2, 99.2];                   // 前の楽章の終わり（第一楽章 31.2・第二楽章 48.2）で次へ切り替える
 const MUSIC = [{ at:51, key:'p1b' }, { at:125.9 + TOWER_MOVE[3].from, key:'p1c' }]; // 塔が中段・上段へ動き出す時（上段は2回目の裁きの光の詠唱中）
@@ -57,8 +58,7 @@ const RUN1 = {
     const me = pr[0].me;
     const pre = { until:OPEN.until, spot:k => k === 'MT' ? MT_NORTH : null };
     const isTank = me === 'MT' || me === 'ST';
-    const provAt = (k, t) => { const L = k === me ? (A.provoke != null && A.provoke <= t ? [A.provoke] : []) : BOT_PROV[k].filter(v => v <= t); return L.length ? Math.max(...L) : null; };
-    const hateTop = t => { const m = provAt('MT', t), s = provAt('ST', t); return s != null && (m == null || s > m) ? 'ST' : 'MT'; };
+    const hateTop = t => planTop(t, me, st => st); // P1 通しの時刻のまま
     // 楽章の間（ハイパードライブの3発目まで）：ヘイト1位のタンクは正面、ほかは後ろにまとまる
     const SL = ['MT', 'ST', 'H1', 'H2', 'D1', 'D2', 'D3', 'D4'];
     const gapSpot = k => k === hateTop(S.t) ? TANK_FRONT : { x:BEHIND.x + Math.cos(SL.indexOf(k) * Math.PI / 4) * 1.6, z:BEHIND.z + Math.sin(SL.indexOf(k) * Math.PI / 4) * 1.6 };
@@ -71,13 +71,12 @@ const RUN1 = {
       const tq = tank === me ? S.player : segs[0]._debug.pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (!isTank && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
-      if (me === 'MT'){
-        if (tank !== 'MT') hurt(n === 1 ? 'ばりばりルインガ1発目：MT が受けなかった' : 'ばりばりルインガ2発目：挑発しない（1発目のあとは ST が挑発して、MT がヘイト2位で受ける）');
-        else if (!hasMit() && !hasInvuln()) hurt(`ばりばりルインガ${n}発目を軽減なしで受けた`);
-      }
-      if (me === 'ST'){
-        if (tank === 'ST') hurt(n === 1 ? 'ばりばりルインガ1発目を受けた（挑発が早い。1発目は MT）' : 'ばりばりルインガ2発目を受けた（1発目のあとに挑発して、MT をヘイト2位に）');
-        else if (inCone(S.player) && dist(S.player, tq) > 3) hurt('ばりばりルインガ：MT の扇に入った');
+      if (isTank){ // 最初のルインガはどの案も MT が2発とも受ける（受け方は案で違う）
+        const [who, how] = taker('r1');
+        if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目：${who} が受けなかった` : 'ばりばりルインガ2発目：挑発しない（1発目のあとは ST が挑発して、MT がヘイト2位で受ける）');
+        else if (me === who && !guarded(how, hasInvuln, hasMit)) hurt(`ばりばりルインガ${n}発目を${HOW[how]}なしで受けた`);
+        else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（挑発が早い。1発目は ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
+        else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
@@ -90,7 +89,10 @@ const RUN1 = {
       events.push([g.judge, () => { healerHit(260000, '裁きの光'); fxFlash('#ffffff', .5, .25); sfx.big(); fxShake(3, .3); }]);
       g.hyper.forEach((h, j) => events.push([h, () => {
         const tk = hateTop(S.t), tq = tk === me ? S.player : segs[idx(S.t)]._debug.pos(tk);
-        if (tk === me && !hasMit() && !hasInvuln()) hurt(`軽減なしでハイパードライブ（${j + 1}発目）を受けた`);
+        const [who, how] = taker(g === GAPS[0] ? 'h1' : 'h2');
+        if (isTank && me === who && tk !== me) hurt(`ハイパードライブ（${j + 1}発目）を受けなかった（受けるのは ${who}。ヘイト1位に）`);
+        else if (isTank && me !== who && tk === me) hurt(`ハイパードライブ（${j + 1}発目）を受けた（受けるのは ${who}）`);
+        else if (tk === me && !guarded(how, hasInvuln, hasMit)) hurt(`${HOW[how]}なしでハイパードライブ（${j + 1}発目）を受けた`);
         if (tk !== me && dist(S.player, tq) <= HYPER_R) hurt('ハイパードライブ（タンクのまわりの範囲）に巻き込まれた');
         hyperShow = { t:S.t, x:tq.x, z:tq.z };
         sfx.big(); fxShake(2, .2);
@@ -98,7 +100,9 @@ const RUN1 = {
     });
     const self = {
       view:24, t0:T0, countdown:3, bossR:segs[0].bossR, bossArt:'kefka', markers:segs[0].markers, start:segs[0].start,
-      intro:me === 'MT' ? 'あなたは MT（最初のルインガ2発を軽減で。第二楽章のルインガは1発目のあとに挑発）' : me === 'ST' ? 'あなたは ST（最初のルインガは1発目のあとに挑発。第二楽章は1発目の前に挑発＋無敵）' : `あなたは ${me}`,
+      intro:isTank ? `あなたは ${me}（タンク強攻撃：${['r1', 'h1', 'r2', 'h2'].map(k => taker(k)).map(([w, h], i) => `${['ルインガ', 'ハイドラ', 'ルインガ', 'ハイドラ'][i]}${w}${HOW[h]}`).join('・')}）` : `あなたは ${me}`,
+      tankRole: t => !isTank || !mitWindow(t, me) ? 'atk' : nextHate(t, me) === 'shirk' ? 'mitS' : 'mitP', // 使わない間は攻撃のボタン
+      tankHint: t => isTank ? tankHint(t, me) : '',
       end:ENRAGE.at,
       casts:[
         { name:'ばりばりルインガ', start:OPEN.cast, len:OPEN.hit[0] - OPEN.cast },

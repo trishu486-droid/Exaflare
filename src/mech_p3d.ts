@@ -6,7 +6,7 @@ import { mySlot } from './jobs.js';
 import { FXC, FXK, fxAdd, fxFlash, fxParts, fxShake } from './fx.js';
 import { P, PPY, alpha, ctx, disc, glyph, hurt, line, px, rect, ring, targetLast } from './gfx.js';
 import { drawFace } from './kefka_intro.js';
-import { at, norm, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt } from './mech_p3.js';
+import { at, norm, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, p3Me, p3Label } from './mech_p3.js';
 
 // =====================================================================
 // P3 締め：どんどこ地団駄（ヤーン。docs/dmu/research-p3.md §6・§9.4）
@@ -34,7 +34,7 @@ const unit = (a, b) => { const d = dist(a, b) || 1; return { x:(b.x - a.x) / d, 
 
 const P3D = {
   id:'p3d', name:'どんどこ地団駄', sub:'', view:24, start:{ x:0, z:2 }, slots:true,
-  gen(){ return { me:mySlot(), north:pick([0, 45, 90, 135, 180, 225, 270, 315]), thFirst:Math.random() < .5 }; },
+  gen(){ return { me:p3Me(), north:pick([0, 45, 90, 135, 180, 225, 270, 315]), thFirst:Math.random() < .5 }; },
   create(p){
     const now = () => S.t - (p.off || 0); // P3 通しでつないだときの、このギミックの中の時刻
     const me = p.me, N = p.north;
@@ -136,7 +136,7 @@ const P3D = {
     return {
       macroBox:true, // 左下に PT チャット（縦長・細め）
       end:T.end, t0:0,
-      intro:`あなたは ${me}`, // 1回目が頭割りか塔かは、着弾の頭上マーカーが付くまで分からない（先に教えない）
+      intro:`あなたは ${p3Label(me)}`, // 1回目が頭割りか塔かは、着弾の頭上マーカーが付くまで分からない（先に教えない）
       casts:[
         { name:'ブリザガ', start:T.bliz1Cast - 3, len:3 },
         { name:'どんどこ地団駄', start:T.stompCast, len:T.stomps[0] - T.stompCast },

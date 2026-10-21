@@ -2,7 +2,7 @@ import { S, pick, logLine } from './state.js';
 import { sfx } from './audio.js';
 import { A, hasInvuln, healerHit, lethalHit, popup, switchTarget } from './action.js';
 import { opt } from './store.js';
-import { mySlot } from './jobs.js';
+import { JOBS, mySlot } from './jobs.js';
 import { bossSprite } from './p4boss.js';
 import { fxFlash, fxShake } from './fx.js';
 import { GLYPH, P, PPY, alpha, ctx, disc, drawBossFace, hurt, line, px, rect, ring, targetLast } from './gfx.js';
@@ -26,6 +26,17 @@ const segDist = (q, a, d, len) => { const t = Math.max(0, Math.min(len, (q.x - a
 
 // 決戦の組（ヤーン）：カオス側＝ST・H2・D1・D2、エクスデス側＝MT・H1・D3・D4。最初のターゲットはこの組のボス
 const CHAOS_SIDE = ['ST', 'H2', 'D1', 'D2'];
+// タンクの入れ替え（2026-10-20 ユーザー）：P3 のエクスデスは暗黒騎士（ST）が持つ。コードの中の 'MT' は「エクスデスを持つタンク」、'ST' は「カオスを持つタンク」のまま
+// 自分の担当を入れ替えて読む（p3Me）。画面に出すときは元に戻す（p3Label）。ヒーラー・DPS の組はヤーンのまま
+const p3Label = k => k === 'MT' ? 'ST' : k === 'ST' ? 'MT' : k;
+const p3Me = () => p3Label(mySlot());
+// P3 のタンクのボタン：B 短いバフ・X 重いバフ・Y 無敵（jobs.ts の mitB。サンダガ5回のバフ回し）。画面に出す担当名は p3Label で元に戻す
+// 軽減のボタンはサンダガ2連の前後だけ（詠唱の 3 秒前〜2発目の 1 秒後）。ほかの間は攻撃のボタン（2026-10-20 ユーザー）
+const withP3Tank = m => ({ ...m, create(p){
+  const inst = m.create(p), th = () => (inst.casts || []).filter(c => c.name === 'サンダガ' && c.len === 5).map(c => c.start);
+  inst.tankRole ??= t => JOBS[opt.job].role === 'tank' && th().some(s => t >= s - 3 && t < s + 9) ? 'mitB' : 'atk';
+  inst.slotLabel ??= p3Label; return inst;
+} });
 const BOSS_TC = 5; // カオス・エクスデスのターゲットサークルの半径（ヤーンの図から）
 const BOSS_COL = { chaos:'#e8783a', exdeath:'#9a5aff' };
 // ボスの絵。カオスは P4 の絵、エクスデス（ネオではない方）は P3 用に描いた絵
@@ -143,7 +154,7 @@ const P3B = (() => {
         casts:[{ name:'アルテマブラスター', start:FIRE0 - 4, len:4 }],
         // ボスは2体。ブラスターの間はどちらも殴れる。左端のボタン（PC は 5 キー）でターゲットを切り替える
         bosses: () => p.ext ? p.ext() : BOSSES, // 前半とつないだときは、前半のボス（同じもの）を使う
-        target0: CHAOS_SIDE.includes(mySlot()) ? 'chaos' : 'exdeath',
+        target0: CHAOS_SIDE.includes(p3Me()) ? 'chaos' : 'exdeath',
         buttons:{ early:'ターゲット切替' },
         say(kind){ if (kind === 'early') switchTarget(); },
         fieldMarker:'nw',
@@ -218,7 +229,7 @@ const P3A0 = (() => {
     gen(){
       const fireTH = pick(SUP), fireD = pick(DPS);
       return {
-        me:mySlot(), wind:pick([45, 135, 225, 315]), side:pick([1, -1]), fireFirst:Math.random() < .5,
+        me:p3Me(), wind:pick([45, 135, 225, 315]), side:pick([1, -1]), fireFirst:Math.random() < .5,
         fire:[fireTH, fireD], water:[pick(SUP.filter(k => k !== fireTH)), pick(DPS.filter(k => k !== fireD))],
         tail:Object.fromEntries(SLOTS.map(k => [k, Math.random() < .5])), // true＝混沌の逆風（正面で受ける）
         vertical:Math.random() < .5, // ヴァーティカル（前後→左右）／ホリゾンタル（左右→前後）
@@ -433,7 +444,7 @@ const P3A0 = (() => {
       const tm = u => { const s = sec(u); return s >= 60 ? '1m' : String(s); };
       return {
         end:T.end, t0:0,
-        intro:`あなたは ${me}（${myBoss(me) === 'chaos' ? 'カオス' : 'エクスデス'}側）`,
+        intro:`あなたは ${p3Label(me)}（${myBoss(me) === 'chaos' ? 'カオス' : 'エクスデス'}側）`,
         casts:[
           { name:'決戦', start:0, len:T.battle },
           { name:'バウル・オブ・アゴニー', start:T.bowels - 5, len:5 },
@@ -534,4 +545,4 @@ const P3A0 = (() => {
 
 export { P3A0, P3B };
 // じしん＆ブラックホール（mech_p3c.ts）が使う共通の部品
-export { inBusterAoe, BUSTER_R, dirOf, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, setBossArtFx, numGlyph, wip };
+export { inBusterAoe, BUSTER_R, dirOf, at, norm, segDist, CHAOS_SIDE, BOSS_TC, BOSS_COL, drawBossArt, setBossArtFx, numGlyph, wip, p3Me, p3Label, withP3Tank };

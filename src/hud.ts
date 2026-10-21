@@ -279,7 +279,9 @@ function resetMsg(){ lastMsg = null; } // 次の setMsg で必ず書き換える
 function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
 function updateHud(){
   const on = S.inst && (S.phase === 'run' || S.phase === 'done');
-  hSet.textContent = on ? S.inst.progress(S.t) : '';
+  // タンクのバフ回しの案内（P1。補助表示が ON のとき。tankplan.ts）
+  const hint = on && S.phase === 'run' && opt.path && S.inst.tankHint?.(S.t);
+  hSet.textContent = hint || (on ? S.inst.progress(S.t) : '');
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   const bossHp = S.phase !== 'menu' && S.inst?.bossHp;
   $('bossHp').hidden = !bossHp;

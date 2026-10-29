@@ -225,7 +225,7 @@ const P1A = {
         statueUnder(g, 1, t); // 塔が生えてくる間、フィールドの下に空だけ
         const face = statuePt(1, t, 'face');
         if (t >= T.graven && t < T.pulse){ topGlow(g, face, '#ffe070'); SLOTS.filter(tethered).forEach(k => topTether(g, face, pos(k))); }
-        if (t >= T.cannonWarn && t < T.cannon){ topGlow(g, face, '#ffe070'); p.cannon.forEach(k => topTether(g, face, pos(k))); cannonOrb(g, (t - T.cannonWarn) / (T.cannon - T.cannonWarn)); }
+        if (t >= T.cannonWarn && t < T.cannon){ topGlow(g, face, '#ffe070'); cannonOrb(g, (t - T.cannonWarn) / (T.cannon - T.cannonWarn)); } // 波動砲の対象者への線は出さない（2026-10-29 ユーザー）
         // 光線は予告の光の球から撃たれる（見た目。当たり判定は像の位置から。どちらも狙われた人を通る）
         if (beamShow && S.t - beamShow.t < .6){ const k = (S.t - beamShow.t) / .6; beamShow.beams.forEach((b, i) => topBeam(g, CANNON_ORB, unit(CANNON_ORB, b.at), BEAM_HW, k, i + 1)); }
       },

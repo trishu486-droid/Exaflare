@@ -1,7 +1,7 @@
 import { FB_BASE, FB_KEY, FB_PROJECT, RANK_ON } from './ranking_config.js';
 import { $, opt, store } from './store.js';
 import { S } from './state.js';
-import { MECHS, P1_MECHS, P2_MECHS, P3_MECHS, mech } from './mechs.js';
+import { P1_MECHS, P2_MECHS, P3_MECHS, P5_MECHS, mech } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { JOBS, JOB_ORDER } from './jobs.js';
 import { sfx } from './audio.js';
@@ -45,8 +45,13 @@ function rankPrepare(entry){ S.rankEntry = entry; S.rankSent = false; }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const cleanName = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
-const mechs = () => [...MECHS.filter(m => m.id !== 'p4' && !P3_MECHS.includes(m) && !P2_MECHS.includes(m) && !P1_MECHS.includes(m)), RUN];
-const mechLabel = m => m.name;
+// ランキングのあるギミック：フェーズごとにまとめて、名前の前にフェーズを付ける（2026-10-29 ユーザー「P5 か P4 か分からない」）
+// 前は「P1〜P4 以外ぜんぶ」を出していたので、P3 の部品（メニューに出さないもの）や全通しまで混ざっていた
+const RANK_GROUPS = () => [{ ph:'P5', boss:'カオスケフカ', list:[...P5_MECHS, RUN] }];
+const mechs = () => RANK_GROUPS().flatMap(g => g.list);
+const phaseOfRank = m => RANK_GROUPS().find(g => g.list.includes(m))?.ph ?? '';
+const mechLabel = m => m.name.startsWith(phaseOfRank(m)) ? m.name : `${phaseOfRank(m)} ${m.name}`; // 「P5 通し」は二重にしない
+const mechOptions = () => RANK_GROUPS().map(g => `<optgroup label="${g.ph}（${g.boss}）">` + g.list.map(m => `<option value="${m.id}"${m.id === view.mech ? ' selected' : ''}>${mechLabel(m)}</option>`).join('') + '</optgroup>').join('');
 
 let view = { mech:'', job:'' };
 const fields = doc => Object.fromEntries(Object.entries(doc.fields).map(([k, v]) => [k, val(v)])) as any;
@@ -128,7 +133,7 @@ function openRank(reg = false){
   regMode = reg && !!S.rankEntry && !S.rankSent;
   if (regMode) view.job = '';
   view.mech = (regMode && S.rankEntry.mech) || (mechs().some(m => m.id === opt.mech) ? opt.mech : mechs()[0].id);
-  ($('rankMech') as HTMLSelectElement).innerHTML = mechs().map(m => `<option value="${m.id}"${m.id === view.mech ? ' selected' : ''}>${mechLabel(m)}</option>`).join('');
+  ($('rankMech') as HTMLSelectElement).innerHTML = mechOptions();
   ($('rankJob') as HTMLSelectElement).value = view.job;
   $('rank').hidden = false; renderForm(); load(); sfx.unlock(); sfx.ok();
 }

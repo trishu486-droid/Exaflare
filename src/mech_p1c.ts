@@ -10,6 +10,11 @@ import { SLOTS, TH, DPS, isTH, roleOf, dist, add, at, OFF, MARKERS, WM, makeRout
   BAND_C, thTell, thHits, thHit, rollMystery, drawTell, thunderSegs, kefkaOrbs, spreadMark, stackMark, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, TRAP_COLS, makeFireFx, statuePt, topTether, topGlow, gazeEye, topFieldFlash } from './p1lib.js';
 
+// 混乱の頭上の渦（ドット絵の小さな渦巻き。回る）
+function swirl(X, Z, t){
+  const a0 = t * 6;
+  for (let i = 0; i < 44; i++){ const a = a0 + i * .32, r = .6 + i * .13; rect(Math.round(X + Math.cos(a) * r), Math.round(Z + Math.sin(a) * r * .75), 1, 1, i < 12 ? '#ffffff' : i < 28 ? '#ff9ae0' : '#c060ff'); }
+}
 // =====================================================================
 // P1（ケフカ）：ずびずばテレポ 〜 神々の像（3回目）〜 なぞなぞマジック。docs/dmu/research-p1.md §4
 // 時刻・大きさ・矢印の動きは AnoMech の再現シナリオ（実機のログから）。0 秒は AnoMech の開始（ずびずばテレポの詠唱は 1.59 秒）
@@ -276,6 +281,7 @@ const P1C = {
       ],
       progress: t => t < T.exp[1] ? 'ずびずばテレポ' : t < T.trap ? 'つぎつぎトラップ' : t < T.confusedEnd ? '神々の像（混乱・睡眠）' : t < T.fire + .2 ? 'なぞなぞマジック' : '終了',
       lockMove: t => locked(me, t),
+      incap: t => t >= T.confused && t < T.confusedEnd, // 混乱・睡眠の間はボスを殴れない（全員どちらか）
       tick(t){
         const dt = lastT == null ? 0 : Math.max(0, t - lastT); lastT = t;
         stepBots(bots, botGoal, t, dt);
@@ -306,8 +312,8 @@ const P1C = {
           kefkaOrbs(null, mm.thTrue, mm.fireTrue);
           if (shownStack) [p.fireT, p.fireD].forEach(k => stackMark(pos(k), Math.ceil(T.fire - t))); else SLOTS.forEach(k => spreadMark(pos(k)));
         }
-        // 睡眠の印（混乱の頭上の印は出さない。ユーザー 2026-10-15）
-        if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (!isConf(k)) glyph('Z', X, Z, '#7ab8ff'); });
+        // 頭上の印：睡眠は Z、混乱は渦（2026-10-29 ユーザー。前は混乱の印は出していなかった）
+        if (t >= T.confused && t < T.confusedEnd) SLOTS.forEach(k => { const q = pos(k), X = px(q.x), Z = px(q.z) - 12; if (isConf(k)) swirl(X, Z, t); else glyph('Z', X, Z, '#7ab8ff'); });
         bots.forEach(drawBot);
         efx.draw(); ffx.draw();
       },

@@ -367,7 +367,7 @@ const P4 = (() => {
         intro:`あなたは ${me}`,
         // 調整（2026-10-16 ユーザー）：DPS（リーパー・黒魔道士）は DPS チェックがきつかったので、ボスを柔らかく（.95 → .82。ヒーラーはそのまま）
         // ヒーラーの回復はもう少しきついはずなので、敵の攻撃を痛く（味方の軽減の分の倍率 .45 → .6）
-        bossHp: dpsTarget * activeLen * (HEAL_GCDS[opt.job] ? .95 : .82), dpsTarget, hpGate:.25,
+        bossHp: dpsTarget * activeLen * (HEAL_GCDS[opt.job] ? .95 : .82), dpsTarget, hpGate:.25, gateNext:'P5',
         healEase: () => .6,
         activeTime: end => Math.max(1, end - 1),
         casts:[

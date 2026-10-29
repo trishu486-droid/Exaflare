@@ -76,7 +76,7 @@ function frame(now){
       hpTick(dt);
       actTick(dt);
       // P5 通し：ボスのHPを削りきったら撃破で終了。削りきれずに最後まで行ったら時間切れ（ミッシング・ゼロ）
-      // P4（hpGate あり）は 25% 未満まで削っても最後まで続き、時間切れの時点で判定する
+      // P4・P1 通し（hpGate あり）は、決まった割合（25%・15%）未満まで削っても最後まで続き、時間切れの時点で判定する
       const reached = S.inst.bossHp && A.dmg >= S.inst.bossHp, gate = S.inst.hpGate;
       const killed = reached && !gate && (S.inst.killAfter == null || S.t >= S.inst.killAfter); // P3 通し：突出までは HP が残る（killAfter から撃破できる）
       const won = killed || (gate && reached && S.t > S.inst.end);

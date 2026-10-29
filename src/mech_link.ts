@@ -369,16 +369,16 @@ function makeLink45(){
 // ---------------------------------------------------------------------
 // 全通し：P1 通し → つなぎ P1→P2 → P2 通し → … → P5 通し（ユーザー 2026-10-16・17）
 // 被弾したら終わり。必ず P1 から。各フェーズを成功したら次のつなぎへ（game.ts の next）：
-//   P1：時間切れの 173.3 に削りきっていれば／P2：殴れなくなる 166.7 に削りきっていれば／P3：2体を倒したら／P4：最後に 25%未満なら／P5：撃破でクリア
+//   P1：時間切れの 173.3 に残り 15% まで削れていれば／P2：殴れなくなる 166.7 に削りきっていれば／P3：2体を倒したら／P4：最後に 25%未満なら／P5：撃破でクリア
 // ランキングは対象外（ranking.ts）。stage：リザルトに出す「どこまで行ったか」
 // ---------------------------------------------------------------------
-const P1_TIMEUP = 173.3, P2_UNTARGET = 166.7; // mech_p1run の ENRAGE.cast・mech_p2run の UNTARGET（＝つなぎの 0）
+const P2_UNTARGET = 166.7; // mech_p2run の UNTARGET（＝つなぎの 0）
 const linkInst = (inst, floor, stage) => { inst.floorTheme = floor; inst.stage = stage; return inst; };
 const FULL = { id:'full', name:'全通し', sub:'P1〜P5', view:24, start:RUN1.start, slots:true, bgmKey:'p1',
   gen: () => RUN1.gen(),
   create(pr){
     const p1 = RUN1.create(pr);
-    p1.floorTheme = 'blue'; p1.stage = 'P1'; p1.killAfter = P1_TIMEUP;
+    p1.floorTheme = 'blue'; p1.stage = 'P1'; // P1 は残り 15% まで削れていれば時間切れの詠唱（173.3）で次へ（mech_p1run の hpGate）
     p1.next = () => ({ inst:linkInst(makeLink12(), 'blue', 'つなぎ P1→P2'), t:0 });
     return p1;
   } };

@@ -319,17 +319,14 @@ const P2M = {
       }],
     ].sort((a, b) => a[0] - b[0]);
 
-    const towerVisible = k => {
-      const from = k === 1 ? T.fors + 1.2 : T.tower[k - 2] + HIT + .4;
-      return S.t >= from && S.t < T.tower[k - 1] + HIT;
-    };
+    const towerFrom = k => k === 1 ? T.fors + 1.2 : T.tower[k - 2] + HIT + .4;
+    const towerVisible = k => S.t >= towerFrom(k) && S.t < T.tower[k - 1] + HIT;
+    const ORB_DROP = 64; // 球が出たときの高さ（ドット）
     const ROLE_COL = { T:'#3a6ad8', H:'#3aa84e', D:'#d8404e' };
     // 担当の文字（3×5）
     const FONT = { M:'101111111101101', T:'111010010010010', S:'011100010001110', H:'101101111101101', D:'110101101101110',
       1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001' };
     const markOf = (s, t) => { const L = given.filter(x => x.k === s && x.t <= t); const last = L[L.length - 1]; return last && t < last.t + MARK_SHOW ? last.mark : null; };
-    const DIGIT = { 1:'010110010010111', 2:'110001010100111', 3:'110001010001110', 4:'101101111001001', 5:'111100110001110', 6:'011100110101010', 7:'111001010010010', 8:'010101010101010', 9:'010101011001110' };
-    const drawNum = (X, Y, n) => { const g = DIGIT[n]; if (!g) return; rect(X - 3, Y - 4, 7, 9, '#101830'); for (let i = 0; i < 15; i++) if (g[i] === '1') rect(X - 1 + (i % 3), Y - 2 + (i / 3 | 0), 1, 1, '#ffffff'); };
     const drawMark = (q, kind) => { const c = markCanvas(kind); ctx.drawImage(c, px(q.x) - 8, px(q.z) - 23, 16, 16); }; // 頭のすぐ上（タイルの上端に接する）
 
     return {
@@ -380,10 +377,12 @@ const P2M = {
         // 塔の上の青い球（大きく明るく、中に白い雷の筋。実機の動画）。着弾の寸前はフィールドが白く光る
         T.tower.forEach((_, i) => { if (t >= T.tower[i] - .3 && t < T.tower[i]) fieldWhite((t - T.tower[i] + .3) / .3); });
         if (p.withEmb && t >= T.embCast && t < T.emb){ const a = pos('MT'), b = pos('ST'); embTell({ x:(a.x + b.x) / 2, z:(a.z + b.z) / 2 }, EMB_R); }
+        // 着弾の時刻は、秒数ではなく球の高さで見せる：出てから着弾まで、上から塔の真ん中へまっすぐ降りてくる。球は少し薄め（2026-10-29 ユーザー）
         T.tower.forEach((_, i) => { const k = i + 1; if (!towerVisible(k)) return;
-          towersOf(k).forEach(c => { const X = px(c.x), Z = px(c.z) - 6 - Math.round(Math.sin(t * 3 + i) * 1.5); towerOrb(X, Z, t * 2 + i);
-            // 着弾までの秒数（球の上）
-            const sec = Math.ceil(T.tower[i] - t); if (sec > 0 && sec < 10) drawNum(X, Z - 16, sec); }); });
+          const from = towerFrom(k), fall = Math.max(0, Math.min(1, (t - from) / (T.tower[i] - from)));
+          towersOf(k).forEach(c => { const X = px(c.x), G = px(c.z), Z = G - Math.round(ORB_DROP * (1 - fall)) - Math.round(Math.sin(t * 3 + i) * (1 - fall));
+            alpha(.25 + .35 * fall, () => disc(X, G, Math.round(3 + 6 * fall), '#0a2a6a')); // 足元の影：近づくほど大きく濃く
+            alpha(.62, () => towerOrb(X, Z, t * 2 + i)); }); });
         // 分身（紫の輪）と、消滅の脚の向き
         clones.filter(c => t >= c.from && t < c.until).forEach(c => { const X = px(c.x), Z = px(c.z); alpha(.35, () => disc(X, Z, 9, '#b05aff')); ring(X, Z, 9, '#d08cff'); ring(X, Z, 8, '#d08cff'); });
         legSrc.filter(L => t >= T.leg[L.j] - LEG_LEN && t < T.leg[L.j]).forEach(L => {

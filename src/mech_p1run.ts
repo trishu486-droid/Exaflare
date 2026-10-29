@@ -40,7 +40,10 @@ const JUDGE_LEN = 5, HYPER_LEN = 2;            // 詠唱の長さは資料にな
 // ハイパードライブはヘイト1位のタンクのまわりの円の範囲攻撃（ユーザー 2026-10-15）。タンクはケフカの正面（北）で受け、ほかの人は後ろ（南）へ。半径は推定（P3 のタンク強攻撃と同じ 5）
 const HYPER_R = 5, TANK_FRONT = { x:0, z:-6 }, BEHIND = { x:0, z:7 };
 const ENRAGE = { cast:173.3, at:178.3 };       // 時間切れの裁きの光（cactbot 197.3〜。軽減表 3:22）
-const KILL_AFTER = 170.1;                      // 第三楽章のなぞなぞマジックまではギミックが続く（それまで HP が残る）
+// DPS チェック（2026-10-29 ユーザー）：時間切れの裁きの光の詠唱（173.3）までに、ケフカを残り 15% まで削る（倒しはしない）
+// 第三楽章の混乱・睡眠（6 秒）はボスを殴れないので、その分を目安の時間から引く
+const GATE = .15, TIMEUP = ENRAGE.cast, INCAP = [125.9 + 29.09, 125.9 + 35.09];
+const busyTime = end => Math.max(1, Math.min(end, TIMEUP) - T0 - Math.max(0, Math.min(end, INCAP[1]) - INCAP[0]));
 const KILL_AT = .95, HEAL_EASE = .8;           // P2・P3 通しと同じ
 const dpsTarget = () => TARGET_DPS[opt.job] * (opt.job === 'ast' || opt.job === 'sch' ? HEAL_EASE : 1);
 const nextHolder = (h, pass, G) => G.filter(k => k !== h)[pass]; // 各楽章の nextHolder と同じ
@@ -103,16 +106,16 @@ const RUN1 = {
       intro:isTank ? `あなたは ${me}（タンク強攻撃：${['r1', 'h1', 'r2', 'h2'].map(k => taker(k)).map(([w, h], i) => `${['ルインガ', 'ハイドラ', 'ルインガ', 'ハイドラ'][i]}${w}${HOW[h]}`).join('・')}）` : `あなたは ${me}`,
       tankRole: t => !isTank || !mitWindow(t, me) ? 'atk' : nextHate(t, me) === 'shirk' ? 'mitS' : 'mitP', // 使わない間は攻撃のボタン
       tankHint: t => isTank ? tankHint(t, me) : '',
-      end:ENRAGE.at,
+      end:TIMEUP, hpGate:GATE, gateNext:'P2', // 15% まで削れていれば、ここで終わり（全通しは次へ）。足りなければ時間切れ
       casts:[
         { name:'ばりばりルインガ', start:OPEN.cast, len:OPEN.hit[0] - OPEN.cast },
         ...segs.flatMap((s, i) => s.casts.map(c => ({ ...c, start:c.start + AT[i] }))),
         ...GAPS.flatMap(g => [{ name:'裁きの光', start:g.judge - JUDGE_LEN, len:JUDGE_LEN }, { name:'ハイパードライブ', start:g.hyper[0] - HYPER_LEN, len:HYPER_LEN }]),
-        { name:'裁きの光', start:ENRAGE.cast, len:ENRAGE.at - ENRAGE.cast },
       ],
-      bossHp: dpsTarget() * (KILL_AFTER - T0) * KILL_AT, dpsTarget: dpsTarget(),
-      bossName:'ケフカ', killAfter:KILL_AFTER, enrageName:'裁きの光',
-      activeTime: end => Math.max(1, Math.min(end, KILL_AFTER) - T0),
+      bossHp: dpsTarget() * busyTime(TIMEUP) * KILL_AT, dpsTarget: dpsTarget(), // bossHp ぶん削ると残り 15%（hpGate）
+      bossName:'ケフカ', enrageName:'裁きの光',
+      activeTime: busyTime,
+      incap: t => !!call('incap', t),
       healEase: t => call('healEase', t) ?? .45,
       progress: () => '', // 下の帯は HP と HIT だけ（P2・P3 通しと同じ）
       status: t => call('status', t) || [],

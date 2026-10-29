@@ -169,9 +169,11 @@ function fail(){ A.failT = performance.now(); sfx.no(); }
 
 // 先行入力：GCD 技はリキャスト残り0.3秒、アビリティは0.5秒から受け付ける（カウントダウン終了直前も可）
 const active = () => S.phase === 'run' || S.phase === 'count';
+// 睡眠・混乱などで動けない間（ギミックの incap）は技を使えない（P1 第三楽章。2026-10-29 ユーザー）
+const incap = () => !!S.inst?.incap?.(S.t);
 function pressKey(k){
   sfx.unlock();
-  if (!active()) return;
+  if (!active() || incap()) return;
   const ab = job()[k];
   if (A.lockKeys.includes(k) && S.t - A.lockAt < SWAP_LOCK) return; // ホットバーで技が変わったボタンは、切り替わった直後だけ受け付けない
   // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
@@ -245,6 +247,7 @@ function kitSwap(j){
 }
 function actTick(dt){
   const j = job(), a = j.a;
+  if (incap()){ A.cast = null; A.queued = null; KEYS.forEach(k => { A.q[k] = false; }); } // 眠った・混乱した瞬間に詠唱も先行入力も消える
   walkTick(dt);
   kitSwap(j);
   KEYS.forEach(k => {

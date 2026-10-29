@@ -30,7 +30,7 @@ const jst = (ts: string) => { const d = new Date(new Date(ts).getTime() + 9 * 36
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
   if (!RANK_ON) return 'off';
-  if (S.inst?.hpGate) return 'P4 はランキングの対象外です';
+  if (S.inst?.hpGate && mech().id === 'p4') return 'P4 はランキングの対象外です';
   if (mech().id === 'full') return '全通しはランキングの対象外です';
   if (P1_MECHS.includes(mech())) return 'P1 はランキングの対象外です';
   if (P2_MECHS.includes(mech())) return 'P2 はランキングの対象外です';

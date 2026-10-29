@@ -60,6 +60,14 @@ canvas:focus{outline:none}
 /* ボスのHP（P5 通しだけ）：画面の一番上に細いバー、残り%は下のHUDに */
 .bosshp{position:absolute;z-index:3;left:0;right:0;top:0;height:5px;background:#3a1a2a;box-shadow:0 1px 0 #000;pointer-events:none}
 .bosshp i{display:block;height:100%;background:#ff5a8a;transition:width .2s linear}
+/* 下の帯の文字（進行・DMG・HIT）は出さない（2026-10-29 ユーザー）。通しのボスの残り HP の割合は、上の HP のバーの右下に（DPS チェックの目安） */
+.bosshp b{position:absolute;right:4px;top:calc(100% + 2px);font:13px/1 var(--px);font-weight:normal;color:#ffd0dc;white-space:nowrap}
+/* 割合を出すときは、右上の敵視リスト・左上のバフが重ならないように、両脇の列を少し下げる */
+.gb.hpon:not(.p4on) .side{padding-top:22px}
+/* 下の帯：残すのは左の案内（タンクのバフ回し。P1）だけ。DMG・HIT は出さない */
+.status .hud #hDmg,.status .hud #hHit{display:none}
+.status .hud #hSet{color:var(--gold);font-size:14px}
+.gb.p4on .status .hud{display:none}
 /* ヒーラーのときだけ：自分のHP（右上） */
 .hp{position:absolute;right:8px;top:6px;width:34%;pointer-events:none;font-size:16px;text-align:right;font-variant-numeric:tabular-nums}
 .hp .hpbar{position:relative;height:clamp(7px,2vw,10px);margin-top:2px;background:#3a1a2a;box-shadow:0 0 0 2px #000;overflow:hidden}
@@ -186,7 +194,7 @@ canvas:focus{outline:none}
    P4：左右の細い列（左＝バフ・デバフ、右＝敵視／HP）＋真ん中にフィールド、下にチャット欄。
    ほか（P5 など）：上の帯（左＝バフ・デバフ、右＝敵視／HP）＋横いっぱいのフィールド。チャット欄はなし。
    上の帯の高さ＝チャット欄の高さ − 左右の列2本分 なので、画面の高さは P4 と同じになる */
-.gb{--side:clamp(30px,8.6vw,46px);--status-h:clamp(40px,11vw,54px);container-type:inline-size}
+.gb{--side:clamp(30px,8.6vw,46px);--status-h:clamp(26px,7vw,32px);container-type:inline-size} /* 下の帯は詠唱バーと名前だけ（前は 40〜54px で、進行・DMG・HIT も出していた） */
 .stage{position:relative;display:flex;justify-content:center}
 .field{position:relative;overflow:hidden;flex:none;width:calc(100% - 2 * var(--side))}
 .side{position:relative;z-index:2;flex:none;width:var(--side);display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:6px;min-width:0}

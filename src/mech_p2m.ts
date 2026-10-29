@@ -381,7 +381,7 @@ const P2M = {
         T.tower.forEach((_, i) => { const k = i + 1; if (!towerVisible(k)) return;
           const from = towerFrom(k), fall = Math.max(0, Math.min(1, (t - from) / (T.tower[i] - from)));
           towersOf(k).forEach(c => { const X = px(c.x), G = px(c.z), Z = G - Math.round(ORB_DROP * (1 - fall)) - Math.round(Math.sin(t * 3 + i) * (1 - fall));
-            alpha(.25 + .35 * fall, () => disc(X, G, Math.round(3 + 6 * fall), '#0a2a6a')); // 足元の影：近づくほど大きく濃く
+            alpha(.12 + .2 * fall, () => disc(X, G, Math.round(3 + 6 * fall), '#0a2a6a')); // 足元の影：近づくほど大きく濃く（薄め。2026-10-29 ユーザー）
             alpha(.62, () => towerOrb(X, Z, t * 2 + i)); }); });
         // 分身（紫の輪）と、消滅の脚の向き
         clones.filter(c => t >= c.from && t < c.until).forEach(c => { const X = px(c.x), Z = px(c.z); alpha(.35, () => disc(X, Z, 9, '#b05aff')); ring(X, Z, 9, '#d08cff'); ring(X, Z, 8, '#d08cff'); });

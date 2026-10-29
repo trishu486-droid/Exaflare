@@ -279,13 +279,14 @@ function resetMsg(){ lastMsg = null; } // 次の setMsg で必ず書き換える
 function setMsg(html){ if (html !== lastMsg){ msg.innerHTML = html; lastMsg = html; } }
 function updateHud(){
   const on = S.inst && (S.phase === 'run' || S.phase === 'done');
-  // タンクのバフ回しの案内（P1。補助表示が ON のとき。tankplan.ts）
+  // 下の帯の左：タンクのバフ回しの案内だけ（P1。補助表示が ON のとき。tankplan.ts）。進行（progress）は出さない（2026-10-29 ユーザー）
   const hint = on && S.phase === 'run' && opt.path && S.inst.tankHint?.(S.t);
-  hSet.textContent = hint || (on ? S.inst.progress(S.t) : '');
+  hSet.textContent = hint || '';
   hHit.textContent = `HIT ${S.hits}`; hHit.className = S.hits ? 'hit' : '';
   const bossHp = S.phase !== 'menu' && S.inst?.bossHp;
-  $('bossHp').hidden = !bossHp;
-  if (bossHp){ const left = bossLeft(); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `${S.inst.bossName || 'ケフカ'} ${(left * 100).toFixed(1)}%`; }
+  $('bossHp').hidden = !bossHp; $('game').classList.toggle('hpon', !!bossHp);
+  if (bossHp){ const left = bossLeft(); $('bossFill').style.width = (left * 100).toFixed(1) + '%'; hDmg.textContent = `${S.inst.bossName || 'ケフカ'} ${(left * 100).toFixed(1)}%`;
+    $('bossPct').textContent = `${S.inst.bossName || 'ケフカ'} ${(left * 100).toFixed(1)}%` + (S.inst.hpGate ? `（目標 ${Math.round(S.inst.hpGate * 100)}%）` : ''); }
   else hDmg.textContent = S.phase === 'menu' ? '' : `DMG ${A.dmg.toLocaleString('en-US')}`;
   if (S.phase === 'menu') hHit.textContent = '';
   renderP4Panel();

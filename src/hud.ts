@@ -1,7 +1,7 @@
 import { $, opt, store } from './store.js';
 import { S } from './state.js';
 import { W, ctx, drawBoss, drawField, drawHurtFlash, drawIcon, drawSafe, misses, px, setPPY } from './gfx.js';
-import { on3d, draw3d } from './view3d.js';
+import { on3d, full3d, draw3d } from './view3d.js';
 import { mech } from './mechs.js';
 import { fxDraw, fxFlashDraw, fxShakeOffset } from './fx.js';
 import { A, HP, drawActFx, enmityDraw, hasBuff, hpDraw } from './action.js';
@@ -67,7 +67,7 @@ function screenBgDraw(){
     const x = c.left - s.left + c.width / 2 - size / 2 - screenEl.clientLeft + (img.dx || 0) * k, y = c.top - s.top + c.height / 2 - cy - screenEl.clientTop; // dx：横の揺れ
     bg = `url(${img.url}) ${x.toFixed(1)}px ${y.toFixed(1)}px / ${size.toFixed(1)}px ${img.h ? (img.h * k).toFixed(1) + 'px' : ''} no-repeat ${img.color}`;
   }
-  if (on3d()) bg = BG3D; // 3D 視点：フィールドの上下も空の色（view3d.ts のパノラマの一番上）
+  if (full3d()) bg = BG3D; // 3D 視点：フィールドの上下も空の色（view3d.ts のパノラマの一番上）
   if (bg !== lastBg){ lastBg = bg; screenEl.style.background = bg; screenEl.style.imageRendering = bg ? 'pixelated' : ''; }
 }
 // 上の層：フィールドの外（画面の上の像のあたり）まで描けるキャンバス。ギミックの drawTop(t, g) が描く（P1 の像から出る線・波動砲など）

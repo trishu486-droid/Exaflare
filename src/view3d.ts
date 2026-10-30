@@ -16,7 +16,21 @@ import { S } from './state.js';
 
 // エクサはいつも 3D（2026-10-30 ユーザー：真上の見え方はメニューから消した。opt.view は見ない）
 // P5 通し（全通しの P5 も）は、エクサの間だけ 3D（inst.in3d。mech_run.ts）
-const on3d = () => S.phase !== 'menu' && !!S.inst && (mech().id === 'exa' || !!S.inst.in3d?.(S.t));
+// P5 通しでは真上 ⇄ 3D を TRANS 秒かけてぬるっと切り替える（2026-10-30 ユーザー）：カメラが真上から自キャラの後ろへ下りてくる／上がっていく
+// B.k：0＝真上、1＝3D。ゲームの時刻で進める（on3d を呼ぶたびに進めるが、同じ時刻なら何度呼んでも同じ）
+const TRANS = 1.2, B = { k:0, t:-Infinity };
+const want3d = () => S.phase !== 'menu' && !!S.inst && (mech().id === 'exa' || !!S.inst.in3d?.(S.t));
+function blend(){
+  if (mech().id === 'exa'){ B.k = 1; B.t = S.t; return 1; } // エクサ単体はいつも 3D
+  const dt = Math.max(0, Math.min(.1, S.t - B.t)); B.t = S.t;
+  B.k = Math.max(0, Math.min(1, B.k + (want3d() ? dt : -dt) / TRANS));
+  if (B.k === 0) V.yaw = 0; // 真上に戻りきったら向きを北に戻す
+  return B.k;
+}
+const ease = k => k * k * (3 - 2 * k);
+const yawNow = () => V.yaw * ease(B.k); // 切り替えの間は、向きも北（真上の画面の向き）へ寄せる
+const on3d = () => S.phase !== 'menu' && !!S.inst && blend() > 0;
+const full3d = () => on3d() && B.k === 1; // 切り替えが終わって 3D になりきっている（画面の枠の背景を 3D の空の色にする。hud.ts）
 // yaw：カメラの向き（0＝北を向く。右回りが＋）。elev：見下ろす角度（0＝真横、π/2＝真上）
 // はじめの角度は実機のスクリーンショット（2026-10-30 ユーザー）に合わせて高め（約35°）。前の版の保存値は使わない（cam3dElev2）
 const ELEV0 = .62, ELEV_MIN = .06, ELEV_MAX = 1.45;
@@ -27,9 +41,9 @@ const KEFKA_K = .42; // ケフカの板の大きさ（真上の絵の何倍か�
 const DIST = 17, LOOK_Y = 1.5, FOV = 1.05, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
 const fwdOf = yaw => ({ x:Math.sin(yaw), z:-Math.cos(yaw) });
 const wrap = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
-function resetView(){ V.yaw = 0; }
+function resetView(){ V.yaw = 0; B.k = 0; B.t = -Infinity; }
 // スティックの向き（画面の上＝-z）を、カメラから見た向きに直す
-function moveDir(mx, mz){ const f = fwdOf(V.yaw); return { x:-f.z * mx + f.x * -mz, z:f.x * mx + f.z * -mz }; }
+function moveDir(mx, mz){ const f = fwdOf(yawNow()); return { x:-f.z * mx + f.x * -mz, z:f.x * mx + f.z * -mz }; }
 // 前寄りに動いているときだけ、その向きへカメラをゆっくり回す（真横・手前へ動くときは回さない。横によけている間に景色が回らないように）
 // 2026-10-30 ユーザー：ななめに動いたときに勝手に回るのはやめて、スワイプしたときだけ回す（作りは AUTO_TURN で残す）
 const AUTO_TURN = false;
@@ -108,17 +122,19 @@ function draw3d(){
   const ic = icon.getContext('2d'); ic.clearRect(0, 0, 24, 24); ic.drawImage(cv, 0, 0, 24, 24, 0, 0, 24, 24);
 
   // 2) カメラ
-  const Pl = S.player, f = fwdOf(V.yaw), rx = -f.z, rz = f.x;
-  const e = V.elev, back = DIST * Math.cos(e);
-  const cam = { x:Pl.x - f.x * back, z:Pl.z - f.z * back, y:LOOK_Y + DIST * Math.sin(e) };
+  // 切り替えの途中（m＜1）は、真上（フィールドの中心を、今の真上の画面と同じ広さで見下ろす）と 3D のカメラの間をとる
+  const bm = ease(B.k), lerp = (a, b) => a + (b - a) * bm;
+  const Pl = S.player, yaw = yawNow(), f = fwdOf(yaw), rx = -f.z, rz = f.x;
+  const e = lerp(1.5607, V.elev), dist = lerp((W / 2 / PPY) / Math.tan(FOV / 2), DIST), lookY = lerp(0, LOOK_Y), tx0 = lerp(0, Pl.x), tz0 = lerp(0, Pl.z), back = dist * Math.cos(e);
+  const cam = { x:tx0 - f.x * back, z:tz0 - f.z * back, y:lookY + dist * Math.sin(e) };
   const fl = (OW / 2) / Math.tan(FOV / 2), cp = Math.cos(e), sp = Math.sin(e), R2 = ARENA_R * ARENA_R, d = img.data;
-  const setPx = (i, r, g, b) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255; };
+  const setPx = (i, r, g, b, a = 255) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a; };
   for (let sy = 0; sy < OW; sy++){
     const vy = -(sy - OW * HOR) / fl, dy = vy * cp - sp, dfw = vy * sp + cp;
     for (let sx = 0; sx < OW; sx++){
       const vx = (sx - OW / 2) / fl, i = (sy * OW + sx) * 4;
       if (dy >= -1e-3){ // 空：岩の崖のパノラマ
-        const elev = Math.atan2(dy, Math.hypot(dfw, vx)), u = ((V.yaw + Math.atan2(vx, dfw)) / (Math.PI * 2) % 1 + 1) % 1;
+        const elev = Math.atan2(dy, Math.hypot(dfw, vx)), u = ((yaw + Math.atan2(vx, dfw)) / (Math.PI * 2) % 1 + 1) % 1;
         const px = Math.floor(u * PANO_W) % PANO_W, py = Math.max(0, Math.min(PANO_H - 1, Math.floor((1 - elev / PANO_TOP) * PANO_H))), j = (py * PANO_W + px) * 3;
         setPx(i, pano[j], pano[j + 1], pano[j + 2]); continue;
       }
@@ -127,9 +143,11 @@ function draw3d(){
       if (wx * wx + wz * wz <= R2 && inTex){ setPx(i, tex[j], tex[j + 1], tex[j + 2]); continue; }
       // 足場の外：足場の側面（厚み THICK）か、下の暗い谷。谷の上にも予兆（場外のエクサの発生地点）は描く
       const t2 = (cam.y + THICK) / -dy, x2 = cam.x + (f.x * dfw + rx * vx) * t2, z2 = cam.z + (f.z * dfw + rz * vx) * t2;
-      if (x2 * x2 + z2 * z2 <= R2){ setPx(i, 96, 48, 26); continue; }
+      if (x2 * x2 + z2 * z2 <= R2 && bm === 1){ setPx(i, 96, 48, 26); continue; }
       let r = 16, g = 9, b = 7; if (hash(Math.floor(wx * 1.3) * 3.1 + Math.floor(wz * 1.3) * 7.7) > .9){ r = 38; g = 20; b = 12; }
       if (inTex){ const c0 = tex[j], c1 = tex[j + 1], c2 = tex[j + 2]; if (!(c0 === SPACE[0] && c1 === SPACE[1] && c2 === SPACE[2]) && !(c0 === STAR[0] && c1 === STAR[1] && c2 === STAR[2])){ const al = Math.min(1, tex[j + 3] / 255 / .35 * MARK_FILL); r = r + (c0 - r) * al; g = g + (c1 - g) * al; b = b + (c2 - b) * al; } } // 薄く消えていく予兆は、谷の色と混ぜる（予兆の円の地の濃さ 0.35 を「くっきり」とする）
+      // 切り替えの途中は、谷を透かして真上の画面の背景（画面の枠の絵）を見せる。予兆（キャンバスに描いたもの）はそのまま
+      if (bm < 1){ const ta = inTex ? tex[j + 3] / 255 : 0; if (inTex && ta > 0){ r = tex[j] + (r - tex[j]) * bm; g = tex[j + 1] + (g - tex[j + 1]) * bm; b = tex[j + 2] + (b - tex[j + 2]) * bm; } setPx(i, r, g, b, Math.round(255 * Math.max(ta, bm))); continue; }
       setPx(i, r, g, b);
     }
   }
@@ -148,7 +166,7 @@ function draw3d(){
   const MK = [['A', 0, -m, 0], ['B', m, 0, 1], ['C', 0, m, 2], ['D', -m, 0, 3], ...corners.map(([x, z], k) => [String(k + 1), x, z, k])];
   MK.forEach(([ch, x, z, k]) => { const q = proj(x, 0, z); if (q.z <= 1) return; const col = P.mk[k]; items.push({ z:q.z, draw:() => {
     const w = Math.max(2, Math.round(1.6 * q.s)), h = Math.round(2.4 * q.s), x0 = Math.round(q.x - w / 2), y0 = Math.round(q.y - h);
-    const k = near(q.z);
+    const k = near(q.z) * bm; // 切り替えの途中は、真上の床のマーカーから柱が立ち上がるように
     oc.fillStyle = col; oc.globalAlpha = .18 * k; oc.fillRect(x0, y0, w, h);
     oc.globalAlpha = .45 * k; for (let yy = y0 + 1; yy < y0 + h; yy += 3) oc.fillRect(x0 + 1, yy, w - 2, 1);
     oc.globalAlpha = .6 * k; oc.fillRect(x0, y0, 1, h); oc.fillRect(x0 + w - 1, y0, 1, h);
@@ -174,7 +192,7 @@ function draw3d(){
     items.push({ z:q.z, draw:() => { oc.fillStyle = pt.cols[Math.min(pt.cols.length - 1, Math.floor(a / pt.life * pt.cols.length))]; const s = Math.max(1, Math.round(.35 * q.s)); oc.fillRect(Math.round(q.x), Math.round(q.y), s, s); } }); });
   // ケフカ
   const ko = typeof art === 'string' ? { id:art } : art, ksp = ko && kefkaSprite(ko.id);
-  if (ksp){ const bp = proj(0, 0, 0); if (bp.z > 1) items.push({ z:bp.z, draw:() => { const kk = (ko.k ?? 1) * KEFKA_K, hw = ksp.width * kk / PPY, hh = ksp.height * kk / PPY; oc.globalAlpha = bp.z < pz ? .45 : 1; oc.drawImage(ksp, Math.round(bp.x - hw * bp.s / 2), Math.round(bp.y - hh * bp.s * .8), Math.round(hw * bp.s), Math.round(hh * bp.s)); oc.globalAlpha = 1; } }); }
+  if (ksp){ const bp = proj(0, 0, 0); if (bp.z > 1) items.push({ z:bp.z, draw:() => { const kk = (ko.k ?? 1) * (1 + (KEFKA_K - 1) * bm), hw = ksp.width * kk / PPY, hh = ksp.height * kk / PPY; oc.globalAlpha = bp.z < pz ? .45 : 1; oc.drawImage(ksp, Math.round(bp.x - hw * bp.s / 2), Math.round(bp.y - hh * bp.s * .8), Math.round(hw * bp.s), Math.round(hh * bp.s)); oc.globalAlpha = 1; } }); }
   // 自キャラ（落ちたときは小さくなって消える）
   const fall = S.fall ? Math.min(1, (performance.now() - S.fall.at) / 750) : 0;
   if (fall < 1){ const pp = proj(Pl.x, -fall * 4, Pl.z), sz = 2.4 * pp.s * (1 - fall * fall); items.push({ z:pp.z, draw:() => {
@@ -188,11 +206,11 @@ function draw3d(){
   let haze = 0;
   FX.list.forEach(e => { if (e.kind !== 'scorch') return; const a = (S.t - e.at) / e.dur; if (a < 0 || a >= 1) return; haze += (1 - a) * Math.max(0, 1 - Math.hypot(e.x - Pl.x, e.z - Pl.z) / 18); });
   const HZ = [.6, .62, .24]; // 濃くなる速さ・オレンジの濃さ・明るさ（2026-10-30 ユーザー：サンプル C。はじめの 1.6 倍）
-  haze = Math.ceil(Math.min(1, haze * HZ[0]) * 4) / 4;
+  haze = Math.ceil(Math.min(1, haze * HZ[0]) * bm * 4) / 4;
   if (haze > 0){ oc.save(); oc.globalAlpha = HZ[1] * haze; oc.fillStyle = '#ff8a3a'; oc.fillRect(0, 0, OW, OW); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = HZ[2] * haze; oc.fillStyle = '#ffd08a'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
-  if (flash > 0){ oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .3 * flash; oc.fillStyle = '#ffb060'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
+  if (flash > 0){ oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .3 * flash * bm; oc.fillStyle = '#ffb060'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
 
   // 4) キャンバスに拡大して出す
   ctx.save(); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, W, W); ctx.drawImage(out, 0, 0, W, W); ctx.restore();
 }
-export { on3d, draw3d, moveDir, follow, turn, tilt, resetView };
+export { on3d, full3d, draw3d, moveDir, follow, turn, tilt, resetView };

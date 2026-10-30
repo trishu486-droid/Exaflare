@@ -124,6 +124,19 @@ function stackMark(q, sec = null){
   [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dz]) => { for (let i = 0; i < 6; i++){ const bx = X + dx * (10 + i), bz = Z + dz * (10 + i); rect(bx - dz * i - 1, bz - dx * i - 1, 2, 2, c); rect(bx + dz * i - 1, bz + dx * i - 1, 2, 2, c); } });
   if (sec != null && sec > 0) glyph(String(sec), X + 14, Z - 18, '#ffffff');
 }
+// ばりばりルインガの予兆（詠唱中）：受けるタンク（ヘイト1位）の頭上に平たい赤い輪、その上から短い赤い光が差し、
+// 白い「V」が輪へ向かって下へ流れる（ユーザーの実機のスクショ・動画 2026-10-31）
+const BUSTER_W = sprite(19, 12, P1 => { for (let dx = -9; dx <= 9; dx++){ const y = 9 - Math.abs(dx); for (let k = 0; k < 4; k++) P1(9 + dx, y + 2 - k, k === 0 || k === 3 || Math.abs(dx) === 9 ? '#ff6080' : '#ffffff'); } });
+function busterMark(q){
+  const X = px(q.x), Z = px(q.z), H = 26, RY = Z - 12, top = RY - H;
+  for (let y = 0; y < H; y += 2){ const f = Math.min(1, y / (H * .6)); // 上ほど薄い（2ドットずつの段で 8bit らしく）
+    alpha(.22 * f, () => rect(X - 9, top + y, 19, 2, '#ff2040')); alpha(.4 * f, () => rect(X - 5, top + y, 11, 2, '#ff4060')); alpha(.5 * f, () => rect(X - 2, top + y, 5, 2, '#ffb0c0')); }
+  // 輪：横 23・縦 9 の楕円のふち（奥は明るい赤、手前は濃い赤で 2 ドット）。中は抜く
+  for (let dx = -11; dx <= 11; dx++){ const dy = Math.round(4 * Math.sqrt(Math.max(0, 1 - (dx / 11.5) ** 2)));
+    rect(X + dx, RY - dy, 1, 1, '#ff6070'); rect(X + dx, RY + dy - 1, 1, 2, '#e02030'); }
+  const ph = (performance.now() / 700) % 1;
+  [0, .5].forEach(o => { const p = (ph + o) % 1, y = Math.round(top - 2 + p * (H - 8)); alpha(Math.min(1, (1 - p) * 3, p * 6), () => ctx.drawImage(BUSTER_W, X - 9, y)); });
+}
 // めらめらファイガの着弾：足元に炎の輪（0.35秒）→ 黒い芯の火の玉が広がって消える（0.55秒）
 function makeFireFx(){
   const L = [];
@@ -400,7 +413,7 @@ function judgeTop(g, a){
 // つぎつぎトラップの爆発（赤い結晶）
 const TRAP_COLS = ['#c8102e', '#ff5a6a', '#ffffff'];
 
-export { statueUnder, arrowPlate, puddle, TRAP_COLS, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR };
+export { statueUnder, arrowPlate, puddle, TRAP_COLS, busterMark, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR };
 export { SLOTS, TH, DPS, roleOf, isTH, dist, add, at, OFF, BOT_SPEED, MARKERS, WM, makeRoutes, stepBots, drawBot, ROLE_COL,
   quadOf, quadSpan, BAND_C, bandSpan, inBand, iceTell, iceHits, thTell, thHits, iceHit, thHit, rollMystery, drawTell, drawHitFlash, thunderSegs, icePts,
   orb, kefkaOrbs, spreadMark, stackMark, statueScreenBg, statueRiseBg, towerRumble, MOVE as TOWER_MOVE, statueLights, clearOutside, tether, makeFireFx, statuePt, topTether, topGlow, topBeam, cannonOrb, CANNON_ORB, bigOrb, gazeEye, hyperFx, topFieldFlash };

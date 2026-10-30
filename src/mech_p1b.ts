@@ -8,7 +8,7 @@ import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from 
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
-import { arrowPlate, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
+import { arrowPlate, busterMark, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
 import { R2_AT, HOW, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
@@ -239,6 +239,8 @@ const P1B = {
         if (t >= T.mmCast - .1 && t < T.ice) kefkaOrbs(mm.iceTrue, null, null);
         bots.forEach(drawBot);
         efx.draw();
+        // ばりばりルインガの詠唱中：ヘイト1位の頭上に強攻撃のマーカー（1発目の前だけ）
+        if (t >= T.ruin1Cast && t < T.ruin1) busterMark(pos(hateTop(t)));
       },
       // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：渦の柱の上の紫の光＝重力弾（沼を捨てる）、像の手の光＝岩石弾（岩を捨てる）
       // 重力弾の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14・15）

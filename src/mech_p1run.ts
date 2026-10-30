@@ -7,7 +7,7 @@ import { healerHit, hasMit, hasInvuln } from './action.js';
 import { fxFlash, fxShake } from './fx.js';
 import { hurt, alpha } from './gfx.js';
 import { TH, DPS, dist, TOWER_MOVE } from './p1lib.js';
-import { hyperFx, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR } from './p1lib.js';
+import { hyperFx, busterMark, ruingaFx, RUINGA_DUR, judgeFloor, judgeTop, JUDGE_LAVA, JUDGE_DUR } from './p1lib.js';
 import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
@@ -143,7 +143,11 @@ const RUN1 = {
         // 裁きの光：赤い溶岩 → 白く光る（金の柱は drawTop）
         JUDGES.forEach(at => { const a = t - at; if (a >= -JUDGE_LAVA && a < JUDGE_DUR) judgeFloor(a); });
       },
-      draw: t => call('draw', t),
+      draw(t){
+        call('draw', t);
+        // ばりばりルインガの詠唱中：ヘイト1位の頭上に強攻撃のマーカー
+        if (t >= OPEN.cast && t < OPEN.hit[0]){ const k = hateTop(S.t); busterMark(k === me ? S.player : segs[idx(S.t)]._debug.pos(k)); }
+      },
       drawTop(t, g){
         call('drawTop', t, g);
         JUDGES.forEach(at => judgeTop(g, t - at));

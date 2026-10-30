@@ -2,7 +2,8 @@
 // 3D 視点（エクサ。2026-10-30 ユーザー）：真上から見ると難易度が下がるので、実機のように自キャラの後ろから見る
 // 作り：いつもの真上の床（予兆・安地・床の効果）をいったんキャンバスに描いて、それを斜めに見た形に描き直す（昔のゲームの疑似3D）。
 // 小さい解像度（OW×OW）で描いてから拡大するので、ドット絵のまま。ケフカ・自キャラ・マーカーの柱と文字・爆発の炎・破片は板として立てる
-// カメラ：ふだんは動いた向きへゆっくり回って自キャラの後ろにつく。フィールドを横にスワイプ（PC はドラッグ）すると回せる
+// カメラ：ふだんは動いた向きへゆっくり回って自キャラの後ろにつく。フィールドを横にスワイプ（PC はドラッグ）すると回せる。
+// 縦にスワイプすると高さが変わる（ほぼ真上〜ほぼ真横。2026-10-30 ユーザー。前の高さを覚える）
 // 移動：スティック・キーの「上」がカメラの向き（奥）になる（game.ts の movePlayer）
 // =====================================================================
 import { ARENA_R, SQ2 } from './config.js';
@@ -10,13 +11,15 @@ import { W, C0, PPY, P, cv, ctx, drawField, drawBoss, drawIcon, drawSafe } from 
 import { FX, fxDraw } from './fx.js';
 import { kefkaSprite } from './kefka_art.js';
 import { mech } from './mechs.js';
-import { opt } from './store.js';
+import { opt, store } from './store.js';
 import { S } from './state.js';
 
 const on3d = () => opt.view === '3d' && mech().id === 'exa' && S.phase !== 'menu' && !!S.inst;
-const V = { yaw:0 }; // カメラの向き（0＝北を向く。右回りが＋）
+// yaw：カメラの向き（0＝北を向く。右回りが＋）。elev：見下ろす角度（0＝真横、π/2＝真上）
+const ELEV0 = .32, ELEV_MIN = .06, ELEV_MAX = 1.45;
+const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
 const OW = 176;                          // 3D を描く解像度（正方形）。キャンバス（288）に拡大する
-const BACK = 20, H = 10, PITCH = .3, FOV = 1.1, HOR = .55, THICK = 3; // カメラの後ろの距離・高さ、見下ろす角度・視野、画面の中心の行、足場の厚み
+const DIST = 31.6, AHEAD = 10, FOV = 1.1, HOR = .5, THICK = 3; // カメラから見る点までの距離、見る点（自キャラの前方。真上に近いほど自キャラに寄る）、視野、画面の中心の行、足場の厚み
 const fwdOf = yaw => ({ x:Math.sin(yaw), z:-Math.cos(yaw) });
 const wrap = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 function resetView(){ V.yaw = 0; }
@@ -28,6 +31,7 @@ function follow(dx, dz, dt){
   if (Math.abs(d) < 1.1) V.yaw = wrap(V.yaw + d * (1 - Math.exp(-.8 * dt)));
 }
 function turn(rad){ V.yaw = wrap(V.yaw + rad); }
+function tilt(rad){ V.elev = Math.max(ELEV_MIN, Math.min(ELEV_MAX, V.elev + rad)); try { store.set('cam3dElev', V.elev); } catch {} }
 
 // ---- 背景（上）：岩の崖のパノラマ。一度だけ作る（横 PANO_W・縦 PANO_H、縦は地平線から上の角度） ----
 const PANO_W = 1024, PANO_H = 96, PANO_TOP = .9;
@@ -95,8 +99,9 @@ function draw3d(){
 
   // 2) カメラ
   const Pl = S.player, f = fwdOf(V.yaw), rx = -f.z, rz = f.x;
-  const cam = { x:Pl.x - f.x * BACK, z:Pl.z - f.z * BACK, y:H };
-  const fl = (OW / 2) / Math.tan(FOV / 2), cp = Math.cos(PITCH), sp = Math.sin(PITCH), R2 = ARENA_R * ARENA_R, d = img.data;
+  const e = V.elev, ah = AHEAD * Math.cos(e), back = DIST * Math.cos(e) - ah;
+  const cam = { x:Pl.x - f.x * back, z:Pl.z - f.z * back, y:DIST * Math.sin(e) };
+  const fl = (OW / 2) / Math.tan(FOV / 2), cp = Math.cos(e), sp = Math.sin(e), R2 = ARENA_R * ARENA_R, d = img.data;
   const setPx = (i, r, g, b) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255; };
   for (let sy = 0; sy < OW; sy++){
     const vy = -(sy - OW * HOR) / fl, dy = vy * cp - sp, dfw = vy * sp + cp;
@@ -161,4 +166,4 @@ function draw3d(){
   // 4) キャンバスに拡大して出す
   ctx.save(); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, W, W); ctx.drawImage(out, 0, 0, W, W); ctx.restore();
 }
-export { on3d, draw3d, moveDir, follow, turn, resetView };
+export { on3d, draw3d, moveDir, follow, turn, tilt, resetView };

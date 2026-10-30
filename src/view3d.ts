@@ -147,14 +147,14 @@ function draw3d(){
     oc.globalAlpha = .6 * k; oc.fillRect(x0, y0, 1, h); oc.fillRect(x0 + w - 1, y0, 1, h);
     const g = glyphC(ch, col), gs = 1.7 * q.s / 14; oc.globalAlpha = k; oc.drawImage(g, Math.round(q.x - 7 * gs), Math.round(y0 - 17 * gs), Math.round(14 * gs), Math.round(16 * gs)); oc.globalAlpha = 1;
   } }); });
-  // 爆発（fx の scorch＝エクサの着弾）：円（半径6）より大きな炎と、床の光。実機のように、まわりや奥が一瞬見えにくくなる
+  // 爆発（fx の scorch＝エクサの着弾）：円（半径6）と同じ幅の炎と、床の光。実機のように、まわりや奥が一瞬見えにくくなる
   let flash = 0;
   FX.list.forEach((e, n) => { if (e.kind !== 'scorch') return; const a = (S.t - e.at) / e.dur; if (a < 0 || a >= 1) return; const q = proj(e.x, 0, e.z); if (q.z <= 1) return;
     const seed = Math.round((e.x + 40) * 7 + (e.z + 40) * 3) % 5; flash = Math.max(flash, 1 - (S.t - e.at) / .25);
     items.push({ z:q.z, draw:() => {
-      oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 8 * q.s, 8 * q.s * sp, 0, 0, 7); oc.fill();
-      oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 5 * q.s, 5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
-      const w = 16 * q.s, h = 27 * q.s * (1 - a * .35), top = q.y - h * .92, img = flame(seed, Math.min(5, Math.floor(a * 6)));
+      oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 6 * q.s, 6 * q.s * sp, 0, 0, 7); oc.fill();
+      oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 3.5 * q.s, 3.5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
+      const w = 12 * q.s, h = 27 * q.s * (1 - a * .35), top = q.y - h * .92, img = flame(seed, Math.min(5, Math.floor(a * 6)));
       const nk = q.z < pz ? .3 : 1; // 自キャラより手前の炎は薄く（近いと大きな四角になって画面をふさぐ）
       if (top > 2 && nk === 1){ oc.save(); oc.globalCompositeOperation = 'lighter'; // 炎の上へ、画面の上まで薄くのびる炎（2段で上ほど薄い）
         const ew = Math.round(w * .8), ex = Math.round(q.x - ew / 2), eb = Math.round(top + h * .4);

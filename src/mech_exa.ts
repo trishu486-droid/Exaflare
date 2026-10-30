@@ -8,11 +8,12 @@ import { sfx } from './audio.js';
 // ギミック1：混沌の終末（エクサ）
 // =====================================================================
 const EXA = (() => {
-  const EXA_R = 6, HIT_COUNT = 6, SET_INTERVAL = 2.5, FIRST_HIT = 4.6, HIT_GAP = 0.51;
+  const EXA_R = 6, HIT_COUNT = 6, SET_INTERVAL = 2.5, FIRST_HIT = 4.5, HIT_GAP = 0.51;
   // 着弾した床：溶岩の円が同じ大きさのまま約0.9秒残り、次の1〜2発と重なる（見た目だけ。判定は着弾の瞬間）
   const LAVA = .9, FLASH = .08;
   // 実機は判定が先で、爆発の見た目は通信とエフェクトのぶん遅れて出る。判定は着弾の時刻のまま、見た目だけ VIS_DELAY 秒遅らせる
-  const VIS_DELAY = .1;
+  // 2026-10-30 ユーザー：判定をもう少し早く。見た目の時刻（4.6＋0.1）はそのまま、判定だけ 0.1 秒早めた（4.5）
+  const VIS_DELAY = .2;
   const PATTERNS = { A:[-25, 5], B:[-15, 15], C:[-5, 25] }; // レーン i と i+3
   const END = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1) + VIS_DELAY;
   function laneHit(dir, off, k){
@@ -57,7 +58,7 @@ const EXA = (() => {
             }
             if (!h.shown && t >= h.t + VIS_DELAY){
               h.shown = true; boom = true;
-              fxParts(3, h.x, h.z, { cols:FXC.fire, speed:5, up:7, life:.5 }); fxAdd('scorch', h.x, h.z, { r:EXA_R * .8, cols:['#7a2a10'], dur:1.25, d2:.9 }); // 3D の炎は 1.25 秒残す（真上の焦げ跡は今までどおり 0.9 秒で消える）
+              fxParts(3, h.x, h.z, { cols:FXC.fire, speed:5, up:7, life:.5 }); fxAdd('scorch', h.x, h.z, { r:EXA_R * .8, cols:['#7a2a10'], dur:1.6, d2:.9 }); // 3D の炎は 1.6 秒残す（真上の焦げ跡は今までどおり 0.9 秒で消える）
               fxParts(8, h.x, h.z, { cols:FXC.rock, speed:9, up:8, life:.45, size:2, spread:EXA_R * .6, grav:22 }); // 床が割れて飛ぶ破片
             }
           });

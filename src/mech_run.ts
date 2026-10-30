@@ -166,13 +166,12 @@ const RUN = (() => {
         },
         drawFloor(t){ const s = seg(t); s?.inst.drawFloor?.(t - s.at); },
         // エクサの間だけ 3D で見る（2026-10-30 ユーザー。view3d.ts の on3d）。この間は味方を描かないので、床を斜めに見るだけでよい
-        in3d: t => t >= exa.at && t < exa.end,
+        // 2026-10-30 ユーザー：AA（魔撃）が全部着弾したら、もう 3D へ移り始めてよい（エクサの詠唱が始まる前に切り替えを終える）
+        in3d: t => t >= FELL[2].at[FELL[2].at.length - 1] + .3 && t < exa.end,
         draw(t){
           const s = seg(t); s?.inst.draw(t - s.at);
-          const blink = (Math.floor(performance.now() / 160) & 1) === 0;
           // AA：実機と同じく予兆なし（詠唱もマーカーも出ない）。着弾の演出は FX（マゼンタの柱）
-          // 混沌の渦：詠唱中は自分のまわりに散開の輪
-          if (t >= ENTROPY.cast && t < ENTROPY.at) ring(px(S.player.x), px(S.player.z), Math.round(ENTROPY.r * PPY), blink ? '#ff9a3a' : P.white);
+          // 混沌の渦：実機は予兆なし（2026-10-30 ユーザー）。前は詠唱中に自分のまわりへ散開の輪を出していた
         },
       };
     }

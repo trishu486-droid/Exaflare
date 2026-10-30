@@ -35,7 +35,7 @@ const full3d = () => on3d() && B.k === 1; // 切り替えが終わって 3D に�
 // はじめの角度は実機のスクリーンショット（2026-10-30 ユーザー）に合わせて高め（約35°）。前の版の保存値は使わない（cam3dElev2）
 const ELEV0 = .62, ELEV_MIN = .06, ELEV_MAX = 1.45;
 const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev2', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
-const OW = 176;                          // 3D を描く解像度（正方形）。キャンバス（288）に拡大する
+const OW = W; // 3D を描く解像度（正方形）。真上の画面と同じ 288（2026-10-30 ユーザー：176 から拡大していたので、P5 通しで切り替わった瞬間に画面が粗くなっていた）
 // 実機に寄せる（2026-10-30 ユーザー：遠くて広く見えると易しくなる）：自キャラ（胸の高さ LOOK_Y）を画面の真ん中に、距離 DIST（実機の一番引いた所は約20）、視野は狭め
 const KEFKA_K = .42; // ケフカの板の大きさ（真上の絵の何倍か。2026-10-30 ユーザー：0.6 の 0.7 倍）。実機のスクリーンショットでは自キャラの近くでも画面をふさがない
 const DIST = 17, LOOK_Y = 1.5, FOV = 1.05, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
@@ -117,7 +117,7 @@ function draw3d(){
   drawBoss(); S.inst.draw(S.t); if (S.phase !== 'menu') fxDraw(); drawSafe();
   ctx.restore();
   FX.parts.push(...parts); S.inst.bossArt = art;
-  const tex = ctx.getImageData(0, 0, W, W).data;
+  const tex = ctx.getImageData(0, 0, W, W).data, tex32 = new Uint32Array(tex.buffer);
   ctx.clearRect(0, 0, 24, 24); drawIcon(12, 12, performance.now() - S.hurtT < 500);
   const ic = icon.getContext('2d'); ic.clearRect(0, 0, 24, 24); ic.drawImage(cv, 0, 0, 24, 24, 0, 0, 24, 24);
 
@@ -129,10 +129,17 @@ function draw3d(){
   const cam = { x:tx0 - f.x * back, z:tz0 - f.z * back, y:lookY + dist * Math.sin(e) };
   const fl = (OW / 2) / Math.tan(FOV / 2), cp = Math.cos(e), sp = Math.sin(e), R2 = ARENA_R * ARENA_R, d = img.data;
   const setPx = (i, r, g, b, a = 255) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a; };
+  // 速さのため：床の大部分は「床の絵の1点をそのまま写す」だけなので 32bit でまとめて写す。列ごとの値は先に計算しておく
+  const d32 = new Uint32Array(d.buffer), colX = new Float32Array(OW), colZ = new Float32Array(OW), colV = new Float32Array(OW);
+  for (let sx = 0; sx < OW; sx++){ const vx = (sx - OW / 2) / fl; colV[sx] = vx; colX[sx] = rx * vx; colZ[sx] = rz * vx; }
   for (let sy = 0; sy < OW; sy++){
-    const vy = -(sy - OW * HOR) / fl, dy = vy * cp - sp, dfw = vy * sp + cp;
+    const vy = -(sy - OW * HOR) / fl, dy = vy * cp - sp, dfw = vy * sp + cp, rowX = f.x * dfw, rowZ = f.z * dfw, tr = dy < 0 ? cam.y / -dy : 0;
     for (let sx = 0; sx < OW; sx++){
-      const vx = (sx - OW / 2) / fl, i = (sy * OW + sx) * 4;
+      const vx = colV[sx], i = (sy * OW + sx) * 4;
+      if (dy < -1e-3){ // 床（いちばん多い）
+        const wx = cam.x + (rowX + colX[sx]) * tr, wz = cam.z + (rowZ + colZ[sx]) * tr;
+        if (wx * wx + wz * wz <= R2){ const tx = (C0 + wx * PPY + .5) | 0, tz = (C0 + wz * PPY + .5) | 0; if (tx >= 0 && tz >= 0 && tx < W && tz < W){ d32[i >> 2] = tex32[tz * W + tx] | 0xff000000; continue; } }
+      }
       if (dy >= -1e-3){ // 空：岩の崖のパノラマ
         const elev = Math.atan2(dy, Math.hypot(dfw, vx)), u = ((yaw + Math.atan2(vx, dfw)) / (Math.PI * 2) % 1 + 1) % 1;
         const px = Math.floor(u * PANO_W) % PANO_W, py = Math.max(0, Math.min(PANO_H - 1, Math.floor((1 - elev / PANO_TOP) * PANO_H))), j = (py * PANO_W + px) * 3;
@@ -140,7 +147,6 @@ function draw3d(){
       }
       const t = cam.y / -dy, wx = cam.x + (f.x * dfw + rx * vx) * t, wz = cam.z + (f.z * dfw + rz * vx) * t;
       const tx = Math.round(C0 + wx * PPY), tz = Math.round(C0 + wz * PPY), inTex = tx >= 0 && tz >= 0 && tx < W && tz < W, j = (tz * W + tx) * 4;
-      if (wx * wx + wz * wz <= R2 && inTex){ setPx(i, tex[j], tex[j + 1], tex[j + 2]); continue; }
       // 足場の外：足場の側面（厚み THICK）か、下の暗い谷。谷の上にも予兆（場外のエクサの発生地点）は描く
       const t2 = (cam.y + THICK) / -dy, x2 = cam.x + (f.x * dfw + rx * vx) * t2, z2 = cam.z + (f.z * dfw + rz * vx) * t2;
       if (x2 * x2 + z2 * z2 <= R2 && bm === 1){ setPx(i, 96, 48, 26); continue; }

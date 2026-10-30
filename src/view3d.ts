@@ -154,13 +154,14 @@ function draw3d(){
     items.push({ z:q.z, draw:() => {
       oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 8 * q.s, 8 * q.s * sp, 0, 0, 7); oc.fill();
       oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 5 * q.s, 5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
-      const w = 16 * q.s, h = 22 * q.s * (1 - a * .35), top = q.y - h * .92, img = flame(seed, Math.min(5, Math.floor(a * 6)));
-      if (top > 2){ oc.save(); oc.globalCompositeOperation = 'lighter'; // 炎の上へ、画面の上まで薄くのびる炎（2段で上ほど薄い）
+      const w = 16 * q.s, h = 27 * q.s * (1 - a * .35), top = q.y - h * .92, img = flame(seed, Math.min(5, Math.floor(a * 6)));
+      const nk = q.z < pz ? .3 : 1; // 自キャラより手前の炎は薄く（近いと大きな四角になって画面をふさぐ）
+      if (top > 2 && nk === 1){ oc.save(); oc.globalCompositeOperation = 'lighter'; // 炎の上へ、画面の上まで薄くのびる炎（2段で上ほど薄い）
         const ew = Math.round(w * .8), ex = Math.round(q.x - ew / 2), eb = Math.round(top + h * .4);
         oc.globalAlpha = .2 * (1 - a); oc.drawImage(img, ex, 0, ew, eb);
         oc.globalAlpha = .2 * (1 - a); oc.drawImage(img, ex, Math.round(top * .5), ew, eb - Math.round(top * .5));
         oc.restore(); }
-      oc.globalAlpha = 1 - a * .5; oc.drawImage(img, Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
+      oc.globalAlpha = (1 - a * .5) * nk; oc.drawImage(img, Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
   // 飛び散る粒（高さつき）
   FX.parts.forEach(pt => { const a = S.t - pt.at; if (a < 0 || a > pt.life) return; const y = Math.max(0, pt.vh * a - pt.g * a * a / 2), q = proj(pt.x + pt.vx * a, y, pt.z + pt.vz * a); if (q.z <= 1) return;
     items.push({ z:q.z, draw:() => { oc.fillStyle = pt.cols[Math.min(pt.cols.length - 1, Math.floor(a / pt.life * pt.cols.length))]; const s = Math.max(1, Math.round(.35 * q.s)); oc.fillRect(Math.round(q.x), Math.round(q.y), s, s); } }); });

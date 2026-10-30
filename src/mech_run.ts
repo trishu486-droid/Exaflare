@@ -165,6 +165,8 @@ const RUN = (() => {
           const g = spot(t); ring(px(g.x), px(g.z), Math.round(2 * PPY), P.white); rect(px(g.x), px(g.z), 1, 1, P.white);
         },
         drawFloor(t){ const s = seg(t); s?.inst.drawFloor?.(t - s.at); },
+        // エクサの間だけ 3D で見る（2026-10-30 ユーザー。view3d.ts の on3d）。この間は味方を描かないので、床を斜めに見るだけでよい
+        in3d: t => t >= exa.at && t < exa.end,
         draw(t){
           const s = seg(t); s?.inst.draw(t - s.at);
           const blink = (Math.floor(performance.now() / 160) & 1) === 0;

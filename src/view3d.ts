@@ -15,7 +15,8 @@ import { opt, store } from './store.js';
 import { S } from './state.js';
 
 // エクサはいつも 3D（2026-10-30 ユーザー：真上の見え方はメニューから消した。opt.view は見ない）
-const on3d = () => mech().id === 'exa' && S.phase !== 'menu' && !!S.inst;
+// P5 通し（全通しの P5 も）は、エクサの間だけ 3D（inst.in3d。mech_run.ts）
+const on3d = () => S.phase !== 'menu' && !!S.inst && (mech().id === 'exa' || !!S.inst.in3d?.(S.t));
 // yaw：カメラの向き（0＝北を向く。右回りが＋）。elev：見下ろす角度（0＝真横、π/2＝真上）
 // はじめの角度は実機のスクリーンショット（2026-10-30 ユーザー）に合わせて高め（約35°）。前の版の保存値は使わない（cam3dElev2）
 const ELEV0 = .62, ELEV_MIN = .06, ELEV_MAX = 1.45;

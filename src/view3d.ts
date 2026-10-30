@@ -16,10 +16,11 @@ import { S } from './state.js';
 
 const on3d = () => opt.view === '3d' && mech().id === 'exa' && S.phase !== 'menu' && !!S.inst;
 // yaw：カメラの向き（0＝北を向く。右回りが＋）。elev：見下ろす角度（0＝真横、π/2＝真上）
-const ELEV0 = .32, ELEV_MIN = .06, ELEV_MAX = 1.45;
+const ELEV0 = .3, ELEV_MIN = .06, ELEV_MAX = 1.45;
 const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
 const OW = 176;                          // 3D を描く解像度（正方形）。キャンバス（288）に拡大する
-const DIST = 31.6, AHEAD = 10, FOV = 1.1, HOR = .5, THICK = 3; // カメラから見る点までの距離、見る点（自キャラの前方。真上に近いほど自キャラに寄る）、視野、画面の中心の行、足場の厚み
+// 実機に寄せる（2026-10-30 ユーザー：遠くて広く見えると易しくなる）：自キャラ（胸の高さ LOOK_Y）を画面の真ん中に、距離 DIST（実機の一番引いた所は約20）、視野は狭め
+const DIST = 18, LOOK_Y = 1.5, FOV = .8, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
 const fwdOf = yaw => ({ x:Math.sin(yaw), z:-Math.cos(yaw) });
 const wrap = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 function resetView(){ V.yaw = 0; }
@@ -99,8 +100,8 @@ function draw3d(){
 
   // 2) カメラ
   const Pl = S.player, f = fwdOf(V.yaw), rx = -f.z, rz = f.x;
-  const e = V.elev, ah = AHEAD * Math.cos(e), back = DIST * Math.cos(e) - ah;
-  const cam = { x:Pl.x - f.x * back, z:Pl.z - f.z * back, y:DIST * Math.sin(e) };
+  const e = V.elev, back = DIST * Math.cos(e);
+  const cam = { x:Pl.x - f.x * back, z:Pl.z - f.z * back, y:LOOK_Y + DIST * Math.sin(e) };
   const fl = (OW / 2) / Math.tan(FOV / 2), cp = Math.cos(e), sp = Math.sin(e), R2 = ARENA_R * ARENA_R, d = img.data;
   const setPx = (i, r, g, b) => { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255; };
   for (let sy = 0; sy < OW; sy++){
@@ -144,10 +145,14 @@ function draw3d(){
     oc.globalAlpha = .6 * k; oc.fillRect(x0, y0, 1, h); oc.fillRect(x0 + w - 1, y0, 1, h);
     const g = glyphC(ch, col), gs = 3 * q.s / 14; oc.globalAlpha = k; oc.drawImage(g, Math.round(q.x - 7 * gs), Math.round(y0 - 17 * gs), Math.round(14 * gs), Math.round(16 * gs)); oc.globalAlpha = 1;
   } }); });
-  // 爆発の炎（fx の scorch＝エクサの着弾）
+  // 爆発（fx の scorch＝エクサの着弾）：円（半径6）より大きな炎と、床の光。実機のように、まわりや奥が一瞬見えにくくなる
+  let flash = 0;
   FX.list.forEach((e, n) => { if (e.kind !== 'scorch') return; const a = (S.t - e.at) / .9; if (a < 0 || a >= 1) return; const q = proj(e.x, 0, e.z); if (q.z <= 1) return;
-    const seed = Math.round((e.x + 40) * 7 + (e.z + 40) * 3) % 5;
-    items.push({ z:q.z, draw:() => { const w = 11 * q.s, h = 12 * q.s * (1 - a * .4); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
+    const seed = Math.round((e.x + 40) * 7 + (e.z + 40) * 3) % 5; flash = Math.max(flash, 1 - (S.t - e.at) / .25);
+    items.push({ z:q.z, draw:() => {
+      oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 8 * q.s, 8 * q.s * sp, 0, 0, 7); oc.fill();
+      oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 5 * q.s, 5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
+      const w = 16 * q.s, h = 17 * q.s * (1 - a * .35); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
   // 飛び散る粒（高さつき）
   FX.parts.forEach(pt => { const a = S.t - pt.at; if (a < 0 || a > pt.life) return; const y = Math.max(0, pt.vh * a - pt.g * a * a / 2), q = proj(pt.x + pt.vx * a, y, pt.z + pt.vz * a); if (q.z <= 1) return;
     items.push({ z:q.z, draw:() => { oc.fillStyle = pt.cols[Math.min(pt.cols.length - 1, Math.floor(a / pt.life * pt.cols.length))]; const s = Math.max(1, Math.round(.35 * q.s)); oc.fillRect(Math.round(q.x), Math.round(q.y), s, s); } }); });
@@ -162,6 +167,8 @@ function draw3d(){
     oc.drawImage(icon, Math.round(pp.x - sz / 2), Math.round(pp.y - sz * .95), Math.round(sz), Math.round(sz));
   } }); }
   items.sort((a, b) => b.z - a.z).forEach(it => it.draw());
+  // 着弾の瞬間は画面全体を少し明るく（3D のときだけ。真上の画面は光らせない決まりのまま）
+  if (flash > 0){ oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .3 * flash; oc.fillStyle = '#ffb060'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
 
   // 4) キャンバスに拡大して出す
   ctx.save(); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, W, W); ctx.drawImage(out, 0, 0, W, W); ctx.restore();

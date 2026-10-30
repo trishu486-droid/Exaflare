@@ -57,7 +57,7 @@ const EXA = (() => {
             }
             if (!h.shown && t >= h.t + VIS_DELAY){
               h.shown = true; boom = true;
-              fxParts(3, h.x, h.z, { cols:FXC.fire, speed:5, up:7, life:.5 }); fxAdd('scorch', h.x, h.z, { r:EXA_R * .8, cols:['#7a2a10'], dur:.9 });
+              fxParts(3, h.x, h.z, { cols:FXC.fire, speed:5, up:7, life:.5 }); fxAdd('scorch', h.x, h.z, { r:EXA_R * .8, cols:['#7a2a10'], dur:1.25, d2:.9 }); // 3D の炎は 1.25 秒残す（真上の焦げ跡は今までどおり 0.9 秒で消える）
               fxParts(8, h.x, h.z, { cols:FXC.rock, speed:9, up:8, life:.45, size:2, spread:EXA_R * .6, grav:22 }); // 床が割れて飛ぶ破片
             }
           });

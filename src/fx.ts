@@ -83,7 +83,7 @@ function fxDraw(){
       for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2 + age * 6 * (e.spin || 1), r2 = rr * (.5 + .5 * ((i * 7) % 5) / 4) * (e.inward ? 1 - k * .8 : 1);
         rect(X + Math.round(Math.cos(a) * r2) - 1, Z + Math.round(Math.sin(a) * r2) - 1, 3, 3, cols[i % cols.length]); }
     } else if (e.kind === 'scorch'){ // 床に残る焦げ跡
-      alpha(.5 * (1 - k), () => disc(X, Z, R, c));
+      const k2 = Math.min(1, age / (e.d2 ?? e.dur)); if (k2 < 1) alpha(.5 * (1 - k2), () => disc(X, Z, R, c));
     }
   });
   // 粒

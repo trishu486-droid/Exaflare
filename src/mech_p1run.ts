@@ -12,7 +12,7 @@ import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
-import { HOW, hateTop as planTop, taker, guarded, nextHate, tankHint, mitWindow } from './tankplan.js';
+import { HOW, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1 通し：ばりばりルインガ → 神々の像 第一楽章 → 裁きの光・ハイパードライブ → 第二楽章 → 裁きの光・ハイパードライブ → 第三楽章 → 時間切れ（裁きの光）
@@ -104,7 +104,7 @@ const RUN1 = {
     const self = {
       view:24, t0:T0, countdown:3, bossR:segs[0].bossR, bossArt:'kefka', markers:segs[0].markers, start:segs[0].start,
       intro:isTank ? `あなたは ${me}（タンク強攻撃：${['r1', 'h1', 'r2', 'h2'].map(k => taker(k)).map(([w, h], i) => `${['ルインガ', 'ハイドラ', 'ルインガ', 'ハイドラ'][i]}${w}${HOW[h]}`).join('・')}）` : `あなたは ${me}`,
-      tankRole: t => !isTank || !mitWindow(t, me) ? 'atk' : nextHate(t, me) === 'shirk' ? 'mitS' : 'mitP', // 使わない間は攻撃のボタン
+      tankRole: t => p1TankRole(t, me), // シャークの少し前だけ B がシャーク、無敵の回の前だけ Y が無敵
       tankHint: t => isTank ? tankHint(t, me) : '',
       end:TIMEUP, hpGate:GATE, gateNext:'P2', // 15% まで削れていれば、ここで終わり（全通しは次へ）。足りなければ時間切れ
       casts:[

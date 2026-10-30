@@ -50,7 +50,7 @@ const taker = key => plan().take[key];
 const guarded = (how, hasInvuln, hasMit) => how === 'inv' ? hasInvuln() : hasInvuln() || hasMit();
 // 自分の次の挑発・シャーク（B ボタンの中身を決める）。なければ挑発
 function nextHate(t, me){ const e = plan().ev.find(e => e.k === me && e.t > t - 3); return e?.a === 'shirk' ? 'shirk' : 'prov'; }
-// 軽減のボタンにする時間（2026-10-20 ユーザー：使わない間は攻撃のボタンに戻す。切り替えのカットインは action.ts の kitSwap）
+// B をシャークにする時間を決めるのに使う（2026-10-29 ユーザー：B は挑発かシャークだけ。切り替えのカットインは action.ts の kitSwap）
 // 自分が受けるタンク強攻撃の 8 秒前〜最後の1発の 1 秒後と、自分の挑発・シャークの 8 秒前〜1 秒後
 function mitWindow(t, me){
   if (plan().ev.some(e => e.k === me && t >= e.t - 8 && t < e.t + 1)) return true;
@@ -65,4 +65,8 @@ function tankHint(t, me){
   if (b){ const [who, how] = taker(b.key); return `${b.name} ${who}${HOW[how]}`; }
   return '';
 }
-export { PLANS, BUSTERS, R2_AT, HOW, plan, hateTop, taker, guarded, nextHate, tankHint, mitWindow };
+// Y を無敵にする時間：自分が無敵で受けるタンク強攻撃の 8 秒前〜最後の1発の 1 秒後（ほかの間は Y が重いバフ。2026-10-30 ユーザー）
+const invWindow = (t, me) => BUSTERS.some(b => taker(b.key)[0] === me && taker(b.key)[1] === 'inv' && t >= b.at - 8 && t < b.at + (b.n - 1) * 3 + 1);
+// P1 のタンクのボタン（jobs.ts の tankRole）：B は挑発（シャークの少し前だけシャーク）、Y は無敵の回の前だけ無敵
+const p1TankRole = (t, me) => (me !== 'MT' && me !== 'ST') ? 'P' : (mitWindow(t, me) && nextHate(t, me) === 'shirk' ? 'S' : 'P') + (invWindow(t, me) ? 'i' : '');
+export { PLANS, BUSTERS, R2_AT, HOW, plan, hateTop, taker, guarded, nextHate, tankHint, mitWindow, invWindow, p1TankRole };

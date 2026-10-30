@@ -117,7 +117,7 @@ function makeGap(front){
       const want = thTaker(j);
       if (tgt[0] === 'me'){
         if (me !== want) hurt(me === 'MT' || me === 'ST' ? `サンダガ${j + 1}発目は${p3Label(want)}が受ける（距離スイッチ）` : 'サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
-        else if (!hasMit() && !hasInvuln()) hurt('バフなしでサンダガ（強攻撃）を受けた');
+        else if (!hasMit() && !hasInvuln()) hurt('バフなしでサンダガ（強攻撃）を受けた'); // X ランパートか Y 重いバフで（2026-10-30 ユーザー）
       } else if (me === want) hurt(`サンダガ${j + 1}発目を受けなかった（エクスデスの一番近くにいない）`);
       else if (inBusterAoe(S.player, tgt[1])) hurt('サンダガ（タンク強攻撃の範囲）に巻き込まれた');
       fx3.add('cleave', { q:{ ...tgt[1] }, r:BUSTER_R }); fx3.add('bolt', { ...tgt[1] }); sfx.big(); fxShake(2, .2);

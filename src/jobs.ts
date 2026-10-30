@@ -8,14 +8,12 @@ import { A, hasBuff } from './action.js';
 const BUFFS = {
   invuln:  { name:'インビンシブル', dur:10, mit:true, invuln:true, color:'#ffd84a' },
   rampart: { name:'ランパート', dur:20, mit:true, color:'#5ab0ff' },
-  sheltron:{ name:'シェルトロン', dur:8, mit:true, color:'#8ad0ff' },
   guardian:{ name:'エクストリームガード', dur:15, mit:true, heavy:true, color:'#8ad0ff' },
   living:  { name:'リビングデッド', dur:10, mit:true, invuln:true, color:'#c05aff' },
   // リビングデッドのあと（action.ts の lethalHit）。どちらも HP は1より減らない（無敵と同じ扱い）
   walking: { name:'ウォーキングデッド', dur:10, mit:true, invuln:true, color:'#9a9a9a' },
   rebirth: { name:'デッドリバース', dur:10, mit:true, invuln:true, color:'#c8281e' },
   vigil:   { name:'シャドウヴィジル', dur:15, mit:true, heavy:true, color:'#b08aff' },
-  tbn:     { name:'ブラックナイト', dur:7, mit:true, color:'#8a5ad8' },
   riddle:  { name:'紅蓮の極意', dur:20, dmg:1.15, color:'#ff8a3a' },
   bh:      { name:'桃園結義', dur:20, dmg:1.05, color:'#ffb84a' },
   wf:      { name:'ワイルドファイア', dur:10, dmg:1.1, color:'#ff6a3a' },
@@ -34,21 +32,19 @@ const BUFFS = {
 // step：コンボの段（1→2→3の順に押すとフル威力、順番を外すと low の威力）
 const JOBS = {
   // タンク：A は1〜3段目のコンボ（押すたびに次の段へ自動で切り替わる）。どのギミックでも共通
-  //   B・X・Y はオーケストラでは役割で変わる（ホーリー役＝挑発・ランパート・無敵／フレア役＝シャーク・ランパート・重いバフ）、ほかは攻撃アビリティ
+  //   B・X・Y はバフ・ヘイト管理だけ（2026-10-29 ユーザー：攻撃アビリティはなし）
+  //   全フェーズ共通で B ヘイト管理（挑発。シャークの場面だけシャーク）・X ランパート・Y 重いバフ（自分が無敵で受ける強攻撃の前だけ無敵）（2026-10-30 ユーザー）
+  //   オーケストラも同じ並び（ホーリー役＝挑発・ランパート・無敵／フレア役＝シャーク・ランパート・重いバフ）
   pld: { name:'ナイト', role:'tank', melee:true, slots:['MT'],
          a:{ name:'ファストブレード', chain:[{ name:'ファストブレード', pot:220 }, { name:'ライオットソード', pot:330 }, { name:'ロイヤルアソリティ', pot:460 }] },
-         atk:{ b:{ name:'インペラトル', cd:60, pot:580 }, x:{ name:'エクスピアシオン', cd:30, pot:450 }, y:{ name:'サークル・オブ・ドゥーム', cd:30, pot:290 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'インビンシブル', cd:420, buff:'invuln' },
-         heavy:{ name:'エクストリームガード', cd:120, buff:'guardian' },
-         short:{ name:'ホーリーシェルトロン', cd:15, buff:'sheltron' } }, // 短いバフ（P3 のサンダガ。実機はゲージ消費。ツールは15秒おき）
+         heavy:{ name:'エクストリームガード', cd:120, buff:'guardian' } },
   drk: { name:'暗黒騎士', role:'tank', melee:true, slots:['ST'],
          a:{ name:'ハードスラッシュ', chain:[{ name:'ハードスラッシュ', pot:300 }, { name:'サイフォンストライク', pot:380 }, { name:'ソウルイーター', pot:480 }] },
-         atk:{ b:{ name:'シャドウブリンガー', cd:60, pot:600 }, x:{ name:'漆黒の剣', cd:15, pot:460 }, y:{ name:'カーヴ・アンド・スピット', cd:60, pot:540 } },
          x:{ name:'ランパート', cd:90, buff:'rampart' },
          invuln:{ name:'リビングデッド', cd:300, buff:'living' },
-         heavy:{ name:'シャドウヴィジル', cd:120, buff:'vigil' },
-         short:{ name:'ブラックナイト', cd:15, buff:'tbn' } },
+         heavy:{ name:'シャドウヴィジル', cd:120, buff:'vigil' } },
   mnk: { name:'モンク', role:'melee', melee:true, slots:['D1'],
          a:{ name:'猿舞連撃', pot:220, step:1 },
          b:{ name:'竜頷正拳撃', pot:320, step:2, low:150 },
@@ -87,15 +83,18 @@ const TARGET_DPS = { pld:19000, drk:20000, mnk:31000, rpr:31000, mch:27000, blm:
 const CRIT_AVG = 1.125; // クリ率25%・1.5倍の期待値
 // 理想の毎秒威力：GCD（コンボは平均）＋ダメージのあるアビリティ／リキャスト付きGCD技の上乗せ
 function idealPps(j){
-  const steps = KEYS.filter(k => j[k].step), chain = j.a.chain;
+  const steps = KEYS.filter(k => j[k]?.step), chain = j.a.chain;
   const aPot = chain ? chain.reduce((s, c) => s + c.pot, 0) / chain.length : steps.length ? steps.reduce((s, k) => s + j[k].pot, 0) / steps.length : j.a.pot;
   let pps = aPot / GCD;
-  KEYS.forEach(k => { const ab = j[k]; if (!ab.pot || ab.step || k === 'a') return; pps += ab.gcd ? (ab.pot - aPot) / ab.cd : ab.pot / ab.cd; });
+  // タンクの B・Y は場面で決まる（job()）ので、ここには無い
+  KEYS.forEach(k => { const ab = j[k]; if (!ab?.pot || ab.step || k === 'a') return; pps += ab.gcd ? (ab.pot - aPot) / ab.cd : ab.pot / ab.cd; });
   return pps;
 }
-// タンクは攻撃アビリティ込みの構成で計算する（オーケストラ中にボタンが変わっても、1あたりのダメージは変えない）
-const dmgPerPot = () => { const j = JOBS[opt.job]; return TARGET_DPS[opt.job] / (idealPps(j.role === 'tank' ? { ...j, ...j.atk } : j) * CRIT_AVG); };
+// タンクは攻撃アビリティがないので、コンボだけで目標 DPS が出るように1あたりのダメージを上げてある。さらに 5% 上乗せ（2026-10-29 ユーザー：その分 DPS チェックを緩く）
+const TANK_EASE = 1.05;
+const dmgPerPot = () => { const j = JOBS[opt.job]; return TARGET_DPS[opt.job] / (idealPps(j) * CRIT_AVG) * (j.role === 'tank' ? TANK_EASE : 1); };
 const PROVOKE = { name:'挑発', cd:30, enmity:'provoke' }, SHIRK = { name:'シャーク', cd:120, enmity:'shirk' };
+const NONE = { name:'', cd:0, none:true }; // 使わないボタン（灰色。P3 の B：ヘイトを使わない）
 const SUNSIGN = { name:'サンサイン', cd:0, buff:'sun', sunsign:true, self:true }; // ニュートラルセクト中に1回だけ。self：自分の技で出てくる（切替の知らせなし・ボタンが回る）
 // P3 じしん＆ブラックホール：ヒーラーの Y は単体回復（パーティリストで選んだ人へ）
 const SINGLE_HEAL = { ast:{ name:'ベネフィラ', gcd:true, cd:0, cast:1.5, buff:'b2' }, sch:{ name:'鼓舞激励の策', gcd:true, cd:0, cast:2.0, buff:'adlo' } };
@@ -107,11 +106,8 @@ const GCD = 2.5, QUEUE = 0.5, GCD_QUEUE = 0.3, MELEE = 3, SLIDECAST = 0.5;
 
 if (!JOBS[opt.job]) opt.job = 'pld';
 // オーケストラのタンクの役割：1回目は MT がフレア（ヘイト1位）・ST がホーリー、2回目はその逆
-// P3 前半（バウル・オブ・アゴニー）の MT は、エクスデスの強攻撃を無敵で受けるので Y が無敵
-// P1 第二楽章（ばりばりルインガ）：ST は B 挑発・Y 無敵（2発とも受ける）、MT は B 挑発（1発目のあと）
-// P1・P3（2026-10-20 ユーザー）：ギミックの tankRole(t) が決める。mitP＝B 挑発・X 重いバフ・Y 無敵、mitS＝B がシャーク、mitB＝B が短いバフ（P3）
-const tankRole = () => mech().id === 'orch' ? ((mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy') : (S.inst?.tankRole?.(S.t) ?? 'atk');
-const isMitKit = () => /^mit/.test(tankRole());
+// ほかはギミックの tankRole(t) が決める：1文字目が B（P＝挑発・S＝シャーク・N＝なし）、後ろに i があれば Y が無敵（なければ重いバフ）
+const tankRole = () => mech().id === 'orch' ? ((mySlot() === 'MT') === (opt.orch === 1) ? 'flare' : 'holy') : (S.inst?.tankRole?.(S.t) ?? 'P');
 const jobCache: Record<string, any> = {};
 const job = () => {
   const j = JOBS[opt.job];
@@ -120,12 +116,12 @@ const job = () => {
   if (opt.job === 'ast'){ let sun = false; try { sun = hasBuff('ns') && !A.sunUsed; } catch {} return sun ? (jobCache.astSun ||= { ...j, y:SUNSIGN }) : j; }
   if (j.role !== 'tank') return j;
   const key = opt.job + tankRole();
-  // オーケストラ以外はバフ・ヘイト管理なし：B・X・Y は攻撃アビリティ
   const r = tankRole();
-  if (r === 'mitP' || r === 'mitS' || r === 'mitB') return jobCache[key] ||= { ...j, b:r === 'mitP' ? PROVOKE : r === 'mitS' ? SHIRK : j.short, x:j.heavy, y:j.invuln };
-  return jobCache[key] ||= tankRole() === 'atk' ? { ...j, ...j.atk } : tankRole() === 'inv' ? { ...j, ...j.atk, y:j.invuln } : tankRole() === 'prov' ? { ...j, ...j.atk, b:PROVOKE } : tankRole() === 'flare' ? { ...j, b:SHIRK, y:j.heavy } : { ...j, b:PROVOKE, y:j.invuln };
+  if (r === 'flare') return jobCache[key] ||= { ...j, b:SHIRK, y:j.heavy };
+  if (r === 'holy') return jobCache[key] ||= { ...j, b:PROVOKE, y:j.invuln };
+  return jobCache[key] ||= { ...j, b:r[0] === 'S' ? SHIRK : r[0] === 'N' ? NONE : PROVOKE, y:r.endsWith('i') ? j.invuln : j.heavy };
 };
 // 担当（MT/ST・D1/D2・H1/H2 は切り替え式、他は固定）
 const mySlot = () => { const sl = JOBS[opt.job].slots; return sl.includes(opt.slot[opt.job]) ? opt.slot[opt.job] : sl[0]; };
 
-export { BUFFS, JOBS, JOB_ORDER, TARGET_DPS, CRIT_AVG, idealPps, dmgPerPot, PROVOKE, SHIRK, SUNSIGN, KEYS, isGcd, GCD, QUEUE, GCD_QUEUE, MELEE, SLIDECAST, tankRole, isMitKit, jobCache, job, mySlot };
+export { BUFFS, JOBS, JOB_ORDER, TARGET_DPS, CRIT_AVG, idealPps, dmgPerPot, PROVOKE, SHIRK, NONE, SUNSIGN, KEYS, isGcd, GCD, QUEUE, GCD_QUEUE, MELEE, SLIDECAST, tankRole, jobCache, job, mySlot };

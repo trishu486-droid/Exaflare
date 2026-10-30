@@ -495,7 +495,7 @@ const P3C = {
       ...TH.flatMap((hs, i) => hs.map((h, j) => [h, () => {
         const tgt = nearestTo(EX), want = thWant(i, j);
         if (tgt === me && me !== want) miss(me === 'MT' || me === 'ST' ? `サンダガ${j + 1}発目は${p3Label(want)}が受ける（${THM[i] === 'inv' ? '無敵で2発とも' : '距離スイッチ'}）` : 'サンダガ（強攻撃）を受けた（エクスデスに近すぎた）');
-        else if (tgt === me && (THM[i] === 'inv' ? !hasInvuln() : !hasMit() && !hasInvuln())) miss(`${THM[i] === 'inv' ? '無敵' : 'バフ'}なしでサンダガ（強攻撃）を受けた`);
+        else if (tgt === me && (THM[i] === 'inv' ? !hasInvuln() : !hasMit() && !hasInvuln())) miss(`${THM[i] === 'inv' ? '無敵' : 'バフ'}なしでサンダガ（強攻撃）を受けた`); // 距離スイッチの回は X ランパートか Y 重いバフ
         if (me === want && tgt !== me) miss(`サンダガ${j + 1}発目を受けなかった（エクスデスの一番近くにいない）`);
         if (tgt !== me && inBusterAoe(S.player, pos(tgt))) miss('サンダガ（タンク強攻撃の範囲）に巻き込まれた');
         fx3.add('cleave', { q:{ ...pos(tgt) }, r:BUSTER_R });
@@ -701,7 +701,7 @@ const P3C = {
         { name:'じしん', start:0, len:T.quake },
         { name:'びんびんビンタ', start:T.slap[0].cast, len:T.slap[0].end - T.slap[0].cast },
         { name:'ブラックホール', start:T.slap[0].end, len:T.bhSpawn - T.slap[0].end },
-        ...TH.filter(h => h[0] < T.damning[0].cast).map(h => ({ name:'サンダガ', start:h[0] - 5, len:5 })),
+        ...TH.filter(h => h[0] < T.damning[0].cast).map(h => ({ name:'サンダガ', start:h[0] - 5, len:5, inv:THM[TH.indexOf(h)] === 'inv' ? 'ST' : undefined })), // inv：Y を無敵にする回（jobs.ts の tankRole）
         { name:'ダミングイーディクト', start:T.damning[0].cast, len:T.damning[0].hit - T.damning[0].cast },
         { name:'びんびんビンタ', start:T.damning[0].hit, len:T.slap[1].end - T.damning[0].hit },
         { name:'ダミングイーディクト', start:T.damning[1].cast, len:T.damning[1].hit - T.damning[1].cast },

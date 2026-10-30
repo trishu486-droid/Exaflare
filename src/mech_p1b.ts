@@ -9,7 +9,7 @@ import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
-import { R2_AT, HOW, hateTop as planTop, taker, guarded, nextHate, tankHint, mitWindow } from './tankplan.js';
+import { R2_AT, HOW, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -201,7 +201,7 @@ const P1B = {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
       bossR:6, bossArt:'kefka', markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
       intro:me === R2[0] ? `あなたは ${me}（ルインガ2発：1発目の前に挑発＋${HOW[R2[1]]}）` : me === 'MT' || me === 'ST' ? `あなたは ${me}（ルインガ：1発目のあとに挑発）` : `あなたは ${me}`,
-      tankRole: t => (me !== 'MT' && me !== 'ST') || !mitWindow(toRun(t), me) ? 'atk' : nextHate(toRun(t), me) === 'shirk' ? 'mitS' : 'mitP', // 使わない間は攻撃のボタン
+      tankRole: t => p1TankRole(toRun(t), me), // シャークの少し前だけ B がシャーク、無敵の回の前だけ Y が無敵
       tankHint: t => tankHint(toRun(t), me),
       enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === me })),
       casts:[

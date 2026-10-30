@@ -96,7 +96,7 @@ const RUN = (() => {
         targetable: t => t >= TARGETABLE,
         activeTime: end => Math.max(1, end - TARGETABLE),
         tankRole(t){
-          const o = orchAt(t); if (!o) return 'atk';
+          const o = orchAt(t); if (!o) return 'P';
           return (me === 'MT') === (o.n === 1) ? 'flare' : 'holy';
         },
         enmity(t){

@@ -175,6 +175,7 @@ function pressKey(k){
   sfx.unlock();
   if (!active() || incap()) return;
   const ab = job()[k];
+  if (ab.none) return; // 使わないボタン（灰色）
   if (A.lockKeys.includes(k) && S.t - A.lockAt < SWAP_LOCK) return; // ホットバーで技が変わったボタンは、切り替わった直後だけ受け付けない
   // サンサイン：ニュートラルセクトのリキャストとは別で、すぐ使える
   if (ab.sunsign){ if (S.phase !== 'run') return; A.actAt = S.t; A.sunUsed = true; A.buffs.sun = S.t + BUFFS.sun.dur; sfx.buff(); popup(ab.name, 'crit'); return; }
@@ -239,7 +240,7 @@ function kitSwap(j){
       A.swapAt = S.t; sfx.ok();
       const el = document.createElement('div');
       el.className = 'swapnote outline';
-      el.innerHTML = '<b>ホットバー切替</b>' + changed.map(k => `<span>${k.toUpperCase()} ${j[k].name}</span>`).join('');
+      el.innerHTML = '<b>ホットバー切替</b>' + changed.filter(k => !j[k].none).map(k => `<span>${k.toUpperCase()} ${j[k].name}</span>`).join('');
       fxEl.appendChild(el); setTimeout(() => el.remove(), 1800);
     }
   }

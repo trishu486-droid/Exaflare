@@ -30,11 +30,11 @@ const CHAOS_SIDE = ['ST', 'H2', 'D1', 'D2'];
 // 自分の担当を入れ替えて読む（p3Me）。画面に出すときは元に戻す（p3Label）。ヒーラー・DPS の組はヤーンのまま
 const p3Label = k => k === 'MT' ? 'ST' : k === 'ST' ? 'MT' : k;
 const p3Me = () => p3Label(mySlot());
-// P3 のタンクのボタン：B 短いバフ・X 重いバフ・Y 無敵（jobs.ts の mitB。サンダガ5回のバフ回し）。画面に出す担当名は p3Label で元に戻す
-// 軽減のボタンはサンダガ2連の前後だけ（詠唱の 3 秒前〜2発目の 1 秒後）。ほかの間は攻撃のボタン（2026-10-20 ユーザー）
+// P3 のタンクのボタン（2026-10-30 ユーザー）：B なし（ヘイトを使わない。灰色）・X ランパート・Y 重いバフ。自分が無敵で受けるサンダガ2連の前だけ Y が無敵
+// 無敵の回は、ギミックの casts のサンダガに inv（受けるタンクの、コードの中の担当）を付けてある。画面に出す担当名は p3Label で元に戻す
 const withP3Tank = m => ({ ...m, create(p){
-  const inst = m.create(p), th = () => (inst.casts || []).filter(c => c.name === 'サンダガ' && c.len === 5).map(c => c.start);
-  inst.tankRole ??= t => JOBS[opt.job].role === 'tank' && th().some(s => t >= s - 3 && t < s + 9) ? 'mitB' : 'atk';
+  const inst = m.create(p), me = p3Me();
+  inst.tankRole ??= t => 'N' + ((inst.casts || []).some(c => c.inv === me && t >= c.start - 3 && t < c.start + c.len + 4) ? 'i' : '');
   inst.slotLabel ??= p3Label; return inst;
 } });
 const BOSS_TC = 5; // カオス・エクスデスのターゲットサークルの半径（ヤーンの図から）
@@ -449,7 +449,7 @@ const P3A0 = (() => {
           { name:'決戦', start:0, len:T.battle },
           { name:'バウル・オブ・アゴニー', start:T.bowels - 5, len:5 },
           { name:'サンダガ', start:T.thunderAoe - THUNDER_CAST, len:THUNDER_CAST },
-          { name:'サンダガ', start:T.buster[0] - 5, len:5 },
+          { name:'サンダガ', start:T.buster[0] - 5, len:5, inv:'MT' }, // エクスデス持ち（暗黒）が無敵で2発とも
           { name:p.vertical ? 'ヴァーティカルインプロージョン' : 'ホリゾンタルインプロージョン', start:T.implCast, len:T.impl[0] - T.implCast },
           { name:'アンブラスマッシュ', start:T.umbraCast, len:T.umbra - T.umbraCast },
           { name:'真空波', start:T.vacuumCast, len:T.vacuum - T.vacuumCast },

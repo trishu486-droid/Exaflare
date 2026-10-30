@@ -162,7 +162,7 @@ function draw3d(){
       oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 6 * q.s, 6 * q.s * sp, 0, 0, 7); oc.fill();
       oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 3.5 * q.s, 3.5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
       const w = 12 * q.s, h = 27 * q.s * (1 - a * .35), top = q.y - h * .92, img = flame(seed, Math.min(5, Math.floor(a * 6)));
-      const nk = q.z < pz ? .3 : 1; // 自キャラより手前の炎は薄く（近いと大きな四角になって画面をふさぐ）
+      const nk = q.z >= pz ? 1 : pz - q.z < 8 ? .5 : .25; // 自キャラより手前の炎は薄く（カメラに近いと大きな四角になって画面をふさぐ）。自キャラのすぐ手前（8 以内）は 0.5 の濃さで残して、自キャラを少し隠す（2026-10-30 ユーザー。サンプル B）
       if (top > 2 && nk === 1){ oc.save(); oc.globalCompositeOperation = 'lighter'; // 炎の上へ、画面の上まで薄くのびる炎（2段で上ほど薄い）
         const ew = Math.round(w * .8), ex = Math.round(q.x - ew / 2), eb = Math.round(top + h * .4);
         oc.globalAlpha = .2 * (1 - a); oc.drawImage(img, ex, 0, ew, eb);

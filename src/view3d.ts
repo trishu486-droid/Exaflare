@@ -184,6 +184,11 @@ function draw3d(){
   } }); }
   items.sort((a, b) => b.z - a.z).forEach(it => it.draw());
   // 着弾の瞬間は画面全体を少し明るく（3D のときだけ。真上の画面は光らせない決まりのまま）
+  // 爆発が続いている間は画面全体がオレンジにかすむ（2026-10-30 ユーザー：実機は床も予兆も見えにくい）。自キャラの近くの爆発ほど濃い。4段に分けて変える
+  let haze = 0;
+  FX.list.forEach(e => { if (e.kind !== 'scorch') return; const a = (S.t - e.at) / e.dur; if (a < 0 || a >= 1) return; haze += (1 - a) * Math.max(0, 1 - Math.hypot(e.x - Pl.x, e.z - Pl.z) / 18); });
+  haze = Math.ceil(Math.min(1, haze * .3) * 4) / 4;
+  if (haze > 0){ oc.save(); oc.globalAlpha = .38 * haze; oc.fillStyle = '#ff8a3a'; oc.fillRect(0, 0, OW, OW); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .12 * haze; oc.fillStyle = '#ffd08a'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
   if (flash > 0){ oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .3 * flash; oc.fillStyle = '#ffb060'; oc.fillRect(0, 0, OW, OW); oc.restore(); }
 
   // 4) キャンバスに拡大して出す

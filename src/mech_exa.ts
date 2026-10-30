@@ -8,12 +8,13 @@ import { sfx } from './audio.js';
 // ギミック1：混沌の終末（エクサ）
 // =====================================================================
 const EXA = (() => {
-  const EXA_R = 6, HIT_COUNT = 6, SET_INTERVAL = 2.5, FIRST_HIT = 4.5, HIT_GAP = 0.51;
-  // 着弾した床：溶岩の円が同じ大きさのまま約0.9秒残り、次の1〜2発と重なる（見た目だけ。判定は着弾の瞬間）
-  const LAVA = .9, FLASH = .08;
+  const EXA_R = 6, HIT_COUNT = 6, SET_INTERVAL = 2.5, FIRST_HIT = 4.45, HIT_GAP = 0.51;
+  // 着弾した床：溶岩の円が同じ大きさのまま残り、次の何発かと重なる（見た目だけ。判定は着弾の瞬間）
+  // 2026-10-30 ユーザー：実機は床が溶岩だらけで、新しい円と古い円の区別がつきにくい → 0.9 → 1.6 秒、明るく
+  const LAVA = 1.6, FLASH = .08;
   // 実機は判定が先で、爆発の見た目は通信とエフェクトのぶん遅れて出る。判定は着弾の時刻のまま、見た目だけ VIS_DELAY 秒遅らせる
-  // 2026-10-30 ユーザー：判定をもう少し早く（4.5）。見た目は判定の 0.1 秒後（4.6。実機の動画で、予兆が出てから最初の爆発まで約4.4〜4.5秒）
-  const VIS_DELAY = .1;
+  // 2026-10-30 ユーザー：判定は見た目の 0.15 秒前（4.45。通信のずれのぶん）。見た目は 4.6 のまま（実機の動画で、予兆が出てから最初の爆発まで約4.4〜4.5秒）
+  const VIS_DELAY = .15;
   // 外周の予兆は「エクサ設置」の詠唱（約3.9秒）の間だけ出す。1発目の判定まで約0.6秒は何もない（2026-10-30 ユーザー。research-p5-exa.md 4章）
   const MARK_LEN = 3.9, MARK_FADE = .6; // 最後の MARK_FADE 秒で4段に分けて薄くなり、MARK_LEN で消えきる（2026-10-30 ユーザー）
   const PATTERNS = { A:[-25, 5], B:[-15, 15], C:[-5, 25] }; // レーン i と i+3
@@ -83,9 +84,9 @@ const EXA = (() => {
                 if (dt < 0 || dt > LAVA) return;
                 const X = px(h.x), Z = px(h.z), R = EXA_R * PPY;
                 if (dt < FLASH){ alpha(.9, () => disc(X, Z, R, P.exaHi)); disc(X, Z, Math.round(R * .5), P.white); return; } // 着弾の一瞬の光（床の中だけ）
-                const fade = Math.min(1, (LAVA - dt) / .2); // 最後だけ薄くなる
-                alpha(.75 * fade, () => {
-                  disc(X, Z, R, P.exa);
+                const fade = Math.min(1, (LAVA - dt) / .3); // 最後だけ薄くなる
+                alpha(.9 * fade, () => {
+                  disc(X, Z, R, P.exa); disc(X, Z, Math.round(R * .55), '#ffa040');
                   // 溶岩のひび（着弾点ごとに決まった形）
                   for (let i = 0; i < 5; i++){
                     const a = (h.x * 7 + h.z * 13 + i * 1.3) % (Math.PI * 2), b = a + .6;

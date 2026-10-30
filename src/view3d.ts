@@ -123,7 +123,7 @@ function draw3d(){
       const t2 = (cam.y + THICK) / -dy, x2 = cam.x + (f.x * dfw + rx * vx) * t2, z2 = cam.z + (f.z * dfw + rz * vx) * t2;
       if (x2 * x2 + z2 * z2 <= R2){ setPx(i, 96, 48, 26); continue; }
       let r = 16, g = 9, b = 7; if (hash(Math.floor(wx * 1.3) * 3.1 + Math.floor(wz * 1.3) * 7.7) > .9){ r = 38; g = 20; b = 12; }
-      if (inTex){ const c0 = tex[j], c1 = tex[j + 1], c2 = tex[j + 2]; if (!(c0 === SPACE[0] && c1 === SPACE[1] && c2 === SPACE[2]) && !(c0 === STAR[0] && c1 === STAR[1] && c2 === STAR[2])){ r = c0; g = c1; b = c2; } }
+      if (inTex){ const c0 = tex[j], c1 = tex[j + 1], c2 = tex[j + 2]; if (!(c0 === SPACE[0] && c1 === SPACE[1] && c2 === SPACE[2]) && !(c0 === STAR[0] && c1 === STAR[1] && c2 === STAR[2])){ const al = Math.min(1, tex[j + 3] / 255 / .35); r = r + (c0 - r) * al; g = g + (c1 - g) * al; b = b + (c2 - b) * al; } } // 薄く消えていく予兆は、谷の色と混ぜる（予兆の円の地の濃さ 0.35 を「くっきり」とする）
       setPx(i, r, g, b);
     }
   }

@@ -31,7 +31,10 @@ function resetView(){ V.yaw = 0; }
 // スティックの向き（画面の上＝-z）を、カメラから見た向きに直す
 function moveDir(mx, mz){ const f = fwdOf(V.yaw); return { x:-f.z * mx + f.x * -mz, z:f.x * mx + f.z * -mz }; }
 // 前寄りに動いているときだけ、その向きへカメラをゆっくり回す（真横・手前へ動くときは回さない。横によけている間に景色が回らないように）
+// 2026-10-30 ユーザー：ななめに動いたときに勝手に回るのはやめて、スワイプしたときだけ回す（作りは AUTO_TURN で残す）
+const AUTO_TURN = false;
 function follow(dx, dz, dt){
+  if (!AUTO_TURN) return;
   const want = Math.atan2(dx, -dz), d = wrap(want - V.yaw);
   if (Math.abs(d) < 1.1) V.yaw = wrap(V.yaw + d * (1 - Math.exp(-.8 * dt)));
 }
@@ -85,6 +88,8 @@ const out = document.createElement('canvas'); out.width = out.height = OW;
 const oc = out.getContext('2d'); oc.imageSmoothingEnabled = false;
 const img = oc.createImageData(OW, OW);
 const icon = document.createElement('canvas'); icon.width = icon.height = 24;
+// フィールドの外の予兆（エクサの発生地点）の円の中の濃さ。実機は中が暗く透けていて、縁と「>>>」だけが明るい（2026-10-30 ユーザー。サンプル C）
+const MARK_FILL = .4;
 const SPACE = [28, 26, 60], STAR = [74, 68, 120]; // 真上の画面のフィールドの外の色（P.space・P.star）。これ以外は予兆なので外でも描く
 
 function draw3d(){
@@ -124,7 +129,7 @@ function draw3d(){
       const t2 = (cam.y + THICK) / -dy, x2 = cam.x + (f.x * dfw + rx * vx) * t2, z2 = cam.z + (f.z * dfw + rz * vx) * t2;
       if (x2 * x2 + z2 * z2 <= R2){ setPx(i, 96, 48, 26); continue; }
       let r = 16, g = 9, b = 7; if (hash(Math.floor(wx * 1.3) * 3.1 + Math.floor(wz * 1.3) * 7.7) > .9){ r = 38; g = 20; b = 12; }
-      if (inTex){ const c0 = tex[j], c1 = tex[j + 1], c2 = tex[j + 2]; if (!(c0 === SPACE[0] && c1 === SPACE[1] && c2 === SPACE[2]) && !(c0 === STAR[0] && c1 === STAR[1] && c2 === STAR[2])){ const al = Math.min(1, tex[j + 3] / 255 / .35); r = r + (c0 - r) * al; g = g + (c1 - g) * al; b = b + (c2 - b) * al; } } // 薄く消えていく予兆は、谷の色と混ぜる（予兆の円の地の濃さ 0.35 を「くっきり」とする）
+      if (inTex){ const c0 = tex[j], c1 = tex[j + 1], c2 = tex[j + 2]; if (!(c0 === SPACE[0] && c1 === SPACE[1] && c2 === SPACE[2]) && !(c0 === STAR[0] && c1 === STAR[1] && c2 === STAR[2])){ const al = Math.min(1, tex[j + 3] / 255 / .35 * MARK_FILL); r = r + (c0 - r) * al; g = g + (c1 - g) * al; b = b + (c2 - b) * al; } } // 薄く消えていく予兆は、谷の色と混ぜる（予兆の円の地の濃さ 0.35 を「くっきり」とする）
       setPx(i, r, g, b);
     }
   }

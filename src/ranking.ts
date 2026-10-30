@@ -1,7 +1,7 @@
 import { FB_BASE, FB_KEY, FB_PROJECT, RANK_ON } from './ranking_config.js';
 import { $, opt, store } from './store.js';
 import { S } from './state.js';
-import { P1_MECHS, P2_MECHS, P3_MECHS, P5_MECHS, mech } from './mechs.js';
+import { P1_MECHS, P2_MECHS, P3_MECHS, P4_MECHS, P5_MECHS, mech } from './mechs.js';
 import { RUN } from './mech_run.js';
 import { JOBS, JOB_ORDER } from './jobs.js';
 import { sfx } from './audio.js';
@@ -30,11 +30,8 @@ const jst = (ts: string) => { const d = new Date(new Date(ts).getTime() + 9 * 36
 // 登録できない理由（なければ null）。buildResult から呼ぶ
 function rankBlock(){
   if (!RANK_ON) return 'off';
-  if (S.inst?.hpGate && mech().id === 'p4') return 'P4 はランキングの対象外です';
   if (mech().id === 'full') return '全通しはランキングの対象外です';
-  if (P1_MECHS.includes(mech())) return 'P1 はランキングの対象外です';
-  if (P2_MECHS.includes(mech())) return 'P2 はランキングの対象外です';
-  if (P3_MECHS.includes(mech())) return 'P3 はランキングの対象外です'; // Firestore のルールに入れるまで
+  if (!mechs().some(m => m.id === mech().id)) return 'このギミックはランキングの対象外です'; // RANK_GROUPS にないもの（P3 の部品など）
   if (S.hits) return '被弾0でクリアしたときだけ登録できます';
   if (opt.speed !== 1) return 'ゲーム速度100%のときだけ登録できます';
   if (opt.safe || opt.path || opt.spots) return '安地表示・補助表示・立ち位置ガイドがすべてOFFのときだけ登録できます';
@@ -47,7 +44,9 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;'
 const cleanName = (s: string) => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12);
 // ランキングのあるギミック：フェーズごとにまとめて、名前の前にフェーズを付ける（2026-10-29 ユーザー「P5 か P4 か分からない」）
 // 前は「P1〜P4 以外ぜんぶ」を出していたので、P3 の部品（メニューに出さないもの）や全通しまで混ざっていた
-const RANK_GROUPS = () => [{ ph:'P5', boss:'カオスケフカ', list:[...P5_MECHS, RUN] }];
+// P1〜P4 は 2026-10-30 ユーザー「ランキング P4 以前のも作っていいよ」で追加（Firestore のルールにも足す）
+const RANK_GROUPS = () => [{ ph:'P1', boss:'ケフカ', list:P1_MECHS }, { ph:'P2', boss:'ゴッドケフカ', list:P2_MECHS }, { ph:'P3', boss:'エクスデス＆カオス', list:P3_MECHS },
+  { ph:'P4', boss:'ネオエクスデス＆カオス', list:P4_MECHS }, { ph:'P5', boss:'カオスケフカ', list:[...P5_MECHS, RUN] }];
 const mechs = () => RANK_GROUPS().flatMap(g => g.list);
 const phaseOfRank = m => RANK_GROUPS().find(g => g.list.includes(m))?.ph ?? '';
 const mechLabel = m => m.name.startsWith(phaseOfRank(m)) ? m.name : `${phaseOfRank(m)} ${m.name}`; // 「P5 通し」は二重にしない
@@ -132,7 +131,7 @@ function openRank(reg = false){
   if (!RANK_ON) return;
   regMode = reg && !!S.rankEntry && !S.rankSent;
   if (regMode) view.job = '';
-  view.mech = (regMode && S.rankEntry.mech) || (mechs().some(m => m.id === opt.mech) ? opt.mech : mechs()[0].id);
+  view.mech = (regMode && S.rankEntry.mech) || (mechs().some(m => m.id === opt.mech) ? opt.mech : 'exa');
   ($('rankMech') as HTMLSelectElement).innerHTML = mechOptions();
   ($('rankJob') as HTMLSelectElement).value = view.job;
   $('rank').hidden = false; renderForm(); load(); sfx.unlock(); sfx.ok();

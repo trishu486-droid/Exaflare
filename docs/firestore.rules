@@ -7,7 +7,7 @@ service cloud.firestore {
       return d.keys().hasOnly(['name', 'mech', 'job', 'slot', 'score', 'dps', 'rankKey', 'created_at'])
         && d.keys().hasAll(['name', 'mech', 'job', 'slot', 'score', 'dps', 'rankKey', 'created_at'])
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
-        && d.mech in ['flood', 'orch', 'celes', 'exa', 'miss', 'p5']
+        && d.mech in ['flood', 'orch', 'celes', 'exa', 'miss', 'p5', 'p4', 'p3a', 'p3c', 'p3d', 'p3', 'p2m', 'p2t', 'p2', 'p1a', 'p1b', 'p1c', 'p1']
         && d.job in ['pld', 'drk', 'mnk', 'rpr', 'mch', 'blm', 'ast', 'sch']
         && (d.slot == null || d.slot in ['MT', 'ST', 'D1', 'D2', 'D3', 'D4', 'H1', 'H2'])
         && d.score is int && d.score >= 0 && d.score <= 120

@@ -104,9 +104,10 @@ function openMissM(){ S.menu = 'missm'; S.cursor = Math.max(0, MISS_METHODS.find
 // P1 のタンク（第二楽章・P1 通し・全通し）は、バフ回しを選ぶ（2026-10-20 ユーザー）
 const needTPlan = () => JOBS[opt.job].role === 'tank' && ['p1b', 'p1', 'full'].includes(mech().id);
 function openTPlan(){ S.menu = 'tplan'; S.cursor = Math.max(0, PLANS.findIndex(p => p.id === opt.tplan)); renderMenu(); }
-// エクサは、選んだあとに見え方（真上／3D）を選ぶ（2026-10-30 ユーザー。view3d.ts）
+// エクサは、選んだあとに見え方（真上／3D）を選ぶ（2026-10-30 ユーザー。view3d.ts）。
+// 3D だけにしたので、今はこの画面を出さない（2026-10-30 ユーザー：真上はメニューから消す。作りは残す）
 const VIEWS = [['2d', '真上', 'いつもの見え方'], ['3d', '3D', '実機のように後ろから見る|（スワイプでカメラを回す）']];
-const needView = () => mech().id === 'exa';
+const needView = () => false;
 function openView(){ S.menu = 'view'; S.cursor = Math.max(0, VIEWS.findIndex(v => v[0] === opt.view)); renderMenu(); }
 const nextStep = () => { if (needOrchN()) openOrchN(); else if (needMissM()) openMissM(); else if (needTPlan()) openTPlan(); else if (needView()) openView(); else begin(); };
 function menuConfirm(i = S.cursor){

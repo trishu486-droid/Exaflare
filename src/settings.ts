@@ -19,6 +19,9 @@ oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;
 function speedLabel(){ $('oSpeedV').textContent = Math.round(opt.speed * 100) + '%'; }
 speedLabel();
 oFirst.addEventListener('change', () => { opt.first = oFirst.value; store.set('first', opt.first); });
+// 3D のカメラ（エクサ）：横スワイプで回る向きを左右反転できる（2026-10-30 ユーザー。input.ts）
+const oCamInv = $('oCamInv'); oCamInv.value = opt.camInv ? '1' : '0';
+oCamInv.addEventListener('change', () => { opt.camInv = oCamInv.value === '1'; store.set('camInv', opt.camInv); });
 oSpeed.addEventListener('input', () => { opt.speed = parseFloat(oSpeed.value); store.set('speed', opt.speed); speedLabel(); });
 oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('path', opt.path); });
 oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });

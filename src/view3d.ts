@@ -16,11 +16,13 @@ import { S } from './state.js';
 
 const on3d = () => opt.view === '3d' && mech().id === 'exa' && S.phase !== 'menu' && !!S.inst;
 // yaw：カメラの向き（0＝北を向く。右回りが＋）。elev：見下ろす角度（0＝真横、π/2＝真上）
-const ELEV0 = .3, ELEV_MIN = .06, ELEV_MAX = 1.45;
-const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
+// はじめの角度は実機のスクリーンショット（2026-10-30 ユーザー）に合わせて高め（約35°）。前の版の保存値は使わない（cam3dElev2）
+const ELEV0 = .62, ELEV_MIN = .06, ELEV_MAX = 1.45;
+const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev2', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
 const OW = 176;                          // 3D を描く解像度（正方形）。キャンバス（288）に拡大する
 // 実機に寄せる（2026-10-30 ユーザー：遠くて広く見えると易しくなる）：自キャラ（胸の高さ LOOK_Y）を画面の真ん中に、距離 DIST（実機の一番引いた所は約20）、視野は狭め
-const DIST = 18, LOOK_Y = 1.5, FOV = .8, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
+const KEFKA_K = .6; // ケフカの板の大きさ（真上の絵の何倍か）。実機のスクリーンショットでは自キャラの近くでも画面をふさがない
+const DIST = 17, LOOK_Y = 1.5, FOV = 1.05, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
 const fwdOf = yaw => ({ x:Math.sin(yaw), z:-Math.cos(yaw) });
 const wrap = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 function resetView(){ V.yaw = 0; }
@@ -32,7 +34,7 @@ function follow(dx, dz, dt){
   if (Math.abs(d) < 1.1) V.yaw = wrap(V.yaw + d * (1 - Math.exp(-.8 * dt)));
 }
 function turn(rad){ V.yaw = wrap(V.yaw + rad); }
-function tilt(rad){ V.elev = Math.max(ELEV_MIN, Math.min(ELEV_MAX, V.elev + rad)); try { store.set('cam3dElev', V.elev); } catch {} }
+function tilt(rad){ V.elev = Math.max(ELEV_MIN, Math.min(ELEV_MAX, V.elev + rad)); try { store.set('cam3dElev2', V.elev); } catch {} }
 
 // ---- 背景（上）：岩の崖のパノラマ。一度だけ作る（横 PANO_W・縦 PANO_H、縦は地平線から上の角度） ----
 const PANO_W = 1024, PANO_H = 96, PANO_TOP = .9;
@@ -138,12 +140,12 @@ function draw3d(){
   const corners = (mk?.corner || S.inst.fieldMarker || opt.marker) === 'nw' ? [[-dd, -dd], [dd, -dd], [dd, dd], [-dd, dd]] : [[dd, -dd], [dd, dd], [-dd, dd], [-dd, -dd]];
   const MK = [['A', 0, -m, 0], ['B', m, 0, 1], ['C', 0, m, 2], ['D', -m, 0, 3], ...corners.map(([x, z], k) => [String(k + 1), x, z, k])];
   MK.forEach(([ch, x, z, k]) => { const q = proj(x, 0, z); if (q.z <= 1) return; const col = P.mk[k]; items.push({ z:q.z, draw:() => {
-    const w = Math.max(2, Math.round(2.4 * q.s)), h = Math.round(3 * q.s), x0 = Math.round(q.x - w / 2), y0 = Math.round(q.y - h);
+    const w = Math.max(2, Math.round(1.6 * q.s)), h = Math.round(2.4 * q.s), x0 = Math.round(q.x - w / 2), y0 = Math.round(q.y - h);
     const k = near(q.z);
     oc.fillStyle = col; oc.globalAlpha = .18 * k; oc.fillRect(x0, y0, w, h);
     oc.globalAlpha = .45 * k; for (let yy = y0 + 1; yy < y0 + h; yy += 3) oc.fillRect(x0 + 1, yy, w - 2, 1);
     oc.globalAlpha = .6 * k; oc.fillRect(x0, y0, 1, h); oc.fillRect(x0 + w - 1, y0, 1, h);
-    const g = glyphC(ch, col), gs = 3 * q.s / 14; oc.globalAlpha = k; oc.drawImage(g, Math.round(q.x - 7 * gs), Math.round(y0 - 17 * gs), Math.round(14 * gs), Math.round(16 * gs)); oc.globalAlpha = 1;
+    const g = glyphC(ch, col), gs = 1.7 * q.s / 14; oc.globalAlpha = k; oc.drawImage(g, Math.round(q.x - 7 * gs), Math.round(y0 - 17 * gs), Math.round(14 * gs), Math.round(16 * gs)); oc.globalAlpha = 1;
   } }); });
   // 爆発（fx の scorch＝エクサの着弾）：円（半径6）より大きな炎と、床の光。実機のように、まわりや奥が一瞬見えにくくなる
   let flash = 0;
@@ -152,13 +154,13 @@ function draw3d(){
     items.push({ z:q.z, draw:() => {
       oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 8 * q.s, 8 * q.s * sp, 0, 0, 7); oc.fill();
       oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 5 * q.s, 5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
-      const w = 16 * q.s, h = 17 * q.s * (1 - a * .35); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
+      const w = 15 * q.s, h = 9 * q.s * (1 - a * .35); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
   // 飛び散る粒（高さつき）
   FX.parts.forEach(pt => { const a = S.t - pt.at; if (a < 0 || a > pt.life) return; const y = Math.max(0, pt.vh * a - pt.g * a * a / 2), q = proj(pt.x + pt.vx * a, y, pt.z + pt.vz * a); if (q.z <= 1) return;
     items.push({ z:q.z, draw:() => { oc.fillStyle = pt.cols[Math.min(pt.cols.length - 1, Math.floor(a / pt.life * pt.cols.length))]; const s = Math.max(1, Math.round(.35 * q.s)); oc.fillRect(Math.round(q.x), Math.round(q.y), s, s); } }); });
   // ケフカ
   const ko = typeof art === 'string' ? { id:art } : art, ksp = ko && kefkaSprite(ko.id);
-  if (ksp){ const bp = proj(0, 0, 0); if (bp.z > 1) items.push({ z:bp.z, draw:() => { const kk = ko.k ?? 1, hw = ksp.width * kk / PPY, hh = ksp.height * kk / PPY; oc.globalAlpha = bp.z < pz ? .45 : 1; oc.drawImage(ksp, Math.round(bp.x - hw * bp.s / 2), Math.round(bp.y - hh * bp.s * .8), Math.round(hw * bp.s), Math.round(hh * bp.s)); oc.globalAlpha = 1; } }); }
+  if (ksp){ const bp = proj(0, 0, 0); if (bp.z > 1) items.push({ z:bp.z, draw:() => { const kk = (ko.k ?? 1) * KEFKA_K, hw = ksp.width * kk / PPY, hh = ksp.height * kk / PPY; oc.globalAlpha = bp.z < pz ? .45 : 1; oc.drawImage(ksp, Math.round(bp.x - hw * bp.s / 2), Math.round(bp.y - hh * bp.s * .8), Math.round(hw * bp.s), Math.round(hh * bp.s)); oc.globalAlpha = 1; } }); }
   // 自キャラ（落ちたときは小さくなって消える）
   const fall = S.fall ? Math.min(1, (performance.now() - S.fall.at) / 750) : 0;
   if (fall < 1){ const pp = proj(Pl.x, -fall * 4, Pl.z), sz = 2.4 * pp.s * (1 - fall * fall); items.push({ z:pp.z, draw:() => {

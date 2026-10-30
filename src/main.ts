@@ -28,6 +28,7 @@ import './action.js';
 import './game.js';
 import './menu.js';
 import './input.js';
+import './pad.js';
 import './info.js';
 import './settings.js';
 import './title.js';

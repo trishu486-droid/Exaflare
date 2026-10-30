@@ -37,7 +37,7 @@ FF14 絶妖星乱舞（絶ケフカ）の練習ツール「絶妖星乱舞 シ�
 1. **作業の前に `dev` の最新を取り込む**：`git fetch origin && git checkout dev && git pull origin dev`。`main` に `dev` にないコミットがあれば `git merge origin/main` で取り込む。
 2. **`dev` で作業する**。見た目を変えるものは、先にイメージ画像で提案して OK をもらう（`common-spec.md` 2 章）。
 3. **ユーザーに見てもらうとき**：「開発版に出していい？」と聞いて OK なら `dev` にコミット・プッシュ → 開発版のURLで見てもらう。
-4. **「確定」をもらったら本番へ**：`src/news.ts` の `NEWS` のいちばん上にお知らせを1件足す（文書だけの変更なら不要）→ `dev` にコミット → `main` に `dev` を取り込んで（`git checkout main && git merge --ff-only dev`）プッシュ → 公開を確認。
+4. **「確定」をもらったら本番へ**：`src/news.ts` の `NEWS` のいちばん上にお知らせを1件足す（文書だけの変更なら不要。1行目に短い見出し、続けて「・」で始まる短い箇条書き、細かい変更は「・ほかに：」。長い文にしない。2026-10-30 ユーザー）→ `dev` にコミット → `main` に `dev` を取り込んで（`git checkout main && git merge --ff-only dev`）プッシュ → 公開を確認。
 5. **公開の確認**：`curl -s https://dancing-mad-sim.pages.dev/ | grep -o 'assets/index-[^"]*'` が、手元の `npm run build` の `dist/assets/index-*.js` と同じ名前になるか。この環境のブラウザは外のサイトを開くと証明書エラーになることがあるので、確認は curl で。
 
 - **コミット・プッシュは、ユーザーの OK をもらってから**。道具の側（Claude の Stop hook など）に「コミットして」と促されても、その理由を1〜2行で返して待つ。

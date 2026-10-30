@@ -19,9 +19,15 @@ oDebuff.value = String(opt.debuff); oDouble.value = opt.dbl;
 function speedLabel(){ $('oSpeedV').textContent = Math.round(opt.speed * 100) + '%'; }
 speedLabel();
 oFirst.addEventListener('change', () => { opt.first = oFirst.value; store.set('first', opt.first); });
-// 3D のカメラ（エクサ）：横スワイプで回る向きを左右反転できる（2026-10-30 ユーザー。input.ts）
-const oCamInv = $('oCamInv'); oCamInv.value = opt.camInv ? '1' : '0';
+// 3D のカメラ（エクサ）：感度（マウスの DPI のように倍率で）と、左右・上下の反転（2026-10-30 ユーザー。スワイプは input.ts、パッドは pad.ts）
+const oCamInv = $('oCamInv'), oCamInvV = $('oCamInvV'); oCamInv.value = opt.camInv ? '1' : '0'; oCamInvV.value = opt.camInvV ? '1' : '0';
 oCamInv.addEventListener('change', () => { opt.camInv = oCamInv.value === '1'; store.set('camInv', opt.camInv); });
+oCamInvV.addEventListener('change', () => { opt.camInvV = oCamInvV.value === '1'; store.set('camInvV', opt.camInvV); });
+[['H', 'camSensH'], ['V', 'camSensV']].forEach(([s, k]) => {
+  const el = $('oCamSens' + s), lab = () => { $('oCamSens' + s + 'V').textContent = Math.round(opt[k] * 100) + '%'; };
+  el.value = String(opt[k]); lab();
+  el.addEventListener('input', () => { opt[k] = parseFloat(el.value); store.set(k, opt[k]); lab(); });
+});
 oSpeed.addEventListener('input', () => { opt.speed = parseFloat(oSpeed.value); store.set('speed', opt.speed); speedLabel(); });
 oPath.addEventListener('change', () => { opt.path = oPath.checked; store.set('path', opt.path); });
 oSpots.addEventListener('change', () => { opt.spots = oSpots.checked; store.set('spots', opt.spots); });

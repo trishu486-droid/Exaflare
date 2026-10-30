@@ -128,7 +128,7 @@ cv.addEventListener('pointermove', e => {
   if (e.pointerId !== dragId) return;
   // 3D 視点（view3d.ts）：フィールドのドラッグ（スワイプ）はカメラを回す（移動はスティック・キー）
   //   横＝向き、縦＝高さ（下へ引くとカメラが上がって真上に近づく）
-  if (on3d()){ turn((opt.camInv ? 1 : -1) * (e.clientX - dragO.x) * .012); tilt((e.clientY - dragO.y) * .006); dragO.x = e.clientX; dragO.y = e.clientY; return; }
+  if (on3d()){ turn((opt.camInv ? 1 : -1) * (e.clientX - dragO.x) * .012 * opt.camSensH); tilt((opt.camInvV ? -1 : 1) * (e.clientY - dragO.y) * .006 * opt.camSensV); dragO.x = e.clientX; dragO.y = e.clientY; return; }
   const dx = e.clientX - dragO.x, dz = e.clientY - dragO.y, d = Math.hypot(dx, dz);
   if (d < 30){ stickVec.x = stickVec.z = 0; return; }
   stickVec.x = dx / d; stickVec.z = dz / d;

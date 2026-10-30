@@ -331,6 +331,8 @@ html.app .sheet{padding-top:calc(env(safe-area-inset-top) + 22px)}
 .tabs button.on{color:var(--gold);background:var(--btn);border-color:var(--gold)}
 .tabpane{display:flex;flex-direction:column;gap:12px;min-height:180px}
 .tabpane[hidden]{display:none}
+.tabsub{display:flex;flex-direction:column;gap:12px}
+.mail h3.about{border-top:1px solid #2e2a48;padding-top:12px;margin-top:8px}
 .keyopt{padding:2px 0}
 .keyopt>span:last-child{display:flex;gap:6px}
 .kbtn{font:13px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);min-width:64px;height:30px;cursor:pointer}
@@ -387,6 +389,12 @@ html.app .sheet{padding-top:calc(env(safe-area-inset-top) + 22px)}
 .nlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.6}
 .nlist li{border-bottom:1px solid #2e2a48;padding-bottom:8px}
 .nlist .at{font-size:12px;color:var(--gold)}.nlist .at b{color:#ff5a6a;font-weight:400}
+.nlist .tt{font-size:15px;color:var(--ink);margin:2px 0 4px}
+.nlist ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+.nlist ul li{border:0;padding:0 0 0 1em;text-indent:-1em;color:#c8c4e0}
+.nlist ul li::before{content:'▸ ';color:var(--gold)}
+.nlist ul li.etc{color:var(--dim);font-size:12px}
+.nlist ul li.etc::before{content:'・ ';color:var(--dim)}
 .mail input,.mail textarea{font:16px var(--px);color:var(--ink);background:var(--btn);border:2px solid var(--edge);padding:8px;border-radius:0;resize:none;-webkit-user-select:text;user-select:text}
 .mail .cnt{text-align:right;margin-top:-8px}
 .mail .note.ok{color:var(--green)}.mail .note.ng{color:var(--red)}

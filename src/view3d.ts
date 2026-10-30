@@ -154,7 +154,7 @@ function draw3d(){
     items.push({ z:q.z, draw:() => {
       oc.save(); oc.globalCompositeOperation = 'lighter'; oc.globalAlpha = .55 * (1 - a); oc.fillStyle = '#ff8a2a'; oc.beginPath(); oc.ellipse(q.x, q.y, 8 * q.s, 8 * q.s * sp, 0, 0, 7); oc.fill();
       oc.globalAlpha = .5 * (1 - a); oc.fillStyle = '#ffe08a'; oc.beginPath(); oc.ellipse(q.x, q.y, 5 * q.s, 5 * q.s * sp, 0, 0, 7); oc.fill(); oc.restore();
-      const w = 15 * q.s, h = 9 * q.s * (1 - a * .35); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
+      const w = 16 * q.s, h = 17 * q.s * (1 - a * .35); oc.globalAlpha = 1 - a * .5; oc.drawImage(flame(seed, Math.min(5, Math.floor(a * 6))), Math.round(q.x - w / 2), Math.round(q.y - h * .92), Math.round(w), Math.round(h)); oc.globalAlpha = 1; } }); });
   // 飛び散る粒（高さつき）
   FX.parts.forEach(pt => { const a = S.t - pt.at; if (a < 0 || a > pt.life) return; const y = Math.max(0, pt.vh * a - pt.g * a * a / 2), q = proj(pt.x + pt.vx * a, y, pt.z + pt.vz * a); if (q.z <= 1) return;
     items.push({ z:q.z, draw:() => { oc.fillStyle = pt.cols[Math.min(pt.cols.length - 1, Math.floor(a / pt.life * pt.cols.length))]; const s = Math.max(1, Math.round(.35 * q.s)); oc.fillRect(Math.round(q.x), Math.round(q.y), s, s); } }); });

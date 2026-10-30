@@ -65,6 +65,12 @@ function renderMenu(){
       `<span class="tpr">${[['r1', 'ルインガ1'], ['h1', 'ハイドラ1'], ['r2', 'ルインガ2'], ['h2', 'ハイドラ2']].map(([k, n]) => cell(pl.take[k], n)).join('')}</span></button>`).join(''); // 出典（だれの記録か）は出さない（2026-10-21 ユーザー。tankplan.ts の src に残す）
     return;
   }
+  if (S.menu === 'view'){
+    head.innerHTML = ph(`${mech().name}の見え方`);
+    note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
+    $('menuList').innerHTML = VIEWS.map(([, name, sub], i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}"><span>${name}</span><small>${ph(sub)}</small></button>`).join('');
+    return;
+  }
   if (S.menu === 'orchn'){
     head.innerHTML = ph(`${job().name}（${mySlot()}）`);
     note.innerHTML = ph('十字で選んで|A／STARTで開始（Bでもどる）');
@@ -81,7 +87,7 @@ function renderMenu(){
   const L = menuMechs();
   $('menuList').innerHTML = L.map((m, i) => `<button type="button" data-i="${i}" class="${i === S.cursor ? 'cur' : ''}${(m as any).wip ? ' wip' : ''}"><span>${m.name}</span><small>${ph(m.sub)}</small><span class="i" data-info="${m.id}" role="button" aria-label="${m.name}の解説">i</span></button>`).join('');
 }
-function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : S.menu === 'missm' ? MISS_METHODS.length : S.menu === 'tplan' ? PLANS.length : 1; }
+function menuCount(){ return S.menu === 'omake' ? OMAKE.length + 1 : S.menu === 'mech' ? menuMechs().length : S.menu === 'phase' ? PHASES.length : S.menu === 'job' ? JOB_ORDER.length : S.menu === 'slot' ? job().slots.length : S.menu === 'orchn' ? 2 : S.menu === 'missm' ? MISS_METHODS.length : S.menu === 'tplan' ? PLANS.length : S.menu === 'view' ? VIEWS.length : 1; }
 const infoTarget = () => S.phase === 'done' ? mech().id : S.phase === 'menu' && !titleOn && S.menu === 'mech' && S.cursor < menuMechs().length ? menuMechs()[S.cursor].id : null;
 function openJobs(){ S.menu = 'job'; S.cursor = Math.max(0, JOB_ORDER.indexOf(opt.job)); renderMenu(); }
 // フェーズ選択を開く。at：カーソルを置く項目（省略時は前に選んだフェーズ）
@@ -98,7 +104,11 @@ function openMissM(){ S.menu = 'missm'; S.cursor = Math.max(0, MISS_METHODS.find
 // P1 のタンク（第二楽章・P1 通し・全通し）は、バフ回しを選ぶ（2026-10-20 ユーザー）
 const needTPlan = () => JOBS[opt.job].role === 'tank' && ['p1b', 'p1', 'full'].includes(mech().id);
 function openTPlan(){ S.menu = 'tplan'; S.cursor = Math.max(0, PLANS.findIndex(p => p.id === opt.tplan)); renderMenu(); }
-const nextStep = () => { if (needOrchN()) openOrchN(); else if (needMissM()) openMissM(); else if (needTPlan()) openTPlan(); else begin(); };
+// エクサは、選んだあとに見え方（真上／3D）を選ぶ（2026-10-30 ユーザー。view3d.ts）
+const VIEWS = [['2d', '真上', 'いつもの見え方'], ['3d', '3D', '実機のように後ろから見る|（スワイプでカメラを回す）']];
+const needView = () => mech().id === 'exa';
+function openView(){ S.menu = 'view'; S.cursor = Math.max(0, VIEWS.findIndex(v => v[0] === opt.view)); renderMenu(); }
+const nextStep = () => { if (needOrchN()) openOrchN(); else if (needMissM()) openMissM(); else if (needTPlan()) openTPlan(); else if (needView()) openView(); else begin(); };
 function menuConfirm(i = S.cursor){
   sfx.unlock(); sfx.ok();
   if (S.menu === 'job'){
@@ -121,6 +131,7 @@ function menuConfirm(i = S.cursor){
   if (S.menu === 'orchn'){ opt.orch = i + 1; store.set('orch', opt.orch); applyTitle(); begin(); return; }
   if (S.menu === 'missm'){ opt.miss = MISS_METHODS[i][0]; store.set('miss', opt.miss); begin(); return; }
   if (S.menu === 'tplan'){ opt.tplan = PLANS[i].id; store.set('tplan', opt.tplan); begin(); return; }
+  if (S.menu === 'view'){ opt.view = VIEWS[i][0]; store.set('view', opt.view); begin(); return; }
   if ((L[i] as any).wip){ sfx.back(); return; } // まだ作っていない（P3 の開発中）
   opt.mech = L[i].id; store.set('mech', opt.mech); applyTitle();
   if (L[i].slots && job().slots.length > 1){
@@ -133,7 +144,7 @@ function menuBack(){
   if (S.menu === 'job') return;
   if (S.menu === 'phase'){ openJobs(); sfx.unlock(); sfx.back(); return; }
   if (S.menu === 'mech' || S.menu === 'omake'){ openPhases(S.menu === 'omake' ? 'omake' : opt.phase); sfx.unlock(); sfx.back(); return; }
-  if ((S.menu === 'orchn' || S.menu === 'missm' || S.menu === 'tplan') && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
+  if ((S.menu === 'orchn' || S.menu === 'missm' || S.menu === 'tplan' || S.menu === 'view') && job().slots.length > 1 && mech().slots){ S.menu = 'slot'; S.cursor = Math.max(0, job().slots.indexOf(mySlot())); }
   else { S.menu = 'mech'; S.cursor = Math.max(0, menuMechs().indexOf(mech())); }
   renderMenu(); sfx.unlock(); sfx.back();
 }

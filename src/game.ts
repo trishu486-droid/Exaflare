@@ -1,5 +1,6 @@
 import { mech, menuMechs, phaseOf } from './mechs.js';
 import { S, keys, stickVec, logClear } from './state.js';
+import { on3d, moveDir, follow, resetView } from './view3d.js';
 import { fxReset, fxShiftTime } from './fx.js';
 import { ARENA_R, COUNTDOWN, PLAYER_SPEED } from './config.js';
 import { cv, hurt, misses } from './gfx.js';
@@ -17,7 +18,7 @@ function begin(){
   S.inst = m.create(m.gen());   // 毎回ランダムな新しいパターン
   fxReset(); S.killed = false; S.t0 = S.inst.t0 || 0; S.t = S.t0 - (S.inst.countdown || COUNTDOWN); S.phase = 'count'; S.failAt = null; S.fall = null; S.hits = 0; S.hurtT = -9; misses.clear(); actReset();
   S.player = { ...(S.inst.start || m.start) };
-  S.face = { x:0, z:-1 };
+  S.face = { x:0, z:-1 }; resetView();
   hpReset();
   bgm.use((m as any).bgmKey ?? (phaseOf(m.id) === 'p1' ? m.id : phaseOf(m.id))); // P1〜P4 はフェーズごとの曲（P1 は楽章ごと）。つなぎ目は前のフェーズの曲
   menuBgm.stop(.3); bgm.stop(.05); setTimeout(() => bgm.start(), 60);
@@ -45,7 +46,9 @@ function movePlayer(dt){
   let mx = stickVec.x, mz = stickVec.z;
   if (keys.has('w')) mz -= 1; if (keys.has('s')) mz += 1;
   if (keys.has('a')) mx -= 1; if (keys.has('d')) mx += 1;
-  const len = Math.hypot(mx, mz); if (!len) return;
+  let len = Math.hypot(mx, mz); if (!len) return;
+  // 3D 視点（view3d.ts）：スティックの上＝カメラの奥。カメラは動いた向きへゆっくり回る
+  if (on3d()){ const w = moveDir(mx / len, mz / len); mx = w.x; mz = w.z; len = 1; follow(mx, mz, dt); }
   S.face = { x:mx / len, z:mz / len }; // 最後に動いた向き（P4 の視線の判定）
   let x = S.player.x + mx / len * PLAYER_SPEED * dt, z = S.player.z + mz / len * PLAYER_SPEED * dt;
   // 外周には見えない壁がない：実行中に床の外へ出たら落ちて失敗。カウントダウン中は端で止める

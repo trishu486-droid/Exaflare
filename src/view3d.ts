@@ -21,7 +21,7 @@ const ELEV0 = .62, ELEV_MIN = .06, ELEV_MAX = 1.45;
 const V = { yaw:0, elev:(() => { const v = Number(store.get('cam3dElev2', ELEV0)); return Number.isFinite(v) ? Math.max(ELEV_MIN, Math.min(ELEV_MAX, v)) : ELEV0; })() };
 const OW = 176;                          // 3D を描く解像度（正方形）。キャンバス（288）に拡大する
 // 実機に寄せる（2026-10-30 ユーザー：遠くて広く見えると易しくなる）：自キャラ（胸の高さ LOOK_Y）を画面の真ん中に、距離 DIST（実機の一番引いた所は約20）、視野は狭め
-const KEFKA_K = .6; // ケフカの板の大きさ（真上の絵の何倍か）。実機のスクリーンショットでは自キャラの近くでも画面をふさがない
+const KEFKA_K = .42; // ケフカの板の大きさ（真上の絵の何倍か。2026-10-30 ユーザー：0.6 の 0.7 倍）。実機のスクリーンショットでは自キャラの近くでも画面をふさがない
 const DIST = 17, LOOK_Y = 1.5, FOV = 1.05, HOR = .5, THICK = 3; // カメラから自キャラまでの距離、見る高さ、視野、画面の中心の行、足場の厚み
 const fwdOf = yaw => ({ x:Math.sin(yaw), z:-Math.cos(yaw) });
 const wrap = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };

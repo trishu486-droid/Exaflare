@@ -14,6 +14,8 @@ const EXA = (() => {
   // 実機は判定が先で、爆発の見た目は通信とエフェクトのぶん遅れて出る。判定は着弾の時刻のまま、見た目だけ VIS_DELAY 秒遅らせる
   // 2026-10-30 ユーザー：判定をもう少し早く。見た目の時刻（4.6＋0.1）はそのまま、判定だけ 0.1 秒早めた（4.5）
   const VIS_DELAY = .2;
+  // 外周の予兆は「エクサ設置」の詠唱（約3.9秒）の間だけ出す。1発目の判定まで約0.6秒は何もない（2026-10-30 ユーザー。research-p5-exa.md 4章）
+  const MARK_LEN = 3.9;
   const PATTERNS = { A:[-25, 5], B:[-15, 15], C:[-5, 25] }; // レーン i と i+3
   const END = SET_INTERVAL * 5 + FIRST_HIT + HIT_GAP * (HIT_COUNT - 1) + VIS_DELAY;
   function laneHit(dir, off, k){
@@ -75,7 +77,7 @@ const EXA = (() => {
               const h1 = l.hits[0], h2 = l.hits[1];
               const sx = Math.sign(h2.x - h1.x), sz = Math.sign(h2.z - h1.z);
               if (opt.path && !l.hits[HIT_COUNT - 1].done) l.hits.forEach(h => { if (!h.done) ring(px(h.x), px(h.z), EXA_R * PPY, '#8a7ad0'); });
-              if (t - s.start < FIRST_HIT) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink); // 予兆は場外の発生地点
+              if (t - s.start < MARK_LEN) exaMark(px(l.spawn.x), px(l.spawn.z), sx, sz, blink); // 予兆は場外の発生地点
               l.hits.forEach(h => {
                 const dt = t - h.t - VIS_DELAY;
                 if (dt < 0 || dt > LAVA) return;

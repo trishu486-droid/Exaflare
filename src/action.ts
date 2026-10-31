@@ -113,6 +113,8 @@ function walkTick(dt){
 }
 const hasMit = () => Object.keys(A.buffs).some(id => BUFFS[id].mit && hasBuff(id));
 const hasInvuln = () => Object.keys(A.buffs).some(id => BUFFS[id].invuln && hasBuff(id));
+// フルバフ：ランパートと重いバフ（エクストリームガード・シャドウヴィジル）の両方（P1 のバフ回しの「バフ」の回）
+const hasFull = () => hasBuff('rampart') && Object.keys(A.buffs).some(id => BUFFS[id].heavy && hasBuff(id));
 const hasHeavy = () => Object.keys(A.buffs).some(id => (BUFFS[id].heavy || BUFFS[id].invuln) && hasBuff(id));
 // ボスがターゲット不可の間（P5 通しの開幕）は攻撃できない
 // P3 の決戦中は、自分の組のボスにしか攻撃が通らない（ボスの attackable）
@@ -290,4 +292,4 @@ function drawActFx(){
   }
 }
 
-export { A, curBoss, switchTarget, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasInvuln, hasHeavy, lethalHit, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };
+export { A, curBoss, switchTarget, held, HP, MAX_HP, PARTY_MIT, MIT_PCT, hpReset, onBuff, healerHit, hpTick, enmityHtml, enmityDraw, hpDraw, actReset, hasBuff, hasMit, hasFull, hasInvuln, hasHeavy, lethalHit, canHit, inRange, isMoving, isActing, fxEl, popup, dealDamage, faceBoss, fail, active, pressKey, runGcd, finishGcd, kitSwap, actTick, drawActFx };

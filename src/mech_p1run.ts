@@ -3,7 +3,7 @@ import { TARGET_DPS } from './jobs.js';
 import { opt } from './store.js';
 import { S } from './state.js';
 import { bgm, sfx } from './audio.js';
-import { healerHit, hasMit, hasInvuln } from './action.js';
+import { healerHit, hasFull, hasInvuln } from './action.js';
 import { fxFlash, fxShake } from './fx.js';
 import { hurt, alpha } from './gfx.js';
 import { TH, DPS, dist, TOWER_MOVE } from './p1lib.js';
@@ -12,7 +12,7 @@ import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
-import { HOW, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
+import { HOW, NOGUARD, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1 通し：ばりばりルインガ → 神々の像 第一楽章 → 裁きの光・ハイパードライブ → 第二楽章 → 裁きの光・ハイパードライブ → 第三楽章 → 時間切れ（裁きの光）
@@ -77,7 +77,7 @@ const RUN1 = {
       if (isTank){ // 最初のルインガはどの案も MT が2発とも受ける（受け方は案で違う）
         const [who, how] = taker('r1');
         if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目：${who} が受けなかった` : 'ばりばりルインガ2発目：挑発しない（1発目のあとは ST が挑発して、MT がヘイト2位で受ける）');
-        else if (me === who && !guarded(how, hasInvuln, hasMit)) hurt(`ばりばりルインガ${n}発目を${HOW[how]}なしで受けた`);
+        else if (me === who && !guarded(how, hasInvuln, hasFull)) hurt(`ばりばりルインガ${n}発目を${NOGUARD[how]}なしで受けた`);
         else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（挑発が早い。1発目は ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
         else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
@@ -95,7 +95,7 @@ const RUN1 = {
         const [who, how] = taker(g === GAPS[0] ? 'h1' : 'h2');
         if (isTank && me === who && tk !== me) hurt(`ハイパードライブ（${j + 1}発目）を受けなかった（受けるのは ${who}。ヘイト1位に）`);
         else if (isTank && me !== who && tk === me) hurt(`ハイパードライブ（${j + 1}発目）を受けた（受けるのは ${who}）`);
-        else if (tk === me && !guarded(how, hasInvuln, hasMit)) hurt(`${HOW[how]}なしでハイパードライブ（${j + 1}発目）を受けた`);
+        else if (tk === me && !guarded(how, hasInvuln, hasFull)) hurt(`${NOGUARD[how]}なしでハイパードライブ（${j + 1}発目）を受けた`);
         if (tk !== me && dist(S.player, tq) <= HYPER_R) hurt('ハイパードライブ（タンクのまわりの範囲）に巻き込まれた');
         hyperShow = { t:S.t, x:tq.x, z:tq.z };
         sfx.big(); fxShake(2, .2);

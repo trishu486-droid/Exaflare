@@ -2,14 +2,14 @@
 import { mySlot } from './jobs.js';
 import { S, shuffle, pick } from './state.js';
 import { sfx } from './audio.js';
-import { A, healerHit, hasInvuln, hasMit } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
+import { A, healerHit, hasInvuln, hasFull } from './action.js'; // ダメージの数字はユーザーの軽減表（P1_ケフカ）から
 import { FXC, fxAdd, fxFlash, fxShake, fxParts } from './fx.js';
 import { P, PPY, ctx, alpha, disc, ring, rect, line, hurt, px, fillArena } from './gfx.js';
 import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, busterMark, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
-import { R2_AT, HOW, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
+import { R2_AT, HOW, NOGUARD, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -145,7 +145,7 @@ const P1B = {
       if (me === 'MT' || me === 'ST'){
         const [who, how] = R2, other = who === 'MT' ? 'ST' : 'MT';
         if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目を受けなかった（1発目の前に挑発してヘイト1位に）` : `ばりばりルインガ2発目を受けなかった（1発目のあとは ${other} が挑発して、あなたがヘイト2位で受ける）`);
-        else if (me === who && !guarded(how, hasInvuln, hasMit)) hurt(`ばりばりルインガ${n}発目を${HOW[how]}なしで受けた`);
+        else if (me === who && !guarded(how, hasInvuln, hasFull)) hurt(`ばりばりルインガ${n}発目を${NOGUARD[how]}なしで受けた`);
         else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（受けるのは ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
         else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }

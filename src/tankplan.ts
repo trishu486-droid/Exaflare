@@ -46,8 +46,9 @@ function hateTop(t, me, toRun){
 }
 // 受ける人と受け方（key：r1・h1・r2・h2）
 const taker = key => plan().take[key];
-// 受けた人がちゃんと守れているか（inv：無敵が要る、buff：無敵か軽減）
-const guarded = (how, hasInvuln, hasMit) => how === 'inv' ? hasInvuln() : hasInvuln() || hasMit();
+// 受けた人がちゃんと守れているか（inv：無敵が要る、buff：無敵かフルバフ＝X ランパートと Y 重いバフの両方。2026-10-31 ユーザー）
+const guarded = (how, hasInvuln, hasFull) => how === 'inv' ? hasInvuln() : hasInvuln() || hasFull();
+const NOGUARD = { buff:'フルバフ（ランパート＋重いバフ）', inv:'無敵' }; // ミスの文
 // 自分の次の挑発・シャーク（B ボタンの中身を決める）。なければ挑発
 function nextHate(t, me){ const e = plan().ev.find(e => e.k === me && e.t > t - 3); return e?.a === 'shirk' ? 'shirk' : 'prov'; }
 // B をシャークにする時間を決めるのに使う（2026-10-29 ユーザー：B は挑発かシャークだけ。切り替えのカットインは action.ts の kitSwap）
@@ -69,4 +70,4 @@ function tankHint(t, me){
 const invWindow = (t, me) => BUSTERS.some(b => taker(b.key)[0] === me && taker(b.key)[1] === 'inv' && t >= b.at - 8 && t < b.at + (b.n - 1) * 3 + 1);
 // P1 のタンクのボタン（jobs.ts の tankRole）：B は挑発（シャークの少し前だけシャーク）、Y は無敵の回の前だけ無敵
 const p1TankRole = (t, me) => (me !== 'MT' && me !== 'ST') ? 'P' : (mitWindow(t, me) && nextHate(t, me) === 'shirk' ? 'S' : 'P') + (invWindow(t, me) ? 'i' : '');
-export { PLANS, BUSTERS, R2_AT, HOW, plan, hateTop, taker, guarded, nextHate, tankHint, mitWindow, invWindow, p1TankRole };
+export { PLANS, BUSTERS, R2_AT, HOW, NOGUARD, plan, hateTop, taker, guarded, nextHate, tankHint, mitWindow, invWindow, p1TankRole };

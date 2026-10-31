@@ -256,7 +256,8 @@ function drawButtons(){
       setBtn(BTN[k], k.toUpperCase(), ab.name, gcdP, run && gcdP === 0 && !A.cast && (!ab.step || next), run && !!ab.step && A.combo > 0 && next);
       return;
     }
-    if (ab.none){ setBtn(BTN[k], k.toUpperCase(), '', 0, false); return; } // 使わないボタン（P3 のタンクの B）
+    BTN[k].classList.toggle('none', !!ab.none);
+    if (ab.none){ setBtn(BTN[k], k.toUpperCase(), '', 0, false); return; } // 使わないボタン（P3 のタンクの B）：灰色
     const left = run && !ab.sunsign ? Math.max(0, A.cds[k] - S.t) : 0;
     setBtn(BTN[k], left > 0 ? String(Math.ceil(left)) : k.toUpperCase(), ab.name, Math.max(ab.cd ? left / ab.cd : 0, ab.gcd ? gcdP : 0), run && left === 0 && !(ab.gcd && (gcdP > 0 || A.cast)), run && !!ab.self);
   });

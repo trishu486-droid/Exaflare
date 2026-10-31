@@ -26,7 +26,7 @@ function rebuildKeys(){
   Object.entries(keyBind).forEach(([act, ks]) => ks.forEach(k => { if (k && !keyOf[k]) keyOf[k] = act; }));
   renderHelp();
 }
-const keyLabel = k => ({ ' ':'Space', arrowup:'↑', arrowdown:'↓', arrowleft:'←', arrowright:'→', escape:'Esc', enter:'Enter', shift:'Shift', control:'Ctrl', alt:'Alt', tab:'Tab', backspace:'BS' })[k] || (k.length === 1 ? k.toUpperCase() : k);
+const keyLabel = k => ({ mouse4:'マウス戻る', mouse5:'マウス進む', ' ':'Space', arrowup:'↑', arrowdown:'↓', arrowleft:'←', arrowright:'→', escape:'Esc', enter:'Enter', shift:'Shift', control:'Ctrl', alt:'Alt', tab:'Tab', backspace:'BS' })[k] || (k.length === 1 ? k.toUpperCase() : k);
 const keysText = act => keyBind[act].filter(Boolean).map(keyLabel).join('/') || '－';
 function renderHelp(){
   const kb = act => `<kbd>${keysText(act)}</kbd>`;
@@ -98,6 +98,14 @@ window.addEventListener('keydown', e => {
 }, true);
 $('keyReset').addEventListener('click', () => { keyBind = { ...KEY_DEFAULT }; keyWait = null; store.set('keys', null); rebuildKeys(); renderKeyOpts(); });
 rebuildKeys(); renderKeyOpts();
+// マウスの横のボタン（戻る・進む）：キーの 'mouse4'・'mouse5' として扱う（設定でキーと同じように割り当てる。2026-10-31 ユーザー）
+// ブラウザの「戻る・進む」が動かないように、押した・離したの両方で止める
+const SIDE = { 3:'mouse4', 4:'mouse5' };
+['mousedown', 'mouseup', 'auxclick'].forEach(type => window.addEventListener(type, (e: MouseEvent) => {
+  const key = SIDE[e.button]; if (!key) return;
+  e.preventDefault();
+  if (type !== 'auxclick') window.dispatchEvent(new KeyboardEvent(type === 'mousedown' ? 'keydown' : 'keyup', { key, bubbles:true }));
+}));
 window.addEventListener('blur', () => { keys.clear(); stickVec.x = stickVec.z = 0; held.a = held.b = held.x = held.y = false; });
 
 // ===== 入力：タッチ・マウス（スティックとボタンは同時に操作できる） =====

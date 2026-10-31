@@ -298,6 +298,8 @@ canvas:focus{outline:none}
 .round.art.cd b{left:50%;top:50%;transform:translate(-50%,-62%);font-size:20px}
 .round.art small{background:rgba(10,6,20,.72);padding:1px 2px;border-radius:3px;max-width:46px;color:#fff;text-shadow:none}
 .round{position:relative}
+/* 使わないボタン（P3 のタンクの B など）：灰色で押せない見た目 */
+.round.none{background:#5a5866;border-color:#3e3d48;color:#9a98a8;box-shadow:inset -4px -4px 0 rgba(0,0,0,.25);cursor:default}
 /* コンボの次の段：実機と同じく黄色い点線で囲み、点線が流れる */
 .round.combo{border-color:#ffd84a}
 .round.combo::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:3px dashed #ffd84a;pointer-events:none;animation:comboSpin 1.6s linear infinite;filter:drop-shadow(0 0 2px #000)}

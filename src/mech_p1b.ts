@@ -139,16 +139,16 @@ const P1B = {
       halfShow = { t:S.t, east }; sfx.big(); fxShake(3, .3);
     };
     const cleave = n => {
-      // 2発とも、詠唱が始まった時のヘイト1位へ（詠唱中のスイッチでは変わらない。2026-10-31 ユーザー）
-      const tank = hateTop(T.ruin1Cast);
+      // 1発目は詠唱が始まった時のヘイト1位、2発目はその時のヘイト2位へ（2026-10-31 ユーザー）
+      const tank = n === 1 ? hateTop(T.ruin1Cast) : hateTop(now()) === 'MT' ? 'ST' : 'MT';
       const tq = pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (me !== 'MT' && me !== 'ST' && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
       if (me === 'MT' || me === 'ST'){
         const [who, how] = R2;
-        if (me === who && tank !== me){ if (n === 1) hurt('ばりばりルインガを受けなかった（詠唱が始まる前に挑発して、ヘイト1位に）'); }
+        if (me === who && tank !== me) hurt(n === 1 ? 'ばりばりルインガ1発目を受けなかった（詠唱が始まる前に挑発して、ヘイト1位に）' : 'ばりばりルインガ2発目を受けなかった（詠唱中に相方が挑発して、あなたがヘイト2位で受ける。挑発し返さない）');
         else if (me === who && !guarded(how, hasInvuln, hasFull)) hurt(`ばりばりルインガ${n}発目を${NOGUARD[how]}なしで受けた`);
-        else if (me !== who && tank === me){ if (n === 1) hurt(`ばりばりルインガを受けた（受けるのは ${who}。詠唱が始まる前に ${who} へスイッチ）`); }
+        else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（受けるのは ${who}。詠唱が始まる前に ${who} へスイッチ）` : `ばりばりルインガ2発目を受けた（詠唱中に挑発して、${who} をヘイト2位に）`);
         else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
       cleaveShow = { t:S.t, u }; sfx.big();

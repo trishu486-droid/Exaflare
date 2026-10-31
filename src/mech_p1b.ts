@@ -9,7 +9,7 @@ import { makeP4Fx } from './p4fx.js';
 import { SLOTS, TH, DPS, isTH, dist, add, at, OFF, MARKERS, makeRoutes, stepBots, BOT_SPEED, drawBot,
   iceHit, rollMystery, drawTell, icePts, kefkaOrbs, statueScreenBg, towerRumble, TOWER_MOVE, statueLights, clearOutside, tether } from './p1lib.js';
 import { arrowPlate, busterMark, puddle, TRAP_COLS, statuePt, topTether, topGlow, bigOrb, ruingaFx, RUINGA_DUR } from './p1lib.js';
-import { R2_AT, HOW, NOGUARD, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
+import { R2_AT, HOW, NOGUARD, SHIRK_MISS, hateRun, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1（ケフカ）：神々の像（2回目）〜 グラビガ 〜 つぎつぎトラップ（2回目）。docs/dmu/research-p1.md §3
@@ -58,7 +58,9 @@ const P1B = {
     // ヘイト：バフ回しの案（tankplan.ts）。時刻は P1 通しの時刻に直して見る（第二楽章の 0 ＝ 51）
     const now = () => S.t - (p.off || 0); // このギミックの時刻（P1 通しでは p.off だけずれる）
     const toRun = st => st - (p.off || 0) + R2_AT;
-    const hateTop = t => planTop(t + R2_AT, me, toRun);
+    // 第二楽章だけのときは、始まる前（P1 通しの 51 より前）の自分の挑発・シャークは表のとおり
+    const from = p.off ? -Infinity : R2_AT;
+    const hateTop = t => planTop(t + R2_AT, me, toRun, from);
     const half2Spot = k => k === 'MT' || k === 'ST' ? add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8)) : add({ x:halfSafeX(p.half2East) * 3.2, z:0 }, OFF(k, .8));
     // ⑤ つぎつぎトラップ（2回目）：タンヒラの組は西で北の沼へ、DPS は東で南の沼へ飛ぶ
     const holderOf = k => isTH(k) ? p.trapT : p.trapD;
@@ -137,21 +139,21 @@ const P1B = {
       halfShow = { t:S.t, east }; sfx.big(); fxShake(3, .3);
     };
     const cleave = n => {
-      // 1発目はヘイト1位、2発目はヘイト2位へ
-      const top = hateTop(now()), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
+      // 2発とも、詠唱が始まった時のヘイト1位へ（詠唱中のスイッチでは変わらない。2026-10-31 ユーザー）
+      const tank = hateTop(T.ruin1Cast);
       const tq = pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (me !== 'MT' && me !== 'ST' && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
       if (me === 'MT' || me === 'ST'){
-        const [who, how] = R2, other = who === 'MT' ? 'ST' : 'MT';
-        if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目を受けなかった（1発目の前に挑発してヘイト1位に）` : `ばりばりルインガ2発目を受けなかった（1発目のあとは ${other} が挑発して、あなたがヘイト2位で受ける）`);
+        const [who, how] = R2;
+        if (me === who && tank !== me){ if (n === 1) hurt('ばりばりルインガを受けなかった（詠唱が始まる前に挑発して、ヘイト1位に）'); }
         else if (me === who && !guarded(how, hasInvuln, hasFull)) hurt(`ばりばりルインガ${n}発目を${NOGUARD[how]}なしで受けた`);
-        else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（受けるのは ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
+        else if (me !== who && tank === me){ if (n === 1) hurt(`ばりばりルインガを受けた（受けるのは ${who}。詠唱が始まる前に ${who} へスイッチ）`); }
         else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
-    let lastT = null; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
+    let lastT = null, shirkMiss = 0; // null：まだ動いていない（P1 通しでは負の時刻から動き出す）
     const fired = new Set();
     const events: [number, () => void][] = [
       // 神々の像の詠唱の手前で、塔が中段へ上る：ゴゴゴゴ（p1lib の towerRumble）
@@ -200,7 +202,7 @@ const P1B = {
     return {
       // ヒーラーの HP の減り方は P4 と同じ（味方の軽減の分で 0.45 倍）
       bossR:6, bossArt:'kefka', markers:MARKERS, healEase: () => .45, start:{ ...startSpot(me) }, end:T.end,
-      intro:me === R2[0] ? `あなたは ${me}（ルインガ2発：1発目の前に挑発＋${HOW[R2[1]]}）` : me === 'MT' || me === 'ST' ? `あなたは ${me}（ルインガ：1発目のあとに挑発）` : `あなたは ${me}`,
+      intro:me === R2[0] ? `あなたは ${me}（ルインガ2発：詠唱の前にヘイト1位で＋${HOW[R2[1]]}）` : me === 'MT' || me === 'ST' ? `あなたは ${me}（ルインガは ${R2[0]}。スイッチは挑発とシャークのセット）` : `あなたは ${me}`,
       tankRole: t => p1TankRole(toRun(t), me), // シャークの少し前だけ B がシャーク、無敵の回の前だけ Y が無敵
       tankHint: t => tankHint(toRun(t), me),
       enmity: t => ['MT', 'ST'].map(k => ({ k, top:k === hateTop(t), me:k === me })),
@@ -215,6 +217,8 @@ const P1B = {
       tick(t){
         const dt = lastT == null ? 0 : Math.max(0, t - lastT); lastT = t;
         stepBots(bots, botGoal, t, dt); tickKb(t);
+        // 相方に挑発されたのにシャークしなかった（P1 通しのときは通しの方で見る）
+        if (!p.off && (me === 'MT' || me === 'ST')){ const m = hateRun(toRun(t), me, toRun, from).miss.length; if (m > shirkMiss){ shirkMiss = m; hurt(SHIRK_MISS); } }
         events.forEach(([et, fn], i) => { if (t >= et && !fired.has(i)){ fired.add(i); fn(); } });
       },
       status,
@@ -240,7 +244,7 @@ const P1B = {
         bots.forEach(drawBot);
         efx.draw();
         // ばりばりルインガの詠唱中：ヘイト1位の頭上に強攻撃のマーカー（1発目の前だけ）
-        if (t >= T.ruin1Cast && t < T.ruin1) busterMark(pos(hateTop(t)));
+        if (t >= T.ruin1Cast && t < T.ruin1) busterMark(pos(hateTop(T.ruin1Cast)));
       },
       // 上の層：線はどれも黄色い細い線（実機）。出どころで見分ける：渦の柱の上の紫の光＝重力弾（沼を捨てる）、像の手の光＝岩石弾（岩を捨てる）
       // 重力弾の線は沼を捨てたら（重力弾の着弾で）消える（ユーザーの指摘 2026-10-14・15）

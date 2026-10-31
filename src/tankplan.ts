@@ -1,11 +1,13 @@
 // @ts-nocheck
 // =====================================================================
 // P1 のタンクのバフ回し（4通り。docs/dmu/research-p1.md 10章。2026-10-20 ユーザー）
-// P1 のタンク強攻撃は4回：ばりばりルインガ1（MT が2発とも）→ ハイパードライブ1 → ルインガ2 → ハイパードライブ2
-//   ルインガ：1発目はヘイト1位、2発目はヘイト2位へ（受ける人は、1発目の前に1位で、1発目のあと相方の挑発で2位に）
+// P1 のタンク強攻撃は4回：ばりばりルインガ1 → ハイパードライブ1 → ルインガ2 → ハイパードライブ2
+//   ルインガ：詠唱が始まった時のヘイト1位に2発とも（頭上に赤いマーカー。詠唱中に挑発しても相手は変わらない。2026-10-31 ユーザー）
 //   ハイパードライブ：ヘイト1位に3発
 // 時刻は P1 通しの時刻（第一楽章の 0）。第二楽章だけで遊ぶときは、第二楽章の時刻 + 51 で同じ表を使う
-// ヘイト：はじめは MT が1位。挑発した人が1位になり、1位の人がシャークすると相方が1位になる
+// ヘイト：はじめは MT が1位。スイッチは挑発とシャークのセット（2026-10-31 ユーザー）：
+//   挑発した人が1位になり、抜かれた人がシャークする。シャークしないと SHIRK_GRACE 秒でヘイトを取り返す
+//   1位の人がシャークすると相方が1位になる
 // =====================================================================
 import { A } from './action.js';
 import { opt } from './store.js';
@@ -17,33 +19,60 @@ const BUSTERS = [
   { key:'h2', name:'ハイドラ2', at:111.6, n:3 },
 ];
 const R2_AT = 51; // 第二楽章の 0（P1 通しの時刻）
-// どの案も、ルインガ1 は MT が2発とも受ける（ST が1発目のあとに挑発）
-const BASE = [{ t:-7.8, k:'ST', a:'prov' }];
+const other = k => k === 'MT' ? 'ST' : 'MT';
+// スイッチ [時刻, 挑発する人]：挑発のすぐあとに相方がシャーク
+// [時刻, 挑発する人, 'keep']：シャークがまだ戻っていないので挑発だけ（抜かれた人はスタンスを外す扱い。取り返さない。2026-10-31 ユーザー）
+const sw = (...a) => a.flatMap(([t, to, keep]) => keep ? [{ t, k:to, a:'prov', keep:true }] : [{ t, k:to, a:'prov' }, { t:t + .6, k:other(to), a:'shirk' }]);
+// ルインガの詠唱：1回目 -13.4〜-8.4、2回目 68.1〜73.1。受ける人は詠唱の前に1位にしておき、次の人へのスイッチは詠唱中にする
 const PLANS = [
   { id:'a', name:'前2回バフ・後2回無敵（ST 無敵が先）', src:'Yama Sea（ST ナイト）の基本順',
     take:{ r1:['MT', 'buff'], h1:['ST', 'buff'], r2:['ST', 'inv'], h2:['MT', 'inv'] },
-    ev:[...BASE, { t:69.1, k:'ST', a:'prov' }, { t:73.7, k:'MT', a:'prov' }] },
+    ev:sw([-11, 'ST'], [70, 'MT']) },
   { id:'b', name:'前2回バフ・後2回無敵（MT 無敵が先）', src:'Taisa（MT ナイト）',
     take:{ r1:['MT', 'buff'], h1:['ST', 'buff'], r2:['MT', 'inv'], h2:['ST', 'inv'] },
-    ev:[...BASE, { t:69.1, k:'MT', a:'prov' }, { t:73.7, k:'ST', a:'prov' }] },
+    ev:sw([-11, 'ST'], [62, 'MT'], [70, 'ST', 'keep']) }, // MT のシャークは -10 から 120 秒戻らない
   { id:'c', name:'ルインガ2 だけ無敵（MT）', src:'Yuki（MT ナイト・ST 暗黒）',
     take:{ r1:['MT', 'buff'], h1:['ST', 'buff'], r2:['MT', 'inv'], h2:['MT', 'buff'] },
-    ev:[...BASE, { t:69.1, k:'MT', a:'prov' }, { t:73.7, k:'ST', a:'prov' }, { t:106, k:'ST', a:'shirk' }] },
+    ev:sw([-11, 'ST'], [62, 'MT']) },
   { id:'d', name:'MT が前2回・ST が後2回', src:'いおべる',
     take:{ r1:['MT', 'inv'], h1:['MT', 'buff'], r2:['ST', 'buff'], h2:['ST', 'inv'] },
-    ev:[...BASE, { t:35, k:'ST', a:'shirk' }, { t:69.1, k:'ST', a:'prov' }, { t:73.7, k:'MT', a:'prov' }, { t:106, k:'MT', a:'shirk' }] },
+    ev:sw([62, 'ST']) },
 ];
 const plan = () => PLANS.find(p => p.id === opt.tplan) || PLANS[0];
 const HOW = { buff:'バフ', inv:'無敵' };
 
-// ヘイト1位（t：P1 通しの時刻、me：自分の担当、toRun：S.t を P1 通しの時刻に直す関数）
-// 味方のタンクは表のとおりに動く。自分の分は表を使わず、自分が押した挑発・シャーク（A.hateLog）を使う
-function hateTop(t, me, toRun){
-  const ev = [...plan().ev.filter(e => e.k !== me), ...(A.hateLog || []).map(h => ({ t:toRun(h.t), k:me, a:h.a }))].filter(e => e.t <= t).sort((a, b) => a.t - b.t);
-  let top = 'MT';
-  ev.forEach(e => { if (e.a === 'prov') top = e.k; else if (e.a === 'shirk' && top === e.k) top = e.k === 'MT' ? 'ST' : 'MT'; });
-  return top;
+const SHIRK_GRACE = 4; // 挑発されてからシャークするまでの猶予（秒）
+// ヘイトの流れ（t：P1 通しの時刻、me：自分の担当、toRun：S.t を P1 通しの時刻に直す関数、from：自分が操作を始めた時刻）
+// 味方のタンクは表のとおりに挑発し、自分が挑発したらすぐシャークする。自分の分は、from より前は表、あとは自分が押した挑発・シャーク（A.hateLog）
+// 返り値：top（t の時のヘイト1位）、miss（自分が挑発されたのにシャークせず、ヘイトを取り返した時刻）
+function hateRun(t, me, toRun, from = -Infinity){
+  const tank = me === 'MT' || me === 'ST';
+  const q = tank
+    ? [...plan().ev.filter(e => e.k !== me ? e.a === 'prov' : e.t < from), ...(A.hateLog || []).map(h => ({ t:toRun(h.t), k:me, a:h.a })).filter(e => e.t >= from)]
+    : [...plan().ev];
+  let top = 'MT', owe = null;
+  const miss = [];
+  for (;;){
+    q.sort((a, b) => a.t - b.t);
+    const e = q.shift();
+    if (!e || e.t > t) break;
+    if (e.a === 'prov' && top !== e.k){
+      // 挑発だけのスイッチ（keep）の近くなら、抜かれた人はシャークしなくてよい
+      const keep = plan().ev.some(s => s.keep && s.k === e.k && Math.abs(s.t - e.t) < 5);
+      if (!keep){
+        owe = { k:top, at:e.t + SHIRK_GRACE }; q.push({ t:owe.at, k:top, a:'back' });
+        if (tank && top !== me) q.push({ t:e.t + .6, k:top, a:'shirk' }); // 味方は自分の挑発のあとにシャーク
+      }
+      top = e.k;
+    } else if (e.a === 'shirk'){
+      if (top === e.k) top = other(e.k);
+      if (owe?.k === e.k) owe = null;
+    } else if (e.a === 'back' && owe?.k === e.k && owe.at === e.t){ top = e.k; owe = null; if (e.k === me) miss.push(e.t); }
+  }
+  return { top, miss };
 }
+const hateTop = (t, me, toRun, from) => hateRun(t, me, toRun, from).top;
+const SHIRK_MISS = '相方の挑発のあとシャークしなかった（ヘイトを取り返した。スイッチは挑発とシャークのセット）';
 // 受ける人と受け方（key：r1・h1・r2・h2）
 const taker = key => plan().take[key];
 // 受けた人がちゃんと守れているか（inv：無敵が要る、buff：無敵かフルバフ＝X ランパートと Y 重いバフの両方。2026-10-31 ユーザー）
@@ -70,4 +99,4 @@ function tankHint(t, me){
 const invWindow = (t, me) => BUSTERS.some(b => taker(b.key)[0] === me && taker(b.key)[1] === 'inv' && t >= b.at - 8 && t < b.at + (b.n - 1) * 3 + 1);
 // P1 のタンクのボタン（jobs.ts の tankRole）：B は挑発（シャークの少し前だけシャーク）、Y は無敵の回の前だけ無敵
 const p1TankRole = (t, me) => (me !== 'MT' && me !== 'ST') ? 'P' : (mitWindow(t, me) && nextHate(t, me) === 'shirk' ? 'S' : 'P') + (invWindow(t, me) ? 'i' : '');
-export { PLANS, BUSTERS, R2_AT, HOW, NOGUARD, plan, hateTop, taker, guarded, nextHate, tankHint, mitWindow, invWindow, p1TankRole };
+export { PLANS, BUSTERS, R2_AT, HOW, NOGUARD, SHIRK_MISS, plan, hateRun, hateTop, taker, guarded, nextHate, tankHint, mitWindow, invWindow, p1TankRole };

@@ -12,7 +12,7 @@ import { A } from './action.js';
 import { P1A } from './mech_p1a.js';
 import { P1B } from './mech_p1b.js';
 import { P1C } from './mech_p1c.js';
-import { HOW, NOGUARD, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
+import { HOW, NOGUARD, SHIRK_MISS, hateRun, hateTop as planTop, taker, guarded, tankHint, p1TankRole } from './tankplan.js';
 
 // =====================================================================
 // P1 通し：ばりばりルインガ → 神々の像 第一楽章 → 裁きの光・ハイパードライブ → 第二楽章 → 裁きの光・ハイパードライブ → 第三楽章 → 時間切れ（裁きの光）
@@ -70,22 +70,23 @@ const RUN1 = {
     let cleaveShow = null, hyperShow = null;
     const JUDGES = [...GAPS.map(g => g.judge), ENRAGE.at];
     const ruinga = n => {
-      const top = hateTop(S.t), tank = n === 1 ? top : top === 'MT' ? 'ST' : 'MT';
+      // 2発とも、詠唱が始まった時のヘイト1位へ（詠唱中のスイッチでは変わらない。2026-10-31 ユーザー）
+      const tank = hateTop(OPEN.cast);
       const tq = tank === me ? S.player : segs[0]._debug.pos(tank), d = Math.hypot(tq.x, tq.z) || 1, u = { x:tq.x / d, z:tq.z / d };
       const inCone = q => { const r = Math.hypot(q.x, q.z); return r > .5 && (q.x * u.x + q.z * u.z) / r >= Math.cos(CLEAVE_HALF * Math.PI / 180); };
       if (!isTank && inCone(S.player)) hurt('ばりばりルインガ（タンク強攻撃の扇）に当たった');
       if (isTank){ // 最初のルインガはどの案も MT が2発とも受ける（受け方は案で違う）
         const [who, how] = taker('r1');
-        if (me === who && tank !== me) hurt(n === 1 ? `ばりばりルインガ1発目：${who} が受けなかった` : 'ばりばりルインガ2発目：挑発しない（1発目のあとは ST が挑発して、MT がヘイト2位で受ける）');
+        if (me === who && tank !== me){ if (n === 1) hurt(`ばりばりルインガを受けなかった（詠唱が始まる時にヘイト1位でいる）`); }
         else if (me === who && !guarded(how, hasInvuln, hasFull)) hurt(`ばりばりルインガ${n}発目を${NOGUARD[how]}なしで受けた`);
-        else if (me !== who && tank === me) hurt(n === 1 ? `ばりばりルインガ1発目を受けた（挑発が早い。1発目は ${who}）` : `ばりばりルインガ2発目を受けた（1発目のあとに挑発して、${who} をヘイト2位に）`);
+        else if (me !== who && tank === me){ if (n === 1) hurt(`ばりばりルインガを受けた（受けるのは ${who}。挑発は詠唱が始まってから）`); }
         else if (me !== who && inCone(S.player) && dist(S.player, tq) > 3) hurt(`ばりばりルインガ：${who} の扇に入った`);
       }
       cleaveShow = { t:S.t, u }; sfx.big();
     };
     const idx = t => t < SWITCH[0] ? 0 : t < SWITCH[1] ? 1 : 2;
     const call = (f, t, ...a) => { const i = idx(t); return segs[i][f]?.(t - AT[i], ...a); };
-    let cur = 0, music = 0;
+    let cur = 0, music = 0, shirkMiss = 0;
     const fired = new Set();
     const events = [[OPEN.hit[0], () => ruinga(1)], [OPEN.hit[1], () => ruinga(2)]];
     GAPS.forEach(g => {
@@ -130,6 +131,7 @@ const RUN1 = {
         }
         if (music < MUSIC.length && t >= MUSIC[music].at){ bgm.stop(1); bgm.use(MUSIC[music].key); setTimeout(() => { if (S.inst === self && S.phase === 'run') bgm.start(); }, 400); music++; }
         segs[i].tick(t - AT[i]);
+        if (isTank){ const m = hateRun(t, me, st => st).miss.length; if (m > shirkMiss){ shirkMiss = m; hurt(SHIRK_MISS); } }
         events.forEach(([et, fn], j) => { if (t >= et && !fired.has(j)){ fired.add(j); fn(); } });
       },
       safeActive: t => !!call('safeActive', t),
@@ -146,7 +148,7 @@ const RUN1 = {
       draw(t){
         call('draw', t);
         // ばりばりルインガの詠唱中：ヘイト1位の頭上に強攻撃のマーカー
-        if (t >= OPEN.cast && t < OPEN.hit[0]){ const k = hateTop(S.t); busterMark(k === me ? S.player : segs[idx(S.t)]._debug.pos(k)); }
+        if (t >= OPEN.cast && t < OPEN.hit[0]){ const k = hateTop(OPEN.cast); busterMark(k === me ? S.player : segs[idx(S.t)]._debug.pos(k)); }
       },
       drawTop(t, g){
         call('drawTop', t, g);
